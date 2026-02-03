@@ -11,28 +11,56 @@ import { ArrowUp, ArrowDown, Eye, EyeOff, GripVertical, ExternalLink } from "luc
 function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [user, setUser] = useState<any>(null);
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
 
-  // Form States
+  // Visual State
   const [bannerUrl, setBannerUrl] = useState("");
   const [backgroundUrl, setBackgroundUrl] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [accentColor, setAccentColor] = useState("indigo");
+  
+  // Theme Engine
+  const [selectedFont, setSelectedFont] = useState("inter");
+  const [nameEffect, setNameEffect] = useState("solid");
+  const [nameColor, setNameColor] = useState("white");
+
+  // Socials State
   const [xbox, setXbox] = useState("");
   const [epic, setEpic] = useState("");
   const [discord, setDiscord] = useState("");
   const [twitter, setTwitter] = useState("");
   const [instagram, setInstagram] = useState("");
+  
   const [widgets, setWidgets] = useState([
     { id: "hero", label: "Recent Activity (Hero)", enabled: true },
     { id: "stats", label: "Stats Overview", enabled: true },
     { id: "socials", label: "Linked Accounts", enabled: true },
     { id: "library", label: "Game Library", enabled: true },
   ]);
+
+  // Gradients for UI
+  const gradients = [
+    { name: "Sunset", class: "from-orange-400 to-pink-600" },
+    { name: "Ocean", class: "from-cyan-400 to-blue-600" },
+    { name: "Poison", class: "from-lime-400 to-emerald-600" },
+    { name: "Royal", class: "from-purple-400 to-indigo-600" },
+    { name: "Fire", class: "from-yellow-400 to-red-600" },
+    { name: "Steel", class: "from-gray-200 to-slate-500" },
+  ];
+
+  // Colors for Solid/Neon
+  const solidColors = [
+    { name: "White", value: "white", hex: "#ffffff" },
+    { name: "Indigo", value: "indigo-500", hex: "#6366f1" },
+    { name: "Pink", value: "pink-500", hex: "#ec4899" },
+    { name: "Cyan", value: "cyan-400", hex: "#22d3ee" },
+    { name: "Emerald", value: "emerald-400", hex: "#34d399" },
+    { name: "Yellow", value: "yellow-400", hex: "#facc15" },
+    { name: "Red", value: "red-500", hex: "#ef4444" },
+  ];
 
   // 1. Check Auth & Fetch Data
   useEffect(() => {
@@ -41,7 +69,6 @@ function DashboardContent() {
         router.push("/login");
         return;
       }
-      setUser(currentUser);
 
       const q = query(collection(db, "users"), where("owner_uid", "==", currentUser.uid));
       const querySnapshot = await getDocs(q);
@@ -55,6 +82,11 @@ function DashboardContent() {
         setBackgroundUrl(data.theme?.background || "");
         setAvatarUrl(data.theme?.avatar || "");
         setAccentColor(data.theme?.color || "indigo");
+        setSelectedFont(data.theme?.font || "inter");
+        
+        setNameEffect(data.theme?.nameEffect || "solid");
+        setNameColor(data.theme?.nameColor || "white");
+
         setXbox(data.gaming?.xbox || "");
         setEpic(data.gaming?.epic || "");
         setDiscord(data.socials?.discord || "");
@@ -93,6 +125,9 @@ function DashboardContent() {
       "theme.background": backgroundUrl,
       "theme.avatar": avatarUrl,
       "theme.color": accentColor,
+      "theme.font": selectedFont,
+      "theme.nameEffect": nameEffect,
+      "theme.nameColor": nameColor,
       "gaming.xbox": xbox,
       "gaming.epic": epic,
       "socials.discord": discord, 
@@ -130,7 +165,6 @@ function DashboardContent() {
     setWidgets(newWidgets);
   };
 
-  // Dynamic URL
   const isDev = process.env.NODE_ENV === 'development';
   const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || (typeof window !== 'undefined' ? window.location.host : 'pulse.gg');
   const isVercel = rootDomain.includes('vercel.app');
@@ -160,18 +194,8 @@ function DashboardContent() {
       <main className="max-w-6xl mx-auto p-4 md:p-6">
         
         <div className="flex gap-4 mb-8 border-b border-zinc-800 overflow-x-auto">
-          <button 
-            onClick={() => setActiveTab("overview")} 
-            className={`pb-3 font-bold text-sm whitespace-nowrap ${activeTab === "overview" ? "text-white border-b-2 border-indigo-500" : "text-zinc-500 hover:text-white"}`}
-          >
-            Accounts & Socials
-          </button>
-          <button 
-            onClick={() => setActiveTab("layout")} 
-            className={`pb-3 font-bold text-sm whitespace-nowrap ${activeTab === "layout" ? "text-white border-b-2 border-indigo-500" : "text-zinc-500 hover:text-white"}`}
-          >
-            Layout & Appearance
-          </button>
+          <button onClick={() => setActiveTab("overview")} className={`pb-3 font-bold text-sm whitespace-nowrap ${activeTab === "overview" ? "text-white border-b-2 border-indigo-500" : "text-zinc-500 hover:text-white"}`}>Accounts & Socials</button>
+          <button onClick={() => setActiveTab("layout")} className={`pb-3 font-bold text-sm whitespace-nowrap ${activeTab === "layout" ? "text-white border-b-2 border-indigo-500" : "text-zinc-500 hover:text-white"}`}>Layout & Appearance</button>
         </div>
 
         {activeTab === "overview" ? (
@@ -186,23 +210,13 @@ function DashboardContent() {
                         </div>
                         <div className="flex-1 min-w-0">
                         <h3 className="font-bold text-white">Steam</h3>
-                        <p className={userData?.steamId ? "text-green-400 text-xs font-mono break-all" : "text-zinc-500 text-xs"}>
-                            {userData?.steamId || "Not connected"}
-                        </p>
+                        <p className={userData?.steamId ? "text-green-400 text-xs font-mono break-all" : "text-zinc-500 text-xs"}>{userData?.steamId || "Not connected"}</p>
                         </div>
                     </div>
-                    
-                    {/* BUTTON GROUP */}
                     <div className="flex items-center gap-2 w-full sm:w-auto">
                         {userData?.steamId && (
-                            <a 
-                                href={`https://steamcommunity.com/profiles/${userData.steamId}`}
-                                target="_blank"
-                                rel="noopener noreferrer" 
-                                className="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white transition text-center flex items-center justify-center gap-2"
-                            >
-                                <span>Visit Profile</span>
-                                <ExternalLink className="w-3 h-3" />
+                            <a href={`https://steamcommunity.com/profiles/${userData.steamId}`} target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white transition text-center flex items-center justify-center gap-2">
+                                <span>Visit</span><ExternalLink className="w-3 h-3" />
                             </a>
                         )}
                         <button onClick={connectSteam} className={`w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-bold transition ${userData?.steamId ? 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700' : 'bg-white text-black hover:bg-gray-200'}`}>
@@ -298,6 +312,70 @@ function DashboardContent() {
                   )}
                   {bannerUrl && <img src={bannerUrl} className="h-20 w-full object-cover z-10 rounded-lg max-w-[80%]" />}
                   {avatarUrl && <img src={avatarUrl} className="absolute bottom-2 left-4 w-12 h-12 rounded-full border-2 border-white z-20" />}
+                </div>
+
+                {/* --- DISPLAY NAME STYLER --- */}
+                <div className="bg-black/30 p-4 rounded-xl border border-zinc-700">
+                  <label className="block text-sm font-bold text-white mb-4">Display Name Style</label>
+                  
+                  {/* Font */}
+                  <div className="mb-4">
+                    <label className="text-xs text-zinc-500 uppercase font-bold block mb-2">Font</label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {['inter', 'space', 'press', 'cinzel'].map(f => (
+                        <button 
+                          key={f} 
+                          onClick={() => setSelectedFont(f)}
+                          className={`p-2 rounded-lg border text-sm font-bold capitalize transition ${selectedFont === f ? 'bg-white text-black border-white' : 'bg-black/50 text-zinc-400 border-zinc-700 hover:border-zinc-500'}`}
+                        >
+                          {f === 'press' ? 'Retro' : f}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Effect */}
+                  <div className="mb-4">
+                    <label className="text-xs text-zinc-500 uppercase font-bold block mb-2">Effect</label>
+                    <div className="flex gap-2">
+                      {['solid', 'gradient', 'neon'].map(effect => (
+                        <button 
+                          key={effect} 
+                          onClick={() => setNameEffect(effect)}
+                          className={`flex-1 p-2 rounded-lg border text-sm font-bold capitalize transition ${nameEffect === effect ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-black/50 text-zinc-400 border-zinc-700 hover:border-zinc-500'}`}
+                        >
+                          {effect}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Color Picker */}
+                  <div>
+                    <label className="text-xs text-zinc-500 uppercase font-bold block mb-2">Color / Gradient</label>
+                    <div className="grid grid-cols-6 gap-2">
+                      {nameEffect === 'gradient' ? (
+                        gradients.map(g => (
+                          <button 
+                            key={g.name}
+                            onClick={() => setNameColor(g.class)}
+                            className={`w-full aspect-square rounded-lg bg-gradient-to-r ${g.class} ring-2 ring-offset-2 ring-offset-[#121214] ${nameColor === g.class ? 'ring-white' : 'ring-transparent'}`}
+                            title={g.name}
+                          />
+                        ))
+                      ) : (
+                        solidColors.map(c => (
+                          <button 
+                            key={c.name}
+                            onClick={() => setNameColor(c.value)}
+                            style={{ backgroundColor: c.value === 'white' ? 'white' : undefined }}
+                            className={`w-full aspect-square rounded-lg ring-2 ring-offset-2 ring-offset-[#121214] ${nameColor === c.value ? 'ring-white' : 'ring-transparent'} ${c.value !== 'white' ? `bg-${c.value}` : ''}`}
+                            title={c.name}
+                          />
+                        ))
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Accent Color */}
