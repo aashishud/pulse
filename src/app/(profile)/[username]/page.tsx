@@ -65,9 +65,11 @@ export default async function ProfilePage({ params }: Props) {
   // FIX: Force Absolute URLs to break out of subdomain
   const isDev = process.env.NODE_ENV === 'development';
   const protocol = isDev ? 'http' : 'https';
-  const domain = isDev ? 'localhost:3000' : (process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'pulse.gg');
+  // Use the env var or fallback to the free vercel domain.
+  // CRITICAL: We default to path-based routing for free tier.
+  const domain = isDev ? 'localhost:3000' : (process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'pulsegg.vercel.app');
   
-  // These are now absolute paths (e.g. http://localhost:3000/dashboard)
+  // These are now absolute paths
   const dashboardUrl = `${protocol}://${domain}/dashboard`;
   const homeUrl = `${protocol}://${domain}`;
   const signupUrl = `${protocol}://${domain}/signup?handle=${username}`;
@@ -83,6 +85,7 @@ export default async function ProfilePage({ params }: Props) {
     );
   }
 
+  // Fetch Steam Data
   let profile = null;
   let recentGames: any[] = [];
   let level = 0;
@@ -193,12 +196,10 @@ export default async function ProfilePage({ params }: Props) {
 
       <div className="max-w-[1400px] mx-auto p-4 md:p-8 relative z-10">
         <div className="flex justify-between items-center mb-12 px-2">
-           {/* Force Absolute URL to Home */}
            <a href={homeUrl} className="flex items-center gap-2 font-bold text-xl tracking-tighter hover:opacity-80 transition">
              <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center"><Sparkles className="w-4 h-4 text-white" /></div>Pulse
            </a>
            
-           {/* Force Absolute URL to Dashboard */}
            <a href={dashboardUrl} className="flex items-center gap-2 px-4 py-2 bg-[#1e1f22] border border-white/10 rounded-xl font-bold text-sm hover:bg-white/10 transition">
               <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
               Edit Profile
@@ -206,6 +207,7 @@ export default async function ProfilePage({ params }: Props) {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          
           {/* PASSPORT */}
           <div className="lg:col-span-4 sticky top-8">
             <div className="bg-[#1e1f22]/80 backdrop-blur-md rounded-[32px] overflow-hidden border border-white/5 shadow-2xl">

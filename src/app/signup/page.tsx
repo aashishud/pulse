@@ -23,8 +23,27 @@ function SignupContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // 🛡️ SECURITY: Block these usernames to prevent site breakage
+  const RESERVED_HANDLES = [
+    "dashboard", "login", "signup", "api", "admin", "settings", 
+    "profile", "home", "about", "contact", "support", "help", "pulse"
+  ];
+
+  const validateHandle = (username: string) => {
+    if (username.length < 3) return "Username must be 3+ characters.";
+    if (username.length > 20) return "Username is too long.";
+    if (RESERVED_HANDLES.includes(username)) return "This handle is reserved.";
+    if (!/^[a-zA-Z0-9-_]+$/.test(username)) return "Only letters, numbers, and dashes allowed.";
+    return null;
+  };
+
   const saveUserProfile = async (user: any) => {
     const username = handle.toLowerCase();
+    
+    // Validate again on save
+    const validationError = validateHandle(username);
+    if (validationError) throw new Error(validationError);
+
     const userRef = doc(db, "users", username);
     const userSnap = await getDoc(userRef);
     
@@ -52,8 +71,9 @@ function SignupContent() {
     setLoading(true);
     setError("");
 
-    if (handle.length < 3) {
-      setError("Username must be 3+ characters.");
+    const validationError = validateHandle(handle.toLowerCase());
+    if (validationError) {
+      setError(validationError);
       setLoading(false);
       return;
     }
@@ -78,7 +98,7 @@ function SignupContent() {
       } else if (err.code === 'auth/email-already-in-use') {
         setError("Email already in use. Log in instead?");
       } else {
-        setError("Something went wrong.");
+        setError(err.message || "Something went wrong.");
       }
     } finally {
       setLoading(false);
@@ -89,8 +109,9 @@ function SignupContent() {
     setLoading(true);
     setError("");
 
-    if (handle.length < 3) {
-      setError("Please enter a username first.");
+    const validationError = validateHandle(handle.toLowerCase());
+    if (validationError) {
+      setError(validationError);
       setLoading(false);
       return;
     }
@@ -120,7 +141,6 @@ function SignupContent() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0c] text-white flex items-center justify-center p-4 relative">
-      {/* Back Button */}
       <Link href="/" className="absolute top-8 left-8 flex items-center gap-2 text-zinc-500 hover:text-white transition font-bold">
         <ArrowLeft className="w-4 h-4" /> Back to Home
       </Link>

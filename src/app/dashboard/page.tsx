@@ -122,17 +122,12 @@ function DashboardContent() {
     setWidgets(newWidgets);
   };
 
-  // --- DYNAMIC URL CALCULATION ---
-  const isDev = process.env.NODE_ENV === 'development';
-  // Use the environment variable, or fallback to the current window location if available
-  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || (typeof window !== 'undefined' ? window.location.host : 'pulse.gg');
-  
-  // Construct the profile URL based on environment
-  // Dev: http://username.localhost:3000
-  // Prod: https://username.pulsegg.vercel.app
-  const profileUrl = isDev 
-    ? `http://${userData?.username}.localhost:3000` 
-    : `https://${userData?.username}.${rootDomain}`;
+  // --- PATH-BASED URL GENERATION ---
+  // This uses the current browser origin (e.g. https://pulsegg.vercel.app) 
+  // and appends /username. No subdomains involved.
+  const profileUrl = typeof window !== 'undefined' && userData
+    ? `${window.location.origin}/${userData.username}`
+    : '#';
 
   if (loading) return <div className="min-h-screen bg-black text-white p-10">Loading...</div>;
 
@@ -153,7 +148,6 @@ function DashboardContent() {
       </nav>
 
       <main className="max-w-6xl mx-auto p-4 md:p-6">
-        
         <div className="flex gap-4 mb-8 border-b border-zinc-800 overflow-x-auto">
           <button 
             onClick={() => setActiveTab("overview")} 
