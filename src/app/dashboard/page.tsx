@@ -1,6 +1,5 @@
 "use client";
 
-// ... (Imports remain the same) ...
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
@@ -10,7 +9,6 @@ import { getSteamLoginUrl, verifySteamLogin } from "../setup/actions";
 import { ArrowUp, ArrowDown, Eye, EyeOff, GripVertical } from "lucide-react";
 
 function DashboardContent() {
-  // ... (State and Effects remain exactly the same as before) ...
   const router = useRouter();
   const searchParams = useSearchParams();
   const [user, setUser] = useState<any>(null);
@@ -34,9 +32,6 @@ function DashboardContent() {
     { id: "library", label: "Game Library", enabled: true },
   ]);
 
-  // ... (Keep existing useEffects and handlers) ...
-  // (Assuming you have the logic from previous steps, I will focus on the RETURN JSX for responsiveness)
-  
   // 1. Check Auth & Fetch Data
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -68,6 +63,7 @@ function DashboardContent() {
     return () => unsubscribe();
   }, [router]);
 
+  // 2. Handle Steam Return
   useEffect(() => {
     const checkSteamReturn = async () => {
       if (searchParams.get('openid.mode') && userData) {
@@ -126,18 +122,30 @@ function DashboardContent() {
     setWidgets(newWidgets);
   };
 
+  // --- DYNAMIC URL CALCULATION ---
+  const isDev = process.env.NODE_ENV === 'development';
+  // Use the environment variable, or fallback to the current window location if available
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || (typeof window !== 'undefined' ? window.location.host : 'pulse.gg');
+  
+  // Construct the profile URL based on environment
+  // Dev: http://username.localhost:3000
+  // Prod: https://username.pulsegg.vercel.app
+  const profileUrl = isDev 
+    ? `http://${userData?.username}.localhost:3000` 
+    : `https://${userData?.username}.${rootDomain}`;
+
   if (loading) return <div className="min-h-screen bg-black text-white p-10">Loading...</div>;
 
   return (
     <div className="min-h-screen bg-[#0a0a0c] text-white font-sans">
-      {/* Navbar: Flex-col on mobile, Row on desktop */}
       <nav className="border-b border-white/10 bg-[#121214] p-4 flex flex-col sm:flex-row justify-between items-center sticky top-0 z-50 backdrop-blur-md bg-opacity-80 gap-4 sm:gap-0">
         <div className="font-bold text-xl flex items-center gap-2">
            <span className="w-3 h-3 bg-indigo-500 rounded-full animate-pulse"></span>
            Pulse Dashboard
         </div>
         <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
-          <a href={`http://${userData.username}.localhost:3000`} target="_blank" className="text-indigo-400 hover:text-white text-sm font-medium transition">
+          {/* DYNAMIC PROFILE LINK */}
+          <a href={profileUrl} target="_blank" className="text-indigo-400 hover:text-white text-sm font-medium transition">
             View Page ↗
           </a>
           <button onClick={() => auth.signOut()} className="text-zinc-500 hover:text-white text-sm">Logout</button>
@@ -146,7 +154,6 @@ function DashboardContent() {
 
       <main className="max-w-6xl mx-auto p-4 md:p-6">
         
-        {/* Tab Switcher */}
         <div className="flex gap-4 mb-8 border-b border-zinc-800 overflow-x-auto">
           <button 
             onClick={() => setActiveTab("overview")} 
