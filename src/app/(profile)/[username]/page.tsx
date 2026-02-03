@@ -1,5 +1,5 @@
 import { getSteamProfile, getRecentlyPlayed, getSteamLevel, getOwnedGamesCount } from '@/lib/steam';
-import { Sparkles, Gamepad2, Trophy, Clock, MapPin, Link as LinkIcon, ExternalLink } from 'lucide-react';
+import { Sparkles, Gamepad2, Trophy, Clock, MapPin, Link as LinkIcon, ExternalLink, Ghost } from 'lucide-react';
 import Link from 'next/link';
 
 interface Props {
@@ -116,7 +116,25 @@ export default async function ProfilePage({ params }: Props) {
   const renderWidget = (id: string) => {
     switch (id) {
       case 'hero':
-        return heroGame ? (
+        if (!heroGame) {
+           // Fallback UI if Steam is connected but games are hidden/empty
+           if (firebaseUser.steamId) {
+             return (
+               <div className="col-span-1 md:col-span-2 h-56 md:h-64 rounded-[24px] md:rounded-[32px] border border-white/5 bg-[#1e1f22]/80 backdrop-blur-md flex flex-col items-center justify-center text-center p-6 shadow-2xl">
+                 <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mb-4">
+                   <Ghost className="w-8 h-8 text-zinc-500" />
+                 </div>
+                 <h3 className="text-xl font-bold text-white mb-2">No Recent Activity</h3>
+                 <p className="text-zinc-400 max-w-md text-sm">
+                   We couldn't find any recent games. <br/> This usually happens if the Steam <strong>Game Details</strong> privacy setting is not set to <strong>Public</strong>.
+                 </p>
+               </div>
+             );
+           }
+           return null; // Don't show if Steam isn't even connected
+        }
+
+        return (
           <div className="col-span-1 md:col-span-2 relative h-64 rounded-[32px] overflow-hidden group border border-white/5 shadow-2xl">
              <img 
                 src={`https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${heroGame.appid}/library_hero.jpg`} 
@@ -143,7 +161,7 @@ export default async function ProfilePage({ params }: Props) {
                 </div>
              </div>
           </div>
-        ) : null;
+        );
 
       case 'stats':
         return (
