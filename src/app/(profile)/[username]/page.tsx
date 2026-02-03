@@ -29,7 +29,7 @@ async function getFirebaseUser(username: string) {
 
     return {
       steamId: fields.steamId?.stringValue,
-      // Get Custom Visuals
+      // Get Custom Visuals (Banner, Background, Avatar)
       banner: fields.theme?.mapValue?.fields?.banner?.stringValue || "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2600&auto=format&fit=crop",
       background: fields.theme?.mapValue?.fields?.background?.stringValue || "", // Empty means use blurred banner
       avatar: fields.theme?.mapValue?.fields?.avatar?.stringValue || "", // Empty means use Steam/Placeholder
@@ -66,10 +66,14 @@ export default async function ProfilePage({ params }: Props) {
   const { username } = await params;
   const firebaseUser = await getFirebaseUser(username);
 
+  // FIX: Force Absolute URLs to break out of subdomain
   const isDev = process.env.NODE_ENV === 'development';
   const protocol = isDev ? 'http' : 'https';
+  // Use the env var or fallback to the free vercel domain.
+  // CRITICAL: We default to path-based routing for free tier.
   const domain = isDev ? 'localhost:3000' : (process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'pulsegg.vercel.app');
   
+  // These are now absolute paths
   const dashboardUrl = `${protocol}://${domain}/dashboard`;
   const homeUrl = `${protocol}://${domain}`;
   const signupUrl = `${protocol}://${domain}/signup?handle=${username}`;
