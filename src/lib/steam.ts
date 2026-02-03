@@ -23,14 +23,11 @@ export interface SteamGame {
 // --- Functions ---
 
 export async function getSteamProfile(steamId: string): Promise<SteamProfile | null> {
-  if (!STEAM_API_KEY) {
-    console.error("SERVER ERROR: STEAM_API_KEY is missing.");
-    return null;
-  }
+  if (!STEAM_API_KEY) return null;
   try {
     const response = await fetch(
       `${STEAM_BASE_URL}/ISteamUser/GetPlayerSummaries/v0002/?key=${STEAM_API_KEY}&steamids=${steamId}`,
-      { next: { revalidate: 0 } } // FIX: No cache (0 seconds)
+      { next: { revalidate: 0 } } // No cache
     );
     const data = await response.json();
     return data.response.players[0] || null;
@@ -45,7 +42,7 @@ export async function getRecentlyPlayed(steamId: string): Promise<SteamGame[]> {
   try {
     const response = await fetch(
       `${STEAM_BASE_URL}/IPlayerService/GetRecentlyPlayedGames/v0001/?key=${STEAM_API_KEY}&steamid=${steamId}&count=3`,
-      { next: { revalidate: 0 } } // FIX: No cache (0 seconds)
+      { next: { revalidate: 0 } } // No cache
     );
     const data = await response.json();
     return data.response.games || [];
@@ -60,7 +57,7 @@ export async function getSteamLevel(steamId: string): Promise<number> {
   try {
     const response = await fetch(
       `${STEAM_BASE_URL}/IPlayerService/GetSteamLevel/v1/?key=${STEAM_API_KEY}&steamid=${steamId}`,
-      { next: { revalidate: 3600 } } // Keep caching for level (it changes rarely)
+      { next: { revalidate: 0 } } // No cache (Previously 3600)
     );
     const data = await response.json();
     return data.response.player_level || 0;
@@ -74,7 +71,7 @@ export async function getOwnedGamesCount(steamId: string): Promise<number> {
   try {
     const response = await fetch(
       `${STEAM_BASE_URL}/IPlayerService/GetOwnedGames/v0001/?key=${STEAM_API_KEY}&steamid=${steamId}&include_appinfo=false&include_played_free_games=true`,
-      { next: { revalidate: 3600 } }
+      { next: { revalidate: 0 } } // No cache (Previously 3600)
     );
     const data = await response.json();
     return data.response.game_count || 0;
