@@ -6,7 +6,7 @@ import { auth, db } from "@/lib/firebase";
 import { collection, query, where, getDocs, doc, updateDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { getSteamLoginUrl, verifySteamLogin } from "../setup/actions"; 
-import { ArrowUp, ArrowDown, Eye, EyeOff, GripVertical } from "lucide-react";
+import { ArrowUp, ArrowDown, Eye, EyeOff, GripVertical, ExternalLink } from "lucide-react";
 
 function DashboardContent() {
   const router = useRouter();
@@ -63,14 +63,12 @@ function DashboardContent() {
         if (data.layout) setWidgets(data.layout);
         setLoading(false);
       } else {
-        // SAFETY NET: User is logged in but has no profile. Redirect to Signup.
         router.push("/signup");
       }
     });
     return () => unsubscribe();
   }, [router]);
 
-  // ... (Rest of the file remains unchanged from previous steps) ...
   // 2. Handle Steam Return
   useEffect(() => {
     const checkSteamReturn = async () => {
@@ -182,7 +180,7 @@ function DashboardContent() {
               <section className="bg-[#121214] border border-zinc-800 rounded-2xl p-4 md:p-6">
                  <h2 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-4">Primary Account</h2>
                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-zinc-900/50 p-4 rounded-xl border border-zinc-800">
-                    <div className="flex items-center gap-4 w-full sm:w-auto">
+                    <div className="flex items-center gap-4 w-full sm:w-auto flex-1">
                         <div className="w-12 h-12 bg-[#171a21] rounded-lg flex items-center justify-center shrink-0">
                         <svg className="w-7 h-7 fill-white" viewBox="0 0 24 24"><path d="M11.979 0C5.352 0 .002 5.35.002 11.95c0 5.63 3.863 10.33 9.056 11.59-.115-.815-.04-1.637.28-2.392l.84-2.81c-.244-.765-.333-1.683-.153-2.61.547-2.66 3.102-4.32 5.714-3.715 2.613.604 4.234 3.25 3.687 5.91-.4 1.94-2.022 3.355-3.86 3.593l-.865 2.92c4.467-1.35 7.9-5.26 8.3-9.98.028-.27.042-.54.042-.814C23.956 5.35 18.605 0 11.98 0zm6.54 12.35c.78.18 1.265.98 1.085 1.776-.18.797-.97.94-1.75.76-.78-.18-1.264-.98-1.085-1.776.18-.798.97-.94 1.75-.76zm-5.46 3.7c-.035 1.54 1.06 2.87 2.53 3.11l.245-.82c-.815-.224-1.423-1.04-1.396-1.99.027-.95.7-1.706 1.543-1.83l.255-.86c-1.472.03-2.65 1.13-3.176 2.39zm-3.045 2.5c-.755.12-1.395-.385-1.43-1.127-.035-.742.53-1.413 1.285-1.532.755-.12 1.394.385 1.43 1.127.034.74-.53 1.41-1.285 1.53z"/></svg>
                         </div>
@@ -193,9 +191,24 @@ function DashboardContent() {
                         </p>
                         </div>
                     </div>
-                    <button onClick={connectSteam} className={`w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-bold transition ${userData?.steamId ? 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700' : 'bg-white text-black hover:bg-gray-200'}`}>
-                      {userData?.steamId ? "Reconnect" : "Connect"}
-                    </button>
+                    
+                    {/* BUTTON GROUP */}
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                        {userData?.steamId && (
+                            <a 
+                                href={`https://steamcommunity.com/profiles/${userData.steamId}`}
+                                target="_blank"
+                                rel="noopener noreferrer" 
+                                className="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white transition text-center flex items-center justify-center gap-2"
+                            >
+                                <span>Visit Profile</span>
+                                <ExternalLink className="w-3 h-3" />
+                            </a>
+                        )}
+                        <button onClick={connectSteam} className={`w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-bold transition ${userData?.steamId ? 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700' : 'bg-white text-black hover:bg-gray-200'}`}>
+                        {userData?.steamId ? "Reconnect" : "Connect"}
+                        </button>
+                    </div>
                  </div>
               </section>
 
