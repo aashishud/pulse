@@ -17,13 +17,11 @@ function DashboardContent() {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
 
-  // Visual State
+  // Form States
   const [bannerUrl, setBannerUrl] = useState("");
-  const [backgroundUrl, setBackgroundUrl] = useState(""); // New: Custom Wallpaper
-  const [avatarUrl, setAvatarUrl] = useState(""); // New: Custom PFP
+  const [backgroundUrl, setBackgroundUrl] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [accentColor, setAccentColor] = useState("indigo");
-
-  // Socials State
   const [xbox, setXbox] = useState("");
   const [epic, setEpic] = useState("");
   const [discord, setDiscord] = useState("");
@@ -53,25 +51,26 @@ function DashboardContent() {
         const data = docSnap.data();
         setUserData({ id: docSnap.id, ...data });
         
-        // Load Visuals
         setBannerUrl(data.theme?.banner || "");
         setBackgroundUrl(data.theme?.background || "");
         setAvatarUrl(data.theme?.avatar || "");
         setAccentColor(data.theme?.color || "indigo");
-
-        // Load Socials
         setXbox(data.gaming?.xbox || "");
         setEpic(data.gaming?.epic || "");
         setDiscord(data.socials?.discord || "");
         setTwitter(data.socials?.twitter || "");
         setInstagram(data.socials?.instagram || "");
         if (data.layout) setWidgets(data.layout);
+        setLoading(false);
+      } else {
+        // SAFETY NET: User is logged in but has no profile. Redirect to Signup.
+        router.push("/signup");
       }
-      setLoading(false);
     });
     return () => unsubscribe();
   }, [router]);
 
+  // ... (Rest of the file remains unchanged from previous steps) ...
   // 2. Handle Steam Return
   useEffect(() => {
     const checkSteamReturn = async () => {

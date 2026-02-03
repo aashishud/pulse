@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 import { ArrowLeft } from "lucide-react";
 
 export default function LoginPage() {
@@ -12,15 +13,19 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      // Auth successful, the Dashboard's own check will handle the rest
       router.push("/dashboard");
     } catch (err) {
       setError("Invalid email or password.");
+      setLoading(false);
     }
   };
 
@@ -28,8 +33,20 @@ export default function LoginPage() {
     setError("");
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-      router.push("/dashboard");
+      const result = await signInWithPopup(auth, provider);
+      
+      // CHECK: Does this user have a profile?
+      const q = query(collection(db, "users"), where("owner_uid", "==", result.user.uid));
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        // User exists -> Go to Dashboard
+        router.push("/dashboard");
+      } else {
+        // User is new (Auth exists, but no DB Profile) -> Go to Signup to pick username
+        // We pass 'isNew=true' so signup knows to expect them
+        router.push("/signup");
+      }
     } catch (err) {
       setError("Google Login failed.");
     }
@@ -37,7 +54,6 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0c] text-white flex items-center justify-center p-4 relative">
-      {/* Back Button */}
       <Link href="/" className="absolute top-8 left-8 flex items-center gap-2 text-zinc-500 hover:text-white transition font-bold">
         <ArrowLeft className="w-4 h-4" /> Back to Home
       </Link>
@@ -60,7 +76,9 @@ export default function LoginPage() {
           />
           {error && <p className="text-red-400 text-sm text-center bg-red-500/10 p-2 rounded-lg">{error}</p>}
           
-          <button className="w-full bg-white text-black font-bold py-3 rounded-xl hover:bg-zinc-200 transition">Log In</button>
+          <button disabled={loading} className="w-full bg-white text-black font-bold py-3 rounded-xl hover:bg-zinc-200 transition disabled:opacity-50">
+            {loading ? "Logging in..." : "Log In"}
+          </button>
         </form>
 
         <div className="relative my-6">
