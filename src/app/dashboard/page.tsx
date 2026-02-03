@@ -3,20 +3,23 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
-import { collection, query, where, getDocs, doc, updateDoc } from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
+import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, setDoc, getDoc } from "firebase/firestore";
+import { onAuthStateChanged, updateEmail, updatePassword } from "firebase/auth";
 import { getSteamLoginUrl, verifySteamLogin } from "../setup/actions"; 
-import { ArrowUp, ArrowDown, Eye, EyeOff, GripVertical, ExternalLink } from "lucide-react";
+import { ArrowUp, ArrowDown, Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle } from "lucide-react";
 
 function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [user, setUser] = useState<any>(null);
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
 
-  // Visual State
+  // Form States
+  const [displayName, setDisplayName] = useState("");
+  const [newUsername, setNewUsername] = useState("");
   const [bannerUrl, setBannerUrl] = useState("");
   const [backgroundUrl, setBackgroundUrl] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
@@ -26,6 +29,10 @@ function DashboardContent() {
   const [selectedFont, setSelectedFont] = useState("inter");
   const [nameEffect, setNameEffect] = useState("solid");
   const [nameColor, setNameColor] = useState("white");
+
+  // Auth Update State
+  const [newEmail, setNewEmail] = useState("");
+  const [newPass, setNewPass] = useState("");
 
   // Socials State
   const [xbox, setXbox] = useState("");
@@ -41,7 +48,7 @@ function DashboardContent() {
     { id: "library", label: "Game Library", enabled: true },
   ]);
 
-  // Gradients for UI
+  // Gradients
   const gradients = [
     { name: "Sunset", class: "from-orange-400 to-pink-600" },
     { name: "Ocean", class: "from-cyan-400 to-blue-600" },
@@ -51,7 +58,6 @@ function DashboardContent() {
     { name: "Steel", class: "from-gray-200 to-slate-500" },
   ];
 
-  // Colors for Solid/Neon
   const solidColors = [
     { name: "White", value: "white", hex: "#ffffff" },
     { name: "Indigo", value: "indigo-500", hex: "#6366f1" },
@@ -69,6 +75,7 @@ function DashboardContent() {
         router.push("/login");
         return;
       }
+      setUser(currentUser);
 
       const q = query(collection(db, "users"), where("owner_uid", "==", currentUser.uid));
       const querySnapshot = await getDocs(q);
@@ -78,12 +85,14 @@ function DashboardContent() {
         const data = docSnap.data();
         setUserData({ id: docSnap.id, ...data });
         
+        // Init Fields
+        setDisplayName(data.displayName || "");
+        setNewUsername(data.username || "");
         setBannerUrl(data.theme?.banner || "");
         setBackgroundUrl(data.theme?.background || "");
         setAvatarUrl(data.theme?.avatar || "");
         setAccentColor(data.theme?.color || "indigo");
         setSelectedFont(data.theme?.font || "inter");
-        
         setNameEffect(data.theme?.nameEffect || "solid");
         setNameColor(data.theme?.nameColor || "white");
 
@@ -117,10 +126,13 @@ function DashboardContent() {
     if (userData) checkSteamReturn();
   }, [searchParams, userData, router]);
 
+  // --- ACTIONS ---
+
   const handleSave = async () => {
     setSaving(true);
     const userRef = doc(db, "users", userData.id);
     await updateDoc(userRef, {
+      displayName: displayName, // Save display name
       "theme.banner": bannerUrl,
       "theme.background": backgroundUrl,
       "theme.avatar": avatarUrl,
@@ -137,6 +149,76 @@ function DashboardContent() {
     });
     setSaving(false);
     alert("Profile Updated!");
+  };
+
+  const handleUpdateAccount = async () => {
+    if (!user) return;
+    setSaving(true);
+    try {
+      if (newEmail) {
+        await updateEmail(user, newEmail);
+        // Also update in Firestore for reference
+        const userRef = doc(db, "users", userData.id);
+        await updateDoc(userRef, { email: newEmail });
+      }
+      if (newPass) {
+        await updatePassword(user, newPass);
+      }
+      alert("Account credentials updated!");
+      setNewPass(""); // Clear password field
+    } catch (e: any) {
+      alert("Error: " + e.message + " (You may need to re-login to update sensitive info)");
+    }
+    setSaving(false);
+  };
+
+  const handleChangeUsername = async () => {
+    if (!newUsername || newUsername === userData.username) return;
+    const confirm = window.confirm(`Are you sure you want to change your handle to @${newUsername}? This will change your profile URL.`);
+    if (!confirm) return;
+
+    setSaving(true);
+    try {
+      // 1. Check if taken
+      const newRef = doc(db, "users", newUsername.toLowerCase());
+      const snap = await getDoc(newRef);
+      if (snap.exists()) {
+        alert("Username is already taken.");
+        setSaving(false);
+        return;
+      }
+
+      // 2. Create new doc with same data
+      const newData = { ...userData, username: newUsername.toLowerCase(), id: newUsername.toLowerCase() };
+      await setDoc(newRef, newData);
+
+      // 3. Delete old doc
+      await deleteDoc(doc(db, "users", userData.id));
+
+      alert("Username changed! Redirecting...");
+      window.location.href = `/dashboard`; // Force reload with new state
+    } catch (e) {
+      console.error(e);
+      alert("Failed to change username.");
+      setSaving(false);
+    }
+  };
+
+  const handleDisconnect = async (platform: string) => {
+    if (!confirm(`Disconnect ${platform}?`)) return;
+    setSaving(true);
+    const userRef = doc(db, "users", userData.id);
+    
+    if (platform === 'steam') {
+      await updateDoc(userRef, { steamId: "" });
+      setUserData((prev: any) => ({ ...prev, steamId: "" }));
+    }
+    if (platform === 'discord') {
+      await updateDoc(userRef, { "socials.discord": "", "socials.discord_verified": false });
+      setDiscord("");
+    }
+    
+    setSaving(false);
   };
 
   const connectSteam = async () => {
@@ -194,11 +276,18 @@ function DashboardContent() {
       <main className="max-w-6xl mx-auto p-4 md:p-6">
         
         <div className="flex gap-4 mb-8 border-b border-zinc-800 overflow-x-auto">
-          <button onClick={() => setActiveTab("overview")} className={`pb-3 font-bold text-sm whitespace-nowrap ${activeTab === "overview" ? "text-white border-b-2 border-indigo-500" : "text-zinc-500 hover:text-white"}`}>Accounts & Socials</button>
-          <button onClick={() => setActiveTab("layout")} className={`pb-3 font-bold text-sm whitespace-nowrap ${activeTab === "layout" ? "text-white border-b-2 border-indigo-500" : "text-zinc-500 hover:text-white"}`}>Layout & Appearance</button>
+          {['overview', 'layout', 'settings'].map(tab => (
+            <button 
+              key={tab}
+              onClick={() => setActiveTab(tab)} 
+              className={`pb-3 font-bold text-sm whitespace-nowrap capitalize ${activeTab === tab ? "text-white border-b-2 border-indigo-500" : "text-zinc-500 hover:text-white"}`}
+            >
+              {tab === 'overview' ? 'Accounts & Socials' : tab === 'layout' ? 'Layout & Visuals' : 'Account Settings'}
+            </button>
+          ))}
         </div>
 
-        {activeTab === "overview" ? (
+        {activeTab === 'overview' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
             <div className="space-y-6 md:space-y-8">
               <section className="bg-[#121214] border border-zinc-800 rounded-2xl p-4 md:p-6">
@@ -277,123 +366,55 @@ function DashboardContent() {
               </button>
             </div>
           </div>
-        ) : (
+        )}
+
+        {activeTab === 'layout' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
             <section className="bg-[#121214] border border-zinc-800 rounded-2xl p-4 md:p-6 h-fit">
               <h2 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-6">Visuals</h2>
               <div className="space-y-6">
-                
-                {/* 1. Profile Picture */}
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-zinc-300">Custom Profile Picture URL</label>
+                  <label className="block text-sm font-medium mb-2 text-zinc-300">Custom Avatar</label>
                   <input type="text" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} className="w-full bg-black/50 border border-zinc-700 rounded-xl p-3 text-white text-sm outline-none focus:border-indigo-500" placeholder="https://..." />
-                  <p className="text-xs text-zinc-500 mt-2">Leave empty to use Steam avatar.</p>
                 </div>
-
-                {/* 2. Banner */}
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-zinc-300">Banner Image URL</label>
+                  <label className="block text-sm font-medium mb-2 text-zinc-300">Banner</label>
                   <input type="text" value={bannerUrl} onChange={(e) => setBannerUrl(e.target.value)} className="w-full bg-black/50 border border-zinc-700 rounded-xl p-3 text-white text-sm outline-none focus:border-indigo-500" placeholder="https://..." />
                 </div>
-
-                {/* 3. Background Wallpaper */}
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-zinc-300">Background Wallpaper URL</label>
+                  <label className="block text-sm font-medium mb-2 text-zinc-300">Wallpaper</label>
                   <input type="text" value={backgroundUrl} onChange={(e) => setBackgroundUrl(e.target.value)} className="w-full bg-black/50 border border-zinc-700 rounded-xl p-3 text-white text-sm outline-none focus:border-indigo-500" placeholder="https://..." />
-                  <p className="text-xs text-zinc-500 mt-2">Leave empty to use a blurred version of your banner.</p>
                 </div>
-
-                {/* Previews */}
-                <div className="h-32 w-full rounded-xl overflow-hidden relative border border-zinc-800 bg-black/50 flex items-center justify-center">
-                  {backgroundUrl ? (
-                    <img src={backgroundUrl} className="absolute inset-0 w-full h-full object-cover opacity-50" />
-                  ) : (
-                    <div className="absolute inset-0 bg-zinc-900 opacity-50"></div>
-                  )}
-                  {bannerUrl && <img src={bannerUrl} className="h-20 w-full object-cover z-10 rounded-lg max-w-[80%]" />}
-                  {avatarUrl && <img src={avatarUrl} className="absolute bottom-2 left-4 w-12 h-12 rounded-full border-2 border-white z-20" />}
-                </div>
-
-                {/* --- DISPLAY NAME STYLER --- */}
+                {/* Name Styler UI */}
                 <div className="bg-black/30 p-4 rounded-xl border border-zinc-700">
                   <label className="block text-sm font-bold text-white mb-4">Display Name Style</label>
-                  
-                  {/* Font */}
                   <div className="mb-4">
                     <label className="text-xs text-zinc-500 uppercase font-bold block mb-2">Font</label>
                     <div className="grid grid-cols-4 gap-2">
                       {['inter', 'space', 'press', 'cinzel'].map(f => (
-                        <button 
-                          key={f} 
-                          onClick={() => setSelectedFont(f)}
-                          className={`p-2 rounded-lg border text-sm font-bold capitalize transition ${selectedFont === f ? 'bg-white text-black border-white' : 'bg-black/50 text-zinc-400 border-zinc-700 hover:border-zinc-500'}`}
-                        >
-                          {f === 'press' ? 'Retro' : f}
-                        </button>
+                        <button key={f} onClick={() => setSelectedFont(f)} className={`p-2 rounded-lg border text-xs font-bold capitalize transition ${selectedFont === f ? 'bg-white text-black border-white' : 'bg-black/50 text-zinc-400 border-zinc-700'}`}>{f}</button>
                       ))}
                     </div>
                   </div>
-
-                  {/* Effect */}
                   <div className="mb-4">
                     <label className="text-xs text-zinc-500 uppercase font-bold block mb-2">Effect</label>
                     <div className="flex gap-2">
                       {['solid', 'gradient', 'neon'].map(effect => (
-                        <button 
-                          key={effect} 
-                          onClick={() => setNameEffect(effect)}
-                          className={`flex-1 p-2 rounded-lg border text-sm font-bold capitalize transition ${nameEffect === effect ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-black/50 text-zinc-400 border-zinc-700 hover:border-zinc-500'}`}
-                        >
-                          {effect}
-                        </button>
+                        <button key={effect} onClick={() => setNameEffect(effect)} className={`flex-1 p-2 rounded-lg border text-xs font-bold capitalize transition ${nameEffect === effect ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-black/50 text-zinc-400 border-zinc-700'}`}>{effect}</button>
                       ))}
                     </div>
                   </div>
-
-                  {/* Color Picker */}
                   <div>
                     <label className="text-xs text-zinc-500 uppercase font-bold block mb-2">Color / Gradient</label>
                     <div className="grid grid-cols-6 gap-2">
-                      {nameEffect === 'gradient' ? (
-                        gradients.map(g => (
-                          <button 
-                            key={g.name}
-                            onClick={() => setNameColor(g.class)}
-                            className={`w-full aspect-square rounded-lg bg-gradient-to-r ${g.class} ring-2 ring-offset-2 ring-offset-[#121214] ${nameColor === g.class ? 'ring-white' : 'ring-transparent'}`}
-                            title={g.name}
-                          />
-                        ))
-                      ) : (
-                        solidColors.map(c => (
-                          <button 
-                            key={c.name}
-                            onClick={() => setNameColor(c.value)}
-                            style={{ backgroundColor: c.value === 'white' ? 'white' : undefined }}
-                            className={`w-full aspect-square rounded-lg ring-2 ring-offset-2 ring-offset-[#121214] ${nameColor === c.value ? 'ring-white' : 'ring-transparent'} ${c.value !== 'white' ? `bg-${c.value}` : ''}`}
-                            title={c.name}
-                          />
-                        ))
-                      )}
+                      {nameEffect === 'gradient' ? gradients.map(g => <button key={g.name} onClick={() => setNameColor(g.class)} className={`w-full aspect-square rounded-lg bg-gradient-to-r ${g.class} ring-2 ring-offset-2 ring-offset-[#121214] ${nameColor === g.class ? 'ring-white' : 'ring-transparent'}`} />) : solidColors.map(c => <button key={c.name} onClick={() => setNameColor(c.value)} style={{ backgroundColor: c.value === 'white' ? 'white' : undefined }} className={`w-full aspect-square rounded-lg ring-2 ring-offset-2 ring-offset-[#121214] ${nameColor === c.value ? 'ring-white' : 'ring-transparent'} ${c.value !== 'white' ? `bg-${c.value}` : ''}`} />)}
                     </div>
-                  </div>
-                </div>
-
-                {/* Accent Color */}
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-zinc-300">Accent Color</label>
-                  <div className="flex gap-3 flex-wrap">
-                    {['indigo', 'pink', 'emerald', 'orange', 'cyan', 'red'].map(c => (
-                      <button key={c} onClick={() => setAccentColor(c)} className={`w-8 h-8 rounded-full bg-${c}-500 ring-2 ring-offset-2 ring-offset-[#121214] ${accentColor === c ? 'ring-white' : 'ring-transparent'}`} />
-                    ))}
                   </div>
                 </div>
               </div>
             </section>
-
             <section className="bg-[#121214] border border-zinc-800 rounded-2xl p-4 md:p-6 h-fit">
               <h2 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-6">Widget Layout</h2>
-              <p className="text-xs text-zinc-500 mb-4">Toggle visibility or change order.</p>
-              
               <div className="space-y-3">
                 {widgets.map((widget, index) => (
                   <div key={widget.id} className="flex items-center gap-3 bg-zinc-900/50 p-3 rounded-xl border border-zinc-800">
@@ -404,18 +425,82 @@ function DashboardContent() {
                       <button onClick={() => moveWidget(index, 'down')} disabled={index === widgets.length - 1} className="p-2 hover:bg-zinc-800 rounded text-zinc-400 disabled:opacity-20"><ArrowDown className="w-4 h-4" /></button>
                     </div>
                     <div className="w-px h-6 bg-zinc-800 mx-2"></div>
-                    <button onClick={() => toggleWidget(index)} className={`p-2 rounded ${widget.enabled ? 'text-green-400 bg-green-400/10' : 'text-zinc-600 bg-zinc-800'}`}>
-                      {widget.enabled ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                    </button>
+                    <button onClick={() => toggleWidget(index)} className={`p-2 rounded ${widget.enabled ? 'text-green-400 bg-green-400/10' : 'text-zinc-600 bg-zinc-800'}`}>{widget.enabled ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}</button>
                   </div>
                 ))}
               </div>
-              <button onClick={handleSave} disabled={saving} className="w-full mt-6 py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-500 transition disabled:opacity-50 shadow-lg shadow-indigo-900/20">
-                {saving ? "Saving Changes..." : "Save Layout"}
-              </button>
+              <button onClick={handleSave} disabled={saving} className="w-full mt-6 py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-500 transition disabled:opacity-50 shadow-lg shadow-indigo-900/20">{saving ? "Saving..." : "Save Layout"}</button>
             </section>
           </div>
         )}
+
+        {/* --- SETTINGS TAB --- */}
+        {activeTab === 'settings' && (
+          <div className="max-w-2xl mx-auto space-y-8">
+            
+            {/* Identity Settings */}
+            <section className="bg-[#121214] border border-zinc-800 rounded-2xl p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-indigo-500/10 rounded-lg flex items-center justify-center text-indigo-400"><Settings className="w-5 h-5" /></div>
+                <div><h2 className="text-lg font-bold text-white">Profile Identity</h2><p className="text-sm text-zinc-500">Manage how you appear on Pulse.</p></div>
+              </div>
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-zinc-300">Display Name</label>
+                  <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} className="w-full bg-black/50 border border-zinc-700 rounded-xl p-3 text-white text-sm outline-none focus:border-indigo-500" placeholder="Your Name" />
+                  <p className="text-xs text-zinc-500 mt-2">This overrides your Steam profile name.</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-zinc-300">Username (Handle)</label>
+                  <div className="flex gap-2">
+                    <input type="text" value={newUsername} onChange={(e) => setNewUsername(e.target.value.replace(/[^a-zA-Z0-9-_]/g, ''))} className="w-full bg-black/50 border border-zinc-700 rounded-xl p-3 text-white text-sm outline-none focus:border-indigo-500 font-mono" />
+                    <button onClick={handleChangeUsername} disabled={saving || newUsername === userData.username} className="px-4 bg-zinc-800 rounded-xl font-bold text-sm hover:bg-zinc-700 disabled:opacity-50 transition">Change</button>
+                  </div>
+                  <p className="text-xs text-orange-400 mt-2 flex items-center gap-1"><AlertTriangle className="w-3 h-3"/> Changing this will change your profile URL.</p>
+                </div>
+                <button onClick={handleSave} disabled={saving} className="w-full py-3 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition disabled:opacity-50">Save Profile Info</button>
+              </div>
+            </section>
+
+            {/* Security Settings */}
+            <section className="bg-[#121214] border border-zinc-800 rounded-2xl p-6">
+              <h2 className="text-lg font-bold text-white mb-6">Security</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-zinc-300">Update Email</label>
+                  <input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} className="w-full bg-black/50 border border-zinc-700 rounded-xl p-3 text-white text-sm outline-none focus:border-indigo-500" placeholder="New Email" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-zinc-300">New Password</label>
+                  <input type="password" value={newPass} onChange={(e) => setNewPass(e.target.value)} className="w-full bg-black/50 border border-zinc-700 rounded-xl p-3 text-white text-sm outline-none focus:border-indigo-500" placeholder="••••••••" />
+                </div>
+                <button onClick={handleUpdateAccount} disabled={saving} className="w-full py-3 bg-zinc-800 text-white font-bold rounded-xl hover:bg-zinc-700 transition disabled:opacity-50">Update Credentials</button>
+              </div>
+            </section>
+
+            {/* Connections Manager */}
+            <section className="bg-[#121214] border border-zinc-800 rounded-2xl p-6">
+              <h2 className="text-lg font-bold text-white mb-6">Manage Connections</h2>
+              <div className="space-y-3">
+                {userData?.steamId && (
+                  <div className="flex items-center justify-between p-3 bg-zinc-900/50 rounded-xl border border-zinc-800">
+                    <div className="flex items-center gap-3"><div className="w-8 h-8 bg-[#171a21] rounded flex items-center justify-center"><svg className="w-5 h-5 fill-white" viewBox="0 0 24 24"><path d="M11.979 0C5.352 0 .002 5.35.002 11.95c0 5.63 3.863 10.33 9.056 11.59-.115-.815-.04-1.637.28-2.392l.84-2.81c-.244-.765-.333-1.683-.153-2.61.547-2.66 3.102-4.32 5.714-3.715 2.613.604 4.234 3.25 3.687 5.91-.4 1.94-2.022 3.355-3.86 3.593l-.865 2.92c4.467-1.35 7.9-5.26 8.3-9.98.028-.27.042-.54.042-.814C23.956 5.35 18.605 0 11.98 0zm6.54 12.35c.78.18 1.265.98 1.085 1.776-.18.797-.97.94-1.75.76-.78-.18-1.264-.98-1.085-1.776.18-.798.97-.94 1.75-.76zm-5.46 3.7c-.035 1.54 1.06 2.87 2.53 3.11l.245-.82c-.815-.224-1.423-1.04-1.396-1.99.027-.95.7-1.706 1.543-1.83l.255-.86c-1.472.03-2.65 1.13-3.176 2.39zm-3.045 2.5c-.755.12-1.395-.385-1.43-1.127-.035-.742.53-1.413 1.285-1.532.755-.12 1.394.385 1.43 1.127.034.74-.53 1.41-1.285 1.53z"/></svg></div><span className="font-bold text-sm">Steam</span></div>
+                    <button onClick={() => handleDisconnect('steam')} className="text-xs text-red-400 hover:text-red-300 font-bold flex items-center gap-1"><LogOut className="w-3 h-3"/> Disconnect</button>
+                  </div>
+                )}
+                {userData?.socials?.discord && (
+                  <div className="flex items-center justify-between p-3 bg-zinc-900/50 rounded-xl border border-zinc-800">
+                    <div className="flex items-center gap-3"><div className="w-8 h-8 bg-[#5865F2] rounded flex items-center justify-center text-white"><svg className="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg></div><span className="font-bold text-sm">Discord</span></div>
+                    <button onClick={() => handleDisconnect('discord')} className="text-xs text-red-400 hover:text-red-300 font-bold flex items-center gap-1"><LogOut className="w-3 h-3"/> Disconnect</button>
+                  </div>
+                )}
+                {!userData?.steamId && !userData?.socials?.discord && <p className="text-sm text-zinc-500 italic">No active connections.</p>}
+              </div>
+            </section>
+
+          </div>
+        )}
+
       </main>
     </div>
   );

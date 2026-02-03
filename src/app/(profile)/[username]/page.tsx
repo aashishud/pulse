@@ -3,7 +3,6 @@ import { Sparkles, Gamepad2, Trophy, Clock, MapPin, Link as LinkIcon, ExternalLi
 import Link from 'next/link';
 import { Inter, Space_Grotesk, Press_Start_2P, Cinzel } from 'next/font/google';
 
-// Load Fonts
 const inter = Inter({ subsets: ['latin'] });
 const spaceGrotesk = Space_Grotesk({ subsets: ['latin'] });
 const pressStart = Press_Start_2P({ weight: '400', subsets: ['latin'] });
@@ -28,7 +27,6 @@ async function getFirebaseUser(username: string) {
     
     const isVerified = (field: any) => field?.booleanValue || false;
 
-    // Default widgets (Removed Spotify)
     const defaultLayout = [
       { mapValue: { fields: { id: { stringValue: "hero" }, enabled: { booleanValue: true } } } },
       { mapValue: { fields: { id: { stringValue: "stats" }, enabled: { booleanValue: true } } } },
@@ -38,6 +36,8 @@ async function getFirebaseUser(username: string) {
 
     return {
       steamId: fields.steamId?.stringValue,
+      // NEW: Read Display Name
+      displayName: fields.displayName?.stringValue,
       banner: fields.theme?.mapValue?.fields?.banner?.stringValue || "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2600&auto=format&fit=crop",
       background: fields.theme?.mapValue?.fields?.background?.stringValue || "",
       avatar: fields.theme?.mapValue?.fields?.avatar?.stringValue || "",
@@ -122,13 +122,11 @@ export default async function ProfilePage({ params }: Props) {
     ? { backgroundImage: `url(${firebaseUser.background})`, filter: 'brightness(0.3)' } 
     : { backgroundImage: `url(${firebaseUser.banner})`, filter: 'blur(60px) opacity(0.3) scale(1.1)' }; 
 
-  // DECIDE FONT
   let fontClass = inter.className;
   if (firebaseUser.font === 'space') fontClass = spaceGrotesk.className;
   if (firebaseUser.font === 'press') fontClass = pressStart.className;
   if (firebaseUser.font === 'cinzel') fontClass = cinzel.className;
 
-  // DECIDE NAME STYLE
   let nameClasses = "text-2xl font-black mb-1 leading-tight";
   let nameStyle = {};
 
@@ -145,6 +143,9 @@ export default async function ProfilePage({ params }: Props) {
   } else {
     nameClasses += ` text-${firebaseUser.nameColor === 'white' ? 'white' : firebaseUser.nameColor}`;
   }
+
+  // PRIORITY: Display Name > Steam Name > Username
+  const displayName = firebaseUser.displayName || profile?.personaname || username;
 
   const renderWidget = (id: string) => {
     switch (id) {
@@ -262,8 +263,8 @@ export default async function ProfilePage({ params }: Props) {
                    <div className={`absolute bottom-3 right-3 w-6 h-6 rounded-full border-[4px] border-[#1e1f22] ${profile?.gameextrainfo ? 'bg-green-500' : 'bg-zinc-500'}`} title={profile?.gameextrainfo ? "Playing" : "Offline"}></div>
                 </div>
                 <div className="mb-6">
-                  {/* APPLY NEW STYLES HERE */}
-                  <h1 className={nameClasses} style={nameStyle}>{profile?.personaname || username}</h1>
+                  {/* DISPLAY NAME */}
+                  <h1 className={nameClasses} style={nameStyle}>{displayName}</h1>
                   <p className="text-zinc-400 font-medium">@{username}</p>
                 </div>
                 {profile?.gameextrainfo && (
