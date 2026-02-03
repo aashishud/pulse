@@ -17,9 +17,13 @@ function DashboardContent() {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
 
-  // Form States
+  // Visual State
   const [bannerUrl, setBannerUrl] = useState("");
+  const [backgroundUrl, setBackgroundUrl] = useState(""); // New: Custom Wallpaper
+  const [avatarUrl, setAvatarUrl] = useState(""); // New: Custom PFP
   const [accentColor, setAccentColor] = useState("indigo");
+
+  // Socials State
   const [xbox, setXbox] = useState("");
   const [epic, setEpic] = useState("");
   const [discord, setDiscord] = useState("");
@@ -49,8 +53,13 @@ function DashboardContent() {
         const data = docSnap.data();
         setUserData({ id: docSnap.id, ...data });
         
+        // Load Visuals
         setBannerUrl(data.theme?.banner || "");
+        setBackgroundUrl(data.theme?.background || "");
+        setAvatarUrl(data.theme?.avatar || "");
         setAccentColor(data.theme?.color || "indigo");
+
+        // Load Socials
         setXbox(data.gaming?.xbox || "");
         setEpic(data.gaming?.epic || "");
         setDiscord(data.socials?.discord || "");
@@ -84,6 +93,8 @@ function DashboardContent() {
     const userRef = doc(db, "users", userData.id);
     await updateDoc(userRef, {
       "theme.banner": bannerUrl,
+      "theme.background": backgroundUrl,
+      "theme.avatar": avatarUrl,
       "theme.color": accentColor,
       "gaming.xbox": xbox,
       "gaming.epic": epic,
@@ -122,12 +133,15 @@ function DashboardContent() {
     setWidgets(newWidgets);
   };
 
-  // --- PATH-BASED URL GENERATION ---
-  // This uses the current browser origin (e.g. https://pulsegg.vercel.app) 
-  // and appends /username. No subdomains involved.
-  const profileUrl = typeof window !== 'undefined' && userData
-    ? `${window.location.origin}/${userData.username}`
-    : '#';
+  // Dynamic URL
+  const isDev = process.env.NODE_ENV === 'development';
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || (typeof window !== 'undefined' ? window.location.host : 'pulse.gg');
+  const isVercel = rootDomain.includes('vercel.app');
+  const profileUrl = isDev 
+    ? `http://${userData?.username}.localhost:3000` 
+    : isVercel 
+      ? `https://${rootDomain}/${userData?.username}`
+      : `https://${userData?.username}.${rootDomain}`;
 
   if (loading) return <div className="min-h-screen bg-black text-white p-10">Loading...</div>;
 
@@ -139,7 +153,6 @@ function DashboardContent() {
            Pulse Dashboard
         </div>
         <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
-          {/* DYNAMIC PROFILE LINK */}
           <a href={profileUrl} target="_blank" className="text-indigo-400 hover:text-white text-sm font-medium transition">
             View Page ↗
           </a>
@@ -148,6 +161,7 @@ function DashboardContent() {
       </nav>
 
       <main className="max-w-6xl mx-auto p-4 md:p-6">
+        
         <div className="flex gap-4 mb-8 border-b border-zinc-800 overflow-x-auto">
           <button 
             onClick={() => setActiveTab("overview")} 
@@ -242,13 +256,39 @@ function DashboardContent() {
             <section className="bg-[#121214] border border-zinc-800 rounded-2xl p-4 md:p-6 h-fit">
               <h2 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-6">Visuals</h2>
               <div className="space-y-6">
+                
+                {/* 1. Profile Picture */}
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-zinc-300">Custom Profile Picture URL</label>
+                  <input type="text" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} className="w-full bg-black/50 border border-zinc-700 rounded-xl p-3 text-white text-sm outline-none focus:border-indigo-500" placeholder="https://..." />
+                  <p className="text-xs text-zinc-500 mt-2">Leave empty to use Steam avatar.</p>
+                </div>
+
+                {/* 2. Banner */}
                 <div>
                   <label className="block text-sm font-medium mb-2 text-zinc-300">Banner Image URL</label>
                   <input type="text" value={bannerUrl} onChange={(e) => setBannerUrl(e.target.value)} className="w-full bg-black/50 border border-zinc-700 rounded-xl p-3 text-white text-sm outline-none focus:border-indigo-500" placeholder="https://..." />
                 </div>
-                <div className="h-32 w-full rounded-xl overflow-hidden relative border border-zinc-800 bg-black/50">
-                  {bannerUrl ? <img src={bannerUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-zinc-600 text-sm">Preview</div>}
+
+                {/* 3. Background Wallpaper */}
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-zinc-300">Background Wallpaper URL</label>
+                  <input type="text" value={backgroundUrl} onChange={(e) => setBackgroundUrl(e.target.value)} className="w-full bg-black/50 border border-zinc-700 rounded-xl p-3 text-white text-sm outline-none focus:border-indigo-500" placeholder="https://..." />
+                  <p className="text-xs text-zinc-500 mt-2">Leave empty to use a blurred version of your banner.</p>
                 </div>
+
+                {/* Previews */}
+                <div className="h-32 w-full rounded-xl overflow-hidden relative border border-zinc-800 bg-black/50 flex items-center justify-center">
+                  {backgroundUrl ? (
+                    <img src={backgroundUrl} className="absolute inset-0 w-full h-full object-cover opacity-50" />
+                  ) : (
+                    <div className="absolute inset-0 bg-zinc-900 opacity-50"></div>
+                  )}
+                  {bannerUrl && <img src={bannerUrl} className="h-20 w-full object-cover z-10 rounded-lg max-w-[80%]" />}
+                  {avatarUrl && <img src={avatarUrl} className="absolute bottom-2 left-4 w-12 h-12 rounded-full border-2 border-white z-20" />}
+                </div>
+
+                {/* Accent Color */}
                 <div>
                   <label className="block text-sm font-medium mb-2 text-zinc-300">Accent Color</label>
                   <div className="flex gap-3 flex-wrap">

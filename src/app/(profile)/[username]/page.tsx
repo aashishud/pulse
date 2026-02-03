@@ -1,5 +1,6 @@
 import { getSteamProfile, getRecentlyPlayed, getSteamLevel, getOwnedGamesCount } from '@/lib/steam';
 import { Sparkles, Gamepad2, Trophy, Clock, MapPin, Link as LinkIcon } from 'lucide-react';
+import Link from 'next/link';
 
 interface Props {
   params: Promise<{ username: string }>;
@@ -28,7 +29,10 @@ async function getFirebaseUser(username: string) {
 
     return {
       steamId: fields.steamId?.stringValue,
+      // Get Custom Visuals
       banner: fields.theme?.mapValue?.fields?.banner?.stringValue || "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2600&auto=format&fit=crop",
+      background: fields.theme?.mapValue?.fields?.background?.stringValue || "", // Empty means use blurred banner
+      avatar: fields.theme?.mapValue?.fields?.avatar?.stringValue || "", // Empty means use Steam/Placeholder
       color: fields.theme?.mapValue?.fields?.color?.stringValue || "indigo",
       layout: fields.layout?.arrayValue?.values || defaultLayout, 
       gaming: {
@@ -62,14 +66,10 @@ export default async function ProfilePage({ params }: Props) {
   const { username } = await params;
   const firebaseUser = await getFirebaseUser(username);
 
-  // FIX: Force Absolute URLs to break out of subdomain
   const isDev = process.env.NODE_ENV === 'development';
   const protocol = isDev ? 'http' : 'https';
-  // Use the env var or fallback to the free vercel domain.
-  // CRITICAL: We default to path-based routing for free tier.
   const domain = isDev ? 'localhost:3000' : (process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'pulsegg.vercel.app');
   
-  // These are now absolute paths
   const dashboardUrl = `${protocol}://${domain}/dashboard`;
   const homeUrl = `${protocol}://${domain}`;
   const signupUrl = `${protocol}://${domain}/signup?handle=${username}`;
@@ -104,6 +104,16 @@ export default async function ProfilePage({ params }: Props) {
   const yearsOnSteam = new Date().getFullYear() - joinDate.getFullYear();
   const heroGame = recentGames[0];
   const otherGames = recentGames.slice(1);
+
+  // DECIDE AVATAR AND BACKGROUND
+  // 1. Avatar: Custom > Steam > Placeholder
+  const avatarSource = firebaseUser.avatar || profile?.avatarfull || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png";
+  
+  // 2. Background: Custom (Clean) OR Banner (Blurred)
+  // If custom background exists, we use it clearly. If not, we use the banner but heavily blurred.
+  const backgroundStyle = firebaseUser.background 
+    ? { backgroundImage: `url(${firebaseUser.background})`, filter: 'brightness(0.3)' } // Custom wallpaper gets slight dimming
+    : { backgroundImage: `url(${firebaseUser.banner})`, filter: 'blur(60px) opacity(0.3) scale(1.1)' }; // Default gets heavy blur
 
   const renderWidget = (id: string) => {
     switch (id) {
@@ -189,9 +199,15 @@ export default async function ProfilePage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-[#111214] text-white font-sans selection:bg-indigo-500/30 overflow-x-hidden">
+      
+      {/* 1. Dynamic Background */}
       <div className="fixed inset-0 z-0">
-         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-[#111214]/90 to-[#111214]"></div>
-         <img src={firebaseUser.banner} className="w-full h-full object-cover blur-3xl opacity-30 scale-110" alt="" />
+         <div 
+            className="absolute inset-0 bg-cover bg-center transition-all duration-1000"
+            style={backgroundStyle}
+         ></div>
+         {/* Overlay to ensure text readability */}
+         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-[#111214]/80 to-[#111214]"></div>
       </div>
 
       <div className="max-w-[1400px] mx-auto p-4 md:p-8 relative z-10">
@@ -199,7 +215,6 @@ export default async function ProfilePage({ params }: Props) {
            <a href={homeUrl} className="flex items-center gap-2 font-bold text-xl tracking-tighter hover:opacity-80 transition">
              <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center"><Sparkles className="w-4 h-4 text-white" /></div>Pulse
            </a>
-           
            <a href={dashboardUrl} className="flex items-center gap-2 px-4 py-2 bg-[#1e1f22] border border-white/10 rounded-xl font-bold text-sm hover:bg-white/10 transition">
               <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
               Edit Profile
@@ -215,7 +230,7 @@ export default async function ProfilePage({ params }: Props) {
               <div className="px-6 pb-6 relative">
                 <div className="relative -mt-16 mb-4 w-32 h-32">
                    <div className="w-32 h-32 rounded-full p-1.5 bg-[#1e1f22]">
-                      <img src={profile?.avatarfull || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"} className="w-full h-full rounded-full object-cover bg-zinc-800" alt="Avatar" />
+                      <img src={avatarSource} className="w-full h-full rounded-full object-cover bg-zinc-800" alt="Avatar" />
                    </div>
                    <div className={`absolute bottom-3 right-3 w-6 h-6 rounded-full border-[4px] border-[#1e1f22] ${profile?.gameextrainfo ? 'bg-green-500' : 'bg-zinc-500'}`} title={profile?.gameextrainfo ? "Playing" : "Offline"}></div>
                 </div>
