@@ -2,17 +2,25 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
 import { doc, updateDoc } from "firebase/firestore";
 
-// You need to add these to your .env.local file!
 const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
-const REDIRECT_URI = "http://localhost:3000/api/auth/discord";
 
 export async function GET(req: NextRequest) {
+  // 1. Dynamic Host Detection
+  // This automatically grabs "localhost:3000" or "pulsegg.vercel.app" from the request
+  const host = req.headers.get("host");
+  const protocol = process.env.NODE_ENV === "development" ? "http" : "https";
+  
+  // Construct the exact URL Discord expects
+  const REDIRECT_URI = `${protocol}://${host}/api/auth/discord`;
+
+  console.log("Discord Auth Debug:", { REDIRECT_URI, CLIENT_ID: CLIENT_ID ? "Set" : "Missing" });
+
   const { searchParams } = new URL(req.url);
   const code = searchParams.get("code");
-  const userId = searchParams.get("state"); // We pass the Firebase User ID as "state"
+  const userId = searchParams.get("state"); 
 
-  // 1. If no code, REDIRECT to Discord to start login
+  // 2. Redirect to Discord (Step 1)
   if (!code) {
     if (!userId) return NextResponse.json({ error: "Missing user ID" }, { status: 400 });
 
@@ -21,7 +29,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(discordLoginUrl);
   }
 
-  // 2. If code exists, EXCHANGE it for an access token
+  // 3. Exchange Code for Token (Step 2)
   try {
     const tokenResponse = await fetch("https://discord.com/api/oauth2/token", {
       method: "POST",
@@ -36,16 +44,20 @@ export async function GET(req: NextRequest) {
     });
 
     const tokenData = await tokenResponse.json();
-    if (tokenData.error) throw new Error(tokenData.error_description || "Token Exchange Failed");
+    
+    if (tokenData.error) {
+      console.error("Token Exchange Error:", tokenData);
+      throw new Error(tokenData.error_description || "Token Exchange Failed");
+    }
 
-    // 3. Get User Info from Discord
+    // 4. Get User Info
     const userResponse = await fetch("https://discord.com/api/users/@me", {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
     
     const discordUser = await userResponse.json();
 
-    // 4. Update Firebase with the verified name
+    // 5. Update Firebase
     if (searchParams.get("state")) {
       const docId = searchParams.get("state")!;
       const userRef = doc(db, "users", docId);
@@ -56,11 +68,10 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // 5. Success! Go back to dashboard
-    return NextResponse.redirect("http://localhost:3000/dashboard");
+    return NextResponse.redirect(`${protocol}://${host}/dashboard`);
 
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: "Discord Login Failed" }, { status: 500 });
+    return NextResponse.json({ error: "Discord Login Failed", details: String(error) }, { status: 500 });
   }
 }
