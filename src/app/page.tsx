@@ -104,7 +104,7 @@ export default function LandingPage() {
             </div>
             <div>
               <h3 className="font-bold text-lg mb-1">Unique Subdomain</h3>
-              <p className="text-sm text-zinc-400">Get a short, professional URL like aashish.pulse.gg</p>
+              <p className="text-sm text-zinc-400">Get a short, professional URL like pulsegg.vercel.app/pulse</p>
             </div>
           </div>
         </div>
