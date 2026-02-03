@@ -1,5 +1,5 @@
 import { getSteamProfile, getRecentlyPlayed, getSteamLevel, getOwnedGamesCount } from '@/lib/steam';
-import { Sparkles, Gamepad2, Trophy, Clock, MapPin, Link as LinkIcon } from 'lucide-react';
+import { Sparkles, Gamepad2, Trophy, Clock, MapPin, Link as LinkIcon, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 
 interface Props {
@@ -69,11 +69,8 @@ export default async function ProfilePage({ params }: Props) {
   // FIX: Force Absolute URLs to break out of subdomain
   const isDev = process.env.NODE_ENV === 'development';
   const protocol = isDev ? 'http' : 'https';
-  // Use the env var or fallback to the free vercel domain.
-  // CRITICAL: We default to path-based routing for free tier.
   const domain = isDev ? 'localhost:3000' : (process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'pulsegg.vercel.app');
   
-  // These are now absolute paths
   const dashboardUrl = `${protocol}://${domain}/dashboard`;
   const homeUrl = `${protocol}://${domain}`;
   const signupUrl = `${protocol}://${domain}/signup?handle=${username}`;
@@ -110,14 +107,11 @@ export default async function ProfilePage({ params }: Props) {
   const otherGames = recentGames.slice(1);
 
   // DECIDE AVATAR AND BACKGROUND
-  // 1. Avatar: Custom > Steam > Placeholder
   const avatarSource = firebaseUser.avatar || profile?.avatarfull || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png";
   
-  // 2. Background: Custom (Clean) OR Banner (Blurred)
-  // If custom background exists, we use it clearly. If not, we use the banner but heavily blurred.
   const backgroundStyle = firebaseUser.background 
-    ? { backgroundImage: `url(${firebaseUser.background})`, filter: 'brightness(0.3)' } // Custom wallpaper gets slight dimming
-    : { backgroundImage: `url(${firebaseUser.banner})`, filter: 'blur(60px) opacity(0.3) scale(1.1)' }; // Default gets heavy blur
+    ? { backgroundImage: `url(${firebaseUser.background})`, filter: 'brightness(0.3)' } 
+    : { backgroundImage: `url(${firebaseUser.banner})`, filter: 'blur(60px) opacity(0.3) scale(1.1)' }; 
 
   const renderWidget = (id: string) => {
     switch (id) {
@@ -251,7 +245,30 @@ export default async function ProfilePage({ params }: Props) {
                 <div className="h-px bg-white/5 my-6"></div>
                 <div className="space-y-4">
                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Connections</h3>
-                   {firebaseUser.steamId && <div className="flex items-center justify-between group"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-[#171a21] rounded flex items-center justify-center"><svg className="w-5 h-5 fill-white" viewBox="0 0 24 24"><path d="M11.979 0C5.352 0 .002 5.35.002 11.95c0 5.63 3.863 10.33 9.056 11.59-.115-.815-.04-1.637.28-2.392l.84-2.81c-.244-.765-.333-1.683-.153-2.61.547-2.66 3.102-4.32 5.714-3.715 2.613.604 4.234 3.25 3.687 5.91-.4 1.94-2.022 3.355-3.86 3.593l-.865 2.92c4.467-1.35 7.9-5.26 8.3-9.98.028-.27.042-.54.042-.814C23.956 5.35 18.605 0 11.98 0zm6.54 12.35c.78.18 1.265.98 1.085 1.776-.18.797-.97.94-1.75.76-.78-.18-1.264-.98-1.085-1.776.18-.798.97-.94 1.75-.76zm-5.46 3.7c-.035 1.54 1.06 2.87 2.53 3.11l.245-.82c-.815-.224-1.423-1.04-1.396-1.99.027-.95.7-1.706 1.543-1.83l.255-.86c-1.472.03-2.65 1.13-3.176 2.39zm-3.045 2.5c-.755.12-1.395-.385-1.43-1.127-.035-.742.53-1.413 1.285-1.532.755-.12 1.394.385 1.43 1.127.034.74-.53 1.41-1.285 1.53z"/></svg></div><div><p className="text-sm font-bold">Steam</p><p className="text-xs text-zinc-500">{level > 0 ? `Level ${level}` : 'Connected'}</p></div></div><VerifiedBadge /></div>}
+                   
+                   {/* Steam Connection */}
+                   {firebaseUser.steamId && (
+                     <div className="flex items-center justify-between group">
+                       <div className="flex items-center gap-3">
+                         <div className="w-8 h-8 bg-[#171a21] rounded flex items-center justify-center"><svg className="w-5 h-5 fill-white" viewBox="0 0 24 24"><path d="M11.979 0C5.352 0 .002 5.35.002 11.95c0 5.63 3.863 10.33 9.056 11.59-.115-.815-.04-1.637.28-2.392l.84-2.81c-.244-.765-.333-1.683-.153-2.61.547-2.66 3.102-4.32 5.714-3.715 2.613.604 4.234 3.25 3.687 5.91-.4 1.94-2.022 3.355-3.86 3.593l-.865 2.92c4.467-1.35 7.9-5.26 8.3-9.98.028-.27.042-.54.042-.814C23.956 5.35 18.605 0 11.98 0zm6.54 12.35c.78.18 1.265.98 1.085 1.776-.18.797-.97.94-1.75.76-.78-.18-1.264-.98-1.085-1.776.18-.798.97-.94 1.75-.76zm-5.46 3.7c-.035 1.54 1.06 2.87 2.53 3.11l.245-.82c-.815-.224-1.423-1.04-1.396-1.99.027-.95.7-1.706 1.543-1.83l.255-.86c-1.472.03-2.65 1.13-3.176 2.39zm-3.045 2.5c-.755.12-1.395-.385-1.43-1.127-.035-.742.53-1.413 1.285-1.532.755-.12 1.394.385 1.43 1.127.034.74-.53 1.41-1.285 1.53z"/></svg></div>
+                         <div><p className="text-sm font-bold">Steam</p><p className="text-xs text-zinc-500">{level > 0 ? `Level ${level}` : 'Connected'}</p></div>
+                       </div>
+                       
+                       <div className="flex items-center gap-2">
+                         <a 
+                           href={`https://steamcommunity.com/profiles/${firebaseUser.steamId}`}
+                           target="_blank"
+                           rel="noopener noreferrer"
+                           className="p-1.5 bg-[#1e1f22] text-zinc-400 hover:text-white hover:bg-zinc-700 rounded-lg transition"
+                           title="Visit Steam Profile"
+                         >
+                           <ExternalLink className="w-3 h-3" />
+                         </a>
+                         <VerifiedBadge />
+                       </div>
+                     </div>
+                   )}
+
                    {firebaseUser.socials.discord && <div className="flex items-center justify-between group"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-[#5865F2] rounded flex items-center justify-center text-white"><svg className="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg></div><div><p className="text-sm font-bold">Discord</p><p className="text-xs text-zinc-500">{firebaseUser.socials.discord}</p></div></div>{firebaseUser.socials.discord_verified && <VerifiedBadge />}</div>}
                    {firebaseUser.gaming.epic && <div className="flex items-center justify-between group"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-[#313131] rounded flex items-center justify-center font-bold text-xs">E</div><div><p className="text-sm font-bold">Epic Games</p><p className="text-xs text-zinc-500">{firebaseUser.gaming.epic}</p></div></div></div>}
                    {firebaseUser.gaming.xbox && <div className="flex items-center justify-between group"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-[#107C10] rounded flex items-center justify-center font-bold text-xs">X</div><div><p className="text-sm font-bold">Xbox</p><p className="text-xs text-zinc-500">{firebaseUser.gaming.xbox}</p></div></div></div>}
