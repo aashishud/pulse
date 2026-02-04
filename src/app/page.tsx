@@ -58,7 +58,7 @@ export default function LandingPage() {
         <form onSubmit={handleClaim} className="w-full max-w-md relative group">
           <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-500"></div>
           <div className="relative bg-[#0a0a0c] border border-white/10 rounded-2xl flex items-center p-2 shadow-2xl">
-            <span className="pl-4 text-zinc-500 font-mono text-base md:text-lg">pulse.gg/</span>
+            <span className="pl-4 text-zinc-500 font-mono text-base md:text-lg">pulsegg.in/</span>
             <input 
               type="text" 
               placeholder="username"
@@ -103,8 +103,8 @@ export default function LandingPage() {
                <div className="w-5 h-5 border-2 border-current rounded-full"></div>
             </div>
             <div>
-              <h3 className="font-bold text-lg mb-1">Unique Subdomain</h3>
-              <p className="text-sm text-zinc-400">Get a short, professional URL like pulsegg.vercel.app/pulse</p>
+              <h3 className="font-bold text-lg mb-1">Unique URL</h3>
+              <p className="text-sm text-zinc-400">Get a short, professional URL like pulsegg.in/pulse</p>
             </div>
           </div>
         </div>
