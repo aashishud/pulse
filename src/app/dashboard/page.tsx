@@ -7,6 +7,7 @@ import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, setDoc, g
 import { onAuthStateChanged, updateEmail, updatePassword } from "firebase/auth";
 import { getSteamLoginUrl, verifySteamLogin } from "../setup/actions"; 
 import { ArrowUp, ArrowDown, Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette } from "lucide-react";
+import { validateHandle } from "@/lib/validation"; // Import Validation
 
 function DashboardContent() {
   const router = useRouter();
@@ -29,7 +30,7 @@ function DashboardContent() {
   const [selectedFont, setSelectedFont] = useState("inter");
   const [nameEffect, setNameEffect] = useState("solid");
   const [nameColor, setNameColor] = useState("white");
-  const [primaryColor, setPrimaryColor] = useState("#1e1f22");
+  const [primaryColor, setPrimaryColor] = useState("#1e1f22"); 
 
   // Auth Update State
   const [newEmail, setNewEmail] = useState("");
@@ -48,7 +49,7 @@ function DashboardContent() {
     { id: "library", label: "Game Library", enabled: true },
   ]);
 
-  // Gradients
+  // Gradients & Colors
   const gradients = [
     { name: "Sunset", class: "from-orange-400 to-pink-600" },
     { name: "Ocean", class: "from-cyan-400 to-blue-600" },
@@ -177,6 +178,13 @@ function DashboardContent() {
     const confirm = window.confirm(`Change handle to @${newUsername}? This will change your profile URL.`);
     if (!confirm) return;
 
+    // VALIDATE USERNAME before doing anything
+    const validationError = validateHandle(newUsername.toLowerCase());
+    if (validationError) {
+      alert(validationError);
+      return;
+    }
+
     setSaving(true);
     try {
       const newRef = doc(db, "users", newUsername.toLowerCase());
@@ -247,12 +255,16 @@ function DashboardContent() {
     setWidgets(newWidgets);
   };
 
-  // URL Logic
   const isDev = process.env.NODE_ENV === 'development';
-  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || (typeof window !== 'undefined' ? window.location.host : 'pulsegg.in');
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || (typeof window !== 'undefined' ? window.location.host : 'pulse.gg');
+  const isVercel = rootDomain.includes('vercel.app');
   const profileUrl = isDev 
-    ? `http://localhost:3000/${userData?.username}` 
-    : `https://${rootDomain}/${userData?.username}`;
+    ? `http://${userData?.username}.localhost:3000` 
+    : isVercel 
+      ? `https://${rootDomain}/${userData?.username}`
+      : `https://${userData?.username}.${rootDomain}`;
+
+  if (loading) return <div className="min-h-screen bg-black text-white p-10">Loading...</div>;
 
   // Background Style
   const dashBgStyle = backgroundUrl 
@@ -260,8 +272,6 @@ function DashboardContent() {
     : bannerUrl 
       ? { backgroundImage: `url(${bannerUrl})` } 
       : {};
-
-  if (loading) return <div className="min-h-screen bg-black text-white p-10">Loading...</div>;
 
   return (
     <div className="min-h-screen bg-[#0a0a0c] text-white font-sans relative">

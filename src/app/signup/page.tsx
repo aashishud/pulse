@@ -11,6 +11,7 @@ import {
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { ArrowLeft } from "lucide-react";
+import { validateHandle } from "@/lib/validation";
 
 function SignupContent() {
   const searchParams = useSearchParams();
@@ -23,24 +24,10 @@ function SignupContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // 🛡️ SECURITY: Block these usernames to prevent site breakage
-  const RESERVED_HANDLES = [
-    "dashboard", "login", "signup", "api", "admin", "settings", 
-    "profile", "home", "about", "contact", "support", "help", "pulse"
-  ];
-
-  const validateHandle = (username: string) => {
-    if (username.length < 3) return "Username must be 3+ characters.";
-    if (username.length > 20) return "Username is too long.";
-    if (RESERVED_HANDLES.includes(username)) return "This handle is reserved.";
-    if (!/^[a-zA-Z0-9-_]+$/.test(username)) return "Only letters, numbers, and dashes allowed.";
-    return null;
-  };
-
   const saveUserProfile = async (user: any) => {
     const username = handle.toLowerCase();
     
-    // Validate again on save
+    // 1. Validate Username (Double check before saving)
     const validationError = validateHandle(username);
     if (validationError) throw new Error(validationError);
 
@@ -71,6 +58,7 @@ function SignupContent() {
     setLoading(true);
     setError("");
 
+    // Pre-check validation before even trying Firebase
     const validationError = validateHandle(handle.toLowerCase());
     if (validationError) {
       setError(validationError);
@@ -79,6 +67,7 @@ function SignupContent() {
     }
 
     try {
+      // Check if username is taken BEFORE creating auth account
       const userRef = doc(db, "users", handle.toLowerCase());
       const userSnap = await getDoc(userRef);
       if (userSnap.exists()) {
@@ -93,9 +82,7 @@ function SignupContent() {
 
     } catch (err: any) {
       console.error(err);
-      if (err.message === "Username is already taken 😔") {
-        setError(err.message);
-      } else if (err.code === 'auth/email-already-in-use') {
+      if (err.code === 'auth/email-already-in-use') {
         setError("Email already in use. Log in instead?");
       } else {
         setError(err.message || "Something went wrong.");
@@ -117,6 +104,7 @@ function SignupContent() {
     }
 
     try {
+      // Check if username is taken BEFORE popup
       const userRef = doc(db, "users", handle.toLowerCase());
       const userSnap = await getDoc(userRef);
       if (userSnap.exists()) {
@@ -129,7 +117,6 @@ function SignupContent() {
       const result = await signInWithPopup(auth, provider);
       await saveUserProfile(result.user);
       router.push("/dashboard");
-
     } catch (err: any) {
       console.error(err);
       if (err.message) setError(err.message);
@@ -153,7 +140,7 @@ function SignupContent() {
           <div>
             <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">Username</label>
             <div className="flex bg-black/50 border border-zinc-700 rounded-xl overflow-hidden focus-within:border-indigo-500 transition">
-              <span className="pl-3 py-3 text-zinc-500">pulse.gg/</span>
+              <span className="pl-3 py-3 text-zinc-500">pulsegg.in/</span>
               <input 
                 type="text" 
                 value={handle}
