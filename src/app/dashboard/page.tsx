@@ -6,8 +6,85 @@ import { auth, db } from "@/lib/firebase";
 import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, setDoc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged, updateEmail, updatePassword } from "firebase/auth";
 import { getSteamLoginUrl, verifySteamLogin } from "../setup/actions"; 
-import { ArrowUp, ArrowDown, Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch } from "lucide-react";
+import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X } from "lucide-react";
 import { validateHandle } from "@/lib/validation";
+
+// DND Kit Imports
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+// --- Sortable Widget Item Component ---
+function SortableWidget({ widget, onToggleVisibility, onToggleSize }: { widget: any, onToggleVisibility: () => void, onToggleSize: () => void }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: widget.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      className="flex items-center gap-3 bg-zinc-900/50 p-3 rounded-xl border border-zinc-800 group hover:border-zinc-700 transition"
+    >
+      {/* Drag Handle */}
+      <div {...attributes} {...listeners} className="text-zinc-600 cursor-grab hover:text-zinc-400 p-1">
+        <GripVertical className="w-5 h-5" />
+      </div>
+
+      <div className="flex-1">
+        <span className="font-medium text-sm text-zinc-300 block">{widget.label}</span>
+        <span className="text-[10px] text-zinc-600 font-mono uppercase">
+          {widget.size === 'full' ? 'Full Width (2 Columns)' : 'Half Width (1 Column)'}
+        </span>
+      </div>
+
+      <div className="flex items-center gap-2">
+        {/* Size Toggle */}
+        <button 
+          onClick={onToggleSize}
+          className={`p-2 rounded-lg transition ${widget.size === 'full' ? 'text-indigo-400 bg-indigo-400/10' : 'text-zinc-500 hover:bg-zinc-800'}`}
+          title={widget.size === 'full' ? "Make Half Width" : "Make Full Width"}
+        >
+          {widget.size === 'full' ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+        </button>
+
+        <div className="w-px h-6 bg-zinc-800 mx-1"></div>
+
+        {/* Visibility Toggle */}
+        <button 
+          onClick={onToggleVisibility} 
+          className={`p-2 rounded-lg transition ${widget.enabled ? 'text-green-400 bg-green-400/10' : 'text-zinc-600 bg-zinc-800'}`}
+          title={widget.enabled ? "Hide Widget" : "Show Widget"}
+        >
+          {widget.enabled ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function DashboardContent() {
   const router = useRouter();
@@ -26,11 +103,19 @@ function DashboardContent() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [accentColor, setAccentColor] = useState("indigo");
   
-  // Theme Engine
+  // Theme & Cosmetics Engine
   const [selectedFont, setSelectedFont] = useState("inter");
   const [nameEffect, setNameEffect] = useState("solid");
   const [nameColor, setNameColor] = useState("white");
-  const [primaryColor, setPrimaryColor] = useState("#1e1f22"); 
+  const [primaryColor, setPrimaryColor] = useState("#1e1f22");
+  
+  // New Cosmetic States
+  const [avatarDecoration, setAvatarDecoration] = useState("none");
+  const [cursorTrail, setCursorTrail] = useState("none");
+
+  // Bio & Custom Links
+  const [bio, setBio] = useState("");
+  const [customLinks, setCustomLinks] = useState<{ label: string; url: string }[]>([]);
 
   // Auth Update State
   const [newEmail, setNewEmail] = useState("");
@@ -52,14 +137,22 @@ function DashboardContent() {
   const [youtube, setYoutube] = useState("");
   const [twitch, setTwitch] = useState("");
 
-  // Default widgets - Removed 'socials', added 'content'
+  // Widgets State
   const [widgets, setWidgets] = useState([
-    { id: "hero", label: "Recent Activity (Hero)", enabled: true },
-    { id: "content", label: "Creator Stack (YT/Twitch)", enabled: true },
-    { id: "stats", label: "Stats Overview", enabled: true },
-    { id: "valorant", label: "Valorant Rank", enabled: true },
-    { id: "library", label: "Game Library", enabled: true },
+    { id: "hero", label: "Recent Activity (Hero)", enabled: false, size: 'full' },
+    { id: "content", label: "Creator Stack (YT/Twitch)", enabled: false, size: 'half' },
+    { id: "stats", label: "Stats Overview", enabled: false, size: 'half' },
+    { id: "valorant", label: "Valorant Rank", enabled: false, size: 'half' },
+    { id: "library", label: "Game Library", enabled: false, size: 'half' },
   ]);
+
+  // Sensors for Drag and Drop
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Gradients & Colors
   const gradients = [
@@ -108,6 +201,12 @@ function DashboardContent() {
         setNameEffect(data.theme?.nameEffect || "solid");
         setNameColor(data.theme?.nameColor || "white");
         setPrimaryColor(data.theme?.primary || "#1e1f22");
+        
+        setAvatarDecoration(data.theme?.avatarDecoration || "none");
+        setCursorTrail(data.theme?.cursorTrail || "none");
+
+        setBio(data.bio || "");
+        setCustomLinks(data.customLinks || []);
 
         setXbox(data.gaming?.xbox || "");
         setEpic(data.gaming?.epic || "");
@@ -123,35 +222,33 @@ function DashboardContent() {
         setTwitch(data.socials?.twitch || "");
         
         if (data.layout) {
-          // Migration logic: Ensure new widgets exist and old 'socials' is removed if user didn't customize
-          // For simplicity, we filter out 'socials' if it exists to respect the "replace" request
           let mergedLayout = data.layout.filter((w: any) => w.id !== 'socials');
-          
           const existingIds = new Set(mergedLayout.map((w: any) => w.id));
           const newDefaults = [
-             { id: "hero", label: "Recent Activity (Hero)", enabled: true },
-             { id: "content", label: "Creator Stack (YT/Twitch)", enabled: true },
-             { id: "stats", label: "Stats Overview", enabled: true },
-             { id: "valorant", label: "Valorant Rank", enabled: true },
-             { id: "library", label: "Game Library", enabled: true },
+             { id: "hero", label: "Recent Activity (Hero)", enabled: false, size: 'full' },
+             { id: "content", label: "Creator Stack (YT/Twitch)", enabled: false, size: 'half' },
+             { id: "stats", label: "Stats Overview", enabled: false, size: 'half' },
+             { id: "valorant", label: "Valorant Rank", enabled: false, size: 'half' },
+             { id: "library", label: "Game Library", enabled: false, size: 'half' },
           ];
 
-          // Insert content widget intelligently if missing
           if (!existingIds.has('content')) {
-             mergedLayout.splice(1, 0, { id: "content", label: "Creator Stack (YT/Twitch)", enabled: true });
+             mergedLayout.splice(1, 0, { id: "content", label: "Creator Stack (YT/Twitch)", enabled: false, size: 'half' });
              existingIds.add('content');
           }
           if (!existingIds.has('valorant')) {
-             mergedLayout.splice(2, 0, { id: "valorant", label: "Valorant Rank", enabled: true });
+             mergedLayout.splice(2, 0, { id: "valorant", label: "Valorant Rank", enabled: false, size: 'half' });
              existingIds.add('valorant');
           }
 
-          // Append any other missing defaults at the end
           newDefaults.forEach(w => {
-            if (!existingIds.has(w.id)) {
-               mergedLayout.push(w);
-            }
+            if (!existingIds.has(w.id)) mergedLayout.push(w);
           });
+
+          mergedLayout = mergedLayout.map((w: any) => ({
+            ...w,
+            size: w.size || (w.id === 'hero' ? 'full' : 'half')
+          }));
           
           setWidgets(mergedLayout);
         }
@@ -195,6 +292,10 @@ function DashboardContent() {
       "theme.nameEffect": nameEffect,
       "theme.nameColor": nameColor,
       "theme.primary": primaryColor, 
+      "theme.avatarDecoration": avatarDecoration,
+      "theme.cursorTrail": cursorTrail,
+      bio: bio,
+      customLinks: customLinks,
       "gaming.xbox": xbox,
       "gaming.epic": epic,
       "gaming.valorant": {
@@ -300,19 +401,54 @@ function DashboardContent() {
     window.location.href = `/api/auth/discord?state=${userData.id}`;
   };
 
-  const moveWidget = (index: number, direction: 'up' | 'down') => {
-    const newWidgets = [...widgets];
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (targetIndex >= 0 && targetIndex < newWidgets.length) {
-      [newWidgets[index], newWidgets[targetIndex]] = [newWidgets[targetIndex], newWidgets[index]];
-      setWidgets(newWidgets);
+  // --- WIDGET MANIPULATION ---
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (active.id !== over?.id) {
+      setWidgets((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over?.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
     }
   };
 
-  const toggleWidget = (index: number) => {
-    const newWidgets = [...widgets];
-    newWidgets[index].enabled = !newWidgets[index].enabled;
-    setWidgets(newWidgets);
+  const toggleWidgetVisibility = (id: string) => {
+    setWidgets(widgets.map(w => w.id === id ? { ...w, enabled: !w.enabled } : w));
+  };
+
+  const toggleWidgetSize = (id: string) => {
+    setWidgets(widgets.map(w => w.id === id ? { ...w, size: w.size === 'full' ? 'half' : 'full' } : w));
+  };
+
+  const resetLayout = () => {
+    if (!confirm("Reset layout to default? This will clear your custom ordering and sizes.")) return;
+    
+    setWidgets([
+      { id: "hero", label: "Recent Activity (Hero)", enabled: false, size: 'full' },
+      { id: "content", label: "Creator Stack (YT/Twitch)", enabled: false, size: 'half' },
+      { id: "stats", label: "Stats Overview", enabled: false, size: 'half' },
+      { id: "valorant", label: "Valorant Rank", enabled: false, size: 'half' },
+      { id: "library", label: "Game Library", enabled: false, size: 'half' },
+    ]);
+  };
+
+  // Custom Links Logic
+  const addCustomLink = () => {
+    setCustomLinks([...customLinks, { label: "New Link", url: "" }]);
+  };
+
+  const updateCustomLink = (index: number, field: 'label' | 'url', value: string) => {
+    const newLinks = [...customLinks];
+    newLinks[index][field] = value;
+    setCustomLinks(newLinks);
+  };
+
+  const removeCustomLink = (index: number) => {
+    const newLinks = customLinks.filter((_, i) => i !== index);
+    setCustomLinks(newLinks);
   };
 
   const isDev = process.env.NODE_ENV === 'development';
@@ -360,19 +496,20 @@ function DashboardContent() {
         <main className="max-w-6xl mx-auto p-4 md:p-6">
           
           <div className="flex gap-4 mb-8 border-b border-zinc-800 overflow-x-auto">
-            {['overview', 'layout', 'settings'].map(tab => (
+            {['overview', 'layout', 'cosmetics', 'settings'].map(tab => (
               <button 
                 key={tab}
                 onClick={() => setActiveTab(tab)} 
                 className={`pb-3 font-bold text-sm whitespace-nowrap capitalize ${activeTab === tab ? "text-white border-b-2 border-indigo-500" : "text-zinc-500 hover:text-white"}`}
               >
-                {tab === 'overview' ? 'Accounts & Socials' : tab === 'layout' ? 'Layout & Visuals' : 'Account Settings'}
+                {tab === 'overview' ? 'Accounts & Socials' : tab === 'layout' ? 'Layout' : tab === 'cosmetics' ? 'Visuals & Cosmetics' : 'Account Settings'}
               </button>
             ))}
           </div>
 
           {activeTab === 'overview' && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+              {/* Left Column: Gaming & Primary */}
               <div className="space-y-6 md:space-y-8">
                 <section className="bg-[#121214] border border-zinc-800 rounded-2xl p-4 md:p-6">
                    <h2 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-4">Primary Account</h2>
@@ -402,7 +539,6 @@ function DashboardContent() {
                 <section className="bg-[#121214] border border-zinc-800 rounded-2xl p-4 md:p-6">
                   <h2 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-6">Gaming Accounts</h2>
                   <div className="space-y-4">
-                    
                     {/* VALORANT */}
                     <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl mb-4">
                       <div className="flex items-center gap-2 mb-3">
@@ -450,11 +586,52 @@ function DashboardContent() {
                 </section>
               </div>
 
+              {/* Right Column: Socials, Bio, Links */}
               <div className="space-y-6 md:space-y-8">
                 <section className="bg-[#121214] border border-zinc-800 rounded-2xl p-4 md:p-6">
+                  <h2 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-6">Profile & Bio</h2>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-zinc-500 mb-1">Biography</label>
+                      <textarea 
+                        value={bio} 
+                        onChange={(e) => setBio(e.target.value)} 
+                        className="w-full bg-black/50 border border-zinc-700 rounded-xl p-3 text-white text-sm outline-none focus:border-indigo-500 h-24 resize-none" 
+                        placeholder="Tell us about yourself..." 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-zinc-500 mb-2">Custom Links</label>
+                      <div className="space-y-3">
+                        {customLinks.map((link, idx) => (
+                          <div key={idx} className="flex gap-2">
+                            <input 
+                              type="text" 
+                              value={link.label} 
+                              onChange={(e) => updateCustomLink(idx, 'label', e.target.value)} 
+                              className="w-1/3 bg-black/50 border border-zinc-700 rounded-lg p-2 text-white text-sm outline-none focus:border-indigo-500" 
+                              placeholder="Label" 
+                            />
+                            <input 
+                              type="text" 
+                              value={link.url} 
+                              onChange={(e) => updateCustomLink(idx, 'url', e.target.value)} 
+                              className="flex-1 bg-black/50 border border-zinc-700 rounded-lg p-2 text-white text-sm outline-none focus:border-indigo-500" 
+                              placeholder="https://..." 
+                            />
+                            <button onClick={() => removeCustomLink(idx)} className="p-2 bg-zinc-800 rounded-lg text-zinc-400 hover:text-red-400 hover:bg-zinc-700"><Trash2 className="w-4 h-4" /></button>
+                          </div>
+                        ))}
+                        <button onClick={addCustomLink} className="w-full py-2 border border-dashed border-zinc-700 rounded-lg text-xs font-bold text-zinc-500 hover:text-white hover:border-zinc-500 transition flex items-center justify-center gap-2">
+                          <Plus className="w-3 h-3" /> Add Link
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="bg-[#121214] border border-zinc-800 rounded-2xl p-4 md:p-6">
                   <h2 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-6">Content & Socials</h2>
-                  
-                  {/* CONTENT CREATOR SECTION */}
                   <div className="mb-6 space-y-4">
                      <div>
                         <div className="flex items-center gap-2 mb-2">
@@ -471,9 +648,7 @@ function DashboardContent() {
                         <input type="text" value={twitch} onChange={(e) => setTwitch(e.target.value)} className="w-full bg-black/50 border border-zinc-700 rounded-lg p-2 text-white text-sm outline-none focus:border-purple-500" placeholder="shroud" />
                      </div>
                   </div>
-
                   <div className="h-px bg-zinc-800 my-4"></div>
-
                   <div className="space-y-4">
                     <div className="relative">
                        <label className="text-xs font-bold text-zinc-500 block mb-1">Discord</label>
@@ -503,44 +678,82 @@ function DashboardContent() {
             </div>
           )}
 
+          {/* ... (Layout, Cosmetics, Settings tabs remain largely the same, just keeping the rest of the file content) ... */}
           {activeTab === 'layout' && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
               <section className="bg-[#121214] border border-zinc-800 rounded-2xl p-4 md:p-6 h-fit">
-                <h2 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-6">Visuals</h2>
-                <div className="space-y-6">
-                  
-                  {/* --- CARD THEME PICKER --- */}
-                  <div className="bg-black/30 p-4 rounded-xl border border-zinc-700">
-                    <label className="block text-sm font-bold text-white mb-2 flex items-center gap-2"><Palette className="w-4 h-4"/> Card / Panel Color</label>
-                    <p className="text-xs text-zinc-500 mb-3">Choose the background color for your widgets.</p>
-                    <div className="flex gap-2 items-center">
-                      <input 
-                        type="color" 
-                        value={primaryColor} 
-                        onChange={(e) => setPrimaryColor(e.target.value)} 
-                        className="w-10 h-10 rounded-lg cursor-pointer border-2 border-white/20 bg-transparent p-0"
-                      />
-                      <input 
-                        type="text" 
-                        value={primaryColor} 
-                        onChange={(e) => setPrimaryColor(e.target.value)} 
-                        className="flex-1 bg-black/50 border border-zinc-700 rounded-lg p-2 text-white text-sm font-mono uppercase"
-                      />
-                    </div>
-                    <div className="flex gap-2 mt-3 flex-wrap">
-                      {['#1e1f22', '#000000', '#09090b', '#1a1a1a', '#ffffff', '#2a2d3d'].map(color => (
-                         <button 
-                           key={color} 
-                           onClick={() => setPrimaryColor(color)}
-                           className="w-8 h-8 rounded-full border border-white/20 hover:scale-110 transition shadow-lg"
-                           style={{ backgroundColor: color }}
-                           title={color}
-                         />
+                <h2 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-6">Widget Layout</h2>
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Widget Layout</h2>
+                  <button onClick={resetLayout} className="text-xs text-red-400 hover:text-red-300 font-bold flex items-center gap-1"><RotateCcw className="w-3 h-3" /> Reset Layout</button>
+                </div>
+                <p className="text-xs text-zinc-500 mb-4">Drag to reorder. Toggle <b>Eye</b> to show/hide. Toggle <b>Size</b> to change width.</p>
+                
+                <DndContext 
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext 
+                    items={widgets.map(w => w.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div className="space-y-3">
+                      {widgets.map((widget) => (
+                        <SortableWidget 
+                          key={widget.id} 
+                          widget={widget} 
+                          onToggleVisibility={() => toggleWidgetVisibility(widget.id)}
+                          onToggleSize={() => toggleWidgetSize(widget.id)}
+                        />
                       ))}
                     </div>
-                  </div>
+                  </SortableContext>
+                </DndContext>
 
-                  {/* Other Inputs */}
+                <button onClick={handleSave} disabled={saving} className="w-full mt-6 py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-500 transition disabled:opacity-50 shadow-lg shadow-indigo-900/20">{saving ? "Saving..." : "Save Layout"}</button>
+              </section>
+            </div>
+          )}
+
+          {activeTab === 'cosmetics' && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+              <section className="bg-[#121214] border border-zinc-800 rounded-2xl p-4 md:p-6 h-fit">
+                <h2 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-6">Visuals</h2>
+                {/* ... (Theme Picker & Inputs - same as previous) ... */}
+                {/* --- CARD THEME PICKER --- */}
+                <div className="bg-black/30 p-4 rounded-xl border border-zinc-700 mb-6">
+                  <label className="block text-sm font-bold text-white mb-2 flex items-center gap-2"><Palette className="w-4 h-4"/> Card / Panel Color</label>
+                  <p className="text-xs text-zinc-500 mb-3">Choose the background color for your widgets.</p>
+                  <div className="flex gap-2 items-center">
+                    <input 
+                      type="color" 
+                      value={primaryColor} 
+                      onChange={(e) => setPrimaryColor(e.target.value)} 
+                      className="w-10 h-10 rounded-lg cursor-pointer border-2 border-white/20 bg-transparent p-0"
+                    />
+                    <input 
+                      type="text" 
+                      value={primaryColor} 
+                      onChange={(e) => setPrimaryColor(e.target.value)} 
+                      className="flex-1 bg-black/50 border border-zinc-700 rounded-lg p-2 text-white text-sm font-mono uppercase"
+                    />
+                  </div>
+                  <div className="flex gap-2 mt-3 flex-wrap">
+                    {['#1e1f22', '#000000', '#09090b', '#1a1a1a', '#ffffff', '#2a2d3d'].map(color => (
+                       <button 
+                         key={color} 
+                         onClick={() => setPrimaryColor(color)}
+                         className="w-8 h-8 rounded-full border border-white/20 hover:scale-110 transition shadow-lg"
+                         style={{ backgroundColor: color }}
+                         title={color}
+                       />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Other Inputs */}
+                <div className="space-y-6">
                   <div>
                     <label className="block text-sm font-medium mb-2 text-zinc-300">Custom Avatar</label>
                     <input type="text" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} className="w-full bg-black/50 border border-zinc-700 rounded-xl p-3 text-white text-sm outline-none focus:border-indigo-500" placeholder="https://..." />
@@ -553,29 +766,67 @@ function DashboardContent() {
                     <label className="block text-sm font-medium mb-2 text-zinc-300">Wallpaper</label>
                     <input type="text" value={backgroundUrl} onChange={(e) => setBackgroundUrl(e.target.value)} className="w-full bg-black/50 border border-zinc-700 rounded-xl p-3 text-white text-sm outline-none focus:border-indigo-500" placeholder="https://..." />
                   </div>
+                </div>
+              </section>
 
-                  {/* PREVIEW CARD */}
-                  <div className="h-32 w-full rounded-xl overflow-hidden relative border border-zinc-800 bg-black/50 flex items-center justify-center">
-                    {/* Wallpaper Layer */}
-                    {backgroundUrl ? (
-                      <img src={backgroundUrl} className="absolute inset-0 w-full h-full object-cover opacity-50" alt="Wallpaper Preview" />
-                    ) : (
-                      <div className="absolute inset-0 bg-zinc-900 opacity-50"></div>
-                    )}
-                    
-                    {/* Banner Layer */}
-                    {bannerUrl && <img src={bannerUrl} className="h-20 w-[80%] object-cover z-10 rounded-lg shadow-xl" alt="Banner Preview" />}
-                    
-                    {/* Avatar Layer */}
-                    {avatarUrl ? (
-                      <img src={avatarUrl} className="absolute bottom-2 left-4 w-12 h-12 rounded-full border-2 border-white z-20 bg-zinc-800" alt="Avatar" />
-                    ) : (
-                        <div className="absolute bottom-2 left-4 w-12 h-12 rounded-full border-2 border-white z-20 bg-zinc-700 flex items-center justify-center text-[10px]">PFP</div>
-                    )}
+              <section className="bg-[#121214] border border-zinc-800 rounded-2xl p-4 md:p-6 h-fit">
+                <h2 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-6">Cosmetics</h2>
+                
+                {/* Decoration Picker */}
+                <div className="mb-6">
+                  <label className="block text-sm font-bold text-white mb-2 flex items-center gap-2"><Sparkles className="w-4 h-4"/> Avatar Decoration</label>
+                  <p className="text-xs text-zinc-500 mb-3">Add a cool frame to your avatar.</p>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      { id: 'none', label: 'None' },
+                      { id: 'glitch', label: 'Glitch' },
+                      { id: 'gold', label: 'Gold' },
+                      { id: 'neon', label: 'Neon' },
+                      { id: 'fire', label: 'Fire' }
+                    ].map((deco) => (
+                      <button 
+                        key={deco.id}
+                        onClick={() => setAvatarDecoration(deco.id)}
+                        className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-2 transition ${avatarDecoration === deco.id ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-black/50 border-zinc-800 text-zinc-400 hover:border-zinc-600'}`}
+                      >
+                        <div className="w-8 h-8 rounded-full bg-zinc-800 relative">
+                           {/* Mini Preview of Decoration */}
+                           {deco.id === 'glitch' && <div className="absolute inset-[-2px] rounded-full border-2 border-transparent border-t-red-500 border-b-blue-500"></div>}
+                           {deco.id === 'gold' && <div className="absolute inset-[-2px] rounded-full border-2 border-yellow-400"></div>}
+                           {deco.id === 'neon' && <div className="absolute inset-0 rounded-full border border-indigo-500 shadow-[0_0_10px_indigo]"></div>}
+                           {deco.id === 'fire' && <div className="absolute inset-[-2px] rounded-full bg-gradient-to-t from-red-500 to-yellow-500 opacity-50"></div>}
+                        </div>
+                        <span className="text-[10px] font-bold uppercase">{deco.label}</span>
+                      </button>
+                    ))}
                   </div>
+                </div>
 
-                  {/* Name Styler UI */}
-                  <div className="bg-black/30 p-4 rounded-xl border border-zinc-700">
+                {/* Cursor Trail Picker */}
+                <div className="mb-6">
+                  <label className="block text-sm font-bold text-white mb-2 flex items-center gap-2"><MousePointer2 className="w-4 h-4"/> Cursor Trail</label>
+                  <p className="text-xs text-zinc-500 mb-3">Add a trail effect to your cursor.</p>
+                  <div className="flex gap-2">
+                    {[
+                      { id: 'none', label: 'None' },
+                      { id: 'ghost', label: 'Ghost' },
+                      { id: 'sparkle', label: 'Sparkle' },
+                      { id: 'pulse', label: 'Pulse' },
+                      { id: 'coins', label: 'Coins' }
+                    ].map((trail) => (
+                      <button 
+                        key={trail.id}
+                        onClick={() => setCursorTrail(trail.id)}
+                        className={`flex-1 p-2 rounded-lg border text-xs font-bold capitalize transition ${cursorTrail === trail.id ? 'bg-white text-black border-white' : 'bg-black/50 text-zinc-400 border-zinc-700'}`}
+                      >
+                        {trail.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Name Styler UI */}
+                <div className="bg-black/30 p-4 rounded-xl border border-zinc-700">
                     <label className="block text-sm font-bold text-white mb-4">Display Name Style</label>
                     <div className="mb-4">
                       <label className="text-xs text-zinc-500 uppercase font-bold block mb-2">Font</label>
@@ -600,25 +851,8 @@ function DashboardContent() {
                       </div>
                     </div>
                   </div>
-                </div>
-              </section>
-              <section className="bg-[#121214] border border-zinc-800 rounded-2xl p-4 md:p-6 h-fit">
-                <h2 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-6">Widget Layout</h2>
-                <div className="space-y-3">
-                  {widgets.map((widget, index) => (
-                    <div key={widget.id} className="flex items-center gap-3 bg-zinc-900/50 p-3 rounded-xl border border-zinc-800">
-                      <div className="text-zinc-500 cursor-grab"><GripVertical className="w-5 h-5" /></div>
-                      <span className="flex-1 font-medium text-sm text-zinc-300">{widget.label}</span>
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => moveWidget(index, 'up')} disabled={index === 0} className="p-2 hover:bg-zinc-800 rounded text-zinc-400 disabled:opacity-20"><ArrowUp className="w-4 h-4" /></button>
-                        <button onClick={() => moveWidget(index, 'down')} disabled={index === widgets.length - 1} className="p-2 hover:bg-zinc-800 rounded text-zinc-400 disabled:opacity-20"><ArrowDown className="w-4 h-4" /></button>
-                      </div>
-                      <div className="w-px h-6 bg-zinc-800 mx-2"></div>
-                      <button onClick={() => toggleWidget(index)} className={`p-2 rounded ${widget.enabled ? 'text-green-400 bg-green-400/10' : 'text-zinc-600 bg-zinc-800'}`}>{widget.enabled ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}</button>
-                    </div>
-                  ))}
-                </div>
-                <button onClick={handleSave} disabled={saving} className="w-full mt-6 py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-500 transition disabled:opacity-50 shadow-lg shadow-indigo-900/20">{saving ? "Saving..." : "Save Layout"}</button>
+
+                  <button onClick={handleSave} disabled={saving} className="w-full mt-6 py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-500 transition disabled:opacity-50 shadow-lg shadow-indigo-900/20">{saving ? "Saving..." : "Save Cosmetics"}</button>
               </section>
             </div>
           )}
@@ -660,25 +894,6 @@ function DashboardContent() {
                     <input type="password" value={newPass} onChange={(e) => setNewPass(e.target.value)} className="w-full bg-black/50 border border-zinc-700 rounded-xl p-3 text-white text-sm outline-none focus:border-indigo-500" placeholder="••••••••" />
                   </div>
                   <button onClick={handleUpdateAccount} disabled={saving} className="w-full py-3 bg-zinc-800 text-white font-bold rounded-xl hover:bg-zinc-700 transition disabled:opacity-50">Update Credentials</button>
-                </div>
-              </section>
-
-              <section className="bg-[#121214] border border-zinc-800 rounded-2xl p-6">
-                <h2 className="text-lg font-bold text-white mb-6">Manage Connections</h2>
-                <div className="space-y-3">
-                  {userData?.steamId && (
-                    <div className="flex items-center justify-between p-3 bg-zinc-900/50 rounded-xl border border-zinc-800">
-                      <div className="flex items-center gap-3"><div className="w-8 h-8 bg-[#171a21] rounded flex items-center justify-center"><svg className="w-5 h-5 fill-white" viewBox="0 0 24 24"><path d="M11.979 0C5.352 0 .002 5.35.002 11.95c0 5.63 3.863 10.33 9.056 11.59-.115-.815-.04-1.637.28-2.392l.84-2.81c-.244-.765-.333-1.683-.153-2.61.547-2.66 3.102-4.32 5.714-3.715 2.613.604 4.234 3.25 3.687 5.91-.4 1.94-2.022 3.355-3.86 3.593l-.865 2.92c4.467-1.35 7.9-5.26 8.3-9.98.028-.27.042-.54.042-.814C23.956 5.35 18.605 0 11.98 0zm6.54 12.35c.78.18 1.265.98 1.085 1.776-.18.797-.97.94-1.75.76-.78-.18-1.264-.98-1.085-1.776.18-.798.97-.94 1.75-.76zm-5.46 3.7c-.035 1.54 1.06 2.87 2.53 3.11l.245-.82c-.815-.224-1.423-1.04-1.396-1.99.027-.95.7-1.706 1.543-1.83l.255-.86c-1.472.03-2.65 1.13-3.176 2.39zm-3.045 2.5c-.755.12-1.395-.385-1.43-1.127-.035-.742.53-1.413 1.285-1.532.755-.12 1.394.385 1.43 1.127.034.74-.53 1.41-1.285 1.53z"/></svg></div><span className="font-bold text-sm">Steam</span></div>
-                      <button onClick={() => handleDisconnect('steam')} className="text-xs text-red-400 hover:text-red-300 font-bold flex items-center gap-1"><LogOut className="w-3 h-3"/> Disconnect</button>
-                    </div>
-                  )}
-                  {userData?.socials?.discord && (
-                    <div className="flex items-center justify-between p-3 bg-zinc-900/50 rounded-xl border border-zinc-800">
-                      <div className="flex items-center gap-3"><div className="w-8 h-8 bg-[#5865F2] rounded flex items-center justify-center text-white"><svg className="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg></div><span className="font-bold text-sm">Discord</span></div>
-                      <button onClick={() => handleDisconnect('discord')} className="text-xs text-red-400 hover:text-red-300 font-bold flex items-center gap-1"><LogOut className="w-3 h-3"/> Disconnect</button>
-                    </div>
-                  )}
-                  {!userData?.steamId && !userData?.socials?.discord && <p className="text-sm text-zinc-500 italic">No active connections.</p>}
                 </div>
               </section>
             </div>
