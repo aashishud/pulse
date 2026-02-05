@@ -3,6 +3,7 @@ import { Sparkles, Gamepad2, Trophy, Clock, MapPin, Link as LinkIcon, ExternalLi
 import Link from 'next/link';
 import Image from 'next/image';
 import { Inter, Space_Grotesk, Press_Start_2P, Cinzel } from 'next/font/google';
+import ShareButton from '@/components/ShareButton';
 
 // Load Fonts
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
@@ -46,6 +47,7 @@ async function getFirebaseUser(username: string) {
       font: fields.theme?.mapValue?.fields?.font?.stringValue || "inter",
       nameEffect: fields.theme?.mapValue?.fields?.nameEffect?.stringValue || "solid",
       nameColor: fields.theme?.mapValue?.fields?.nameColor?.stringValue || "white",
+      primary: fields.theme?.mapValue?.fields?.primary?.stringValue || "#1e1f22", 
       layout: fields.layout?.arrayValue?.values || defaultLayout, 
       gaming: {
         xbox: fields.gaming?.mapValue?.fields?.xbox?.stringValue,
@@ -151,6 +153,8 @@ export default async function ProfilePage({ params }: Props) {
   const displayName = firebaseUser.displayName || profile?.personaname || username;
 
   // Render Widget
+  const cardStyle = { backgroundColor: `${firebaseUser.primary}E6` };
+
   const renderWidget = (id: string, key: string) => {
     switch (id) {
       case 'hero':
@@ -202,7 +206,7 @@ export default async function ProfilePage({ params }: Props) {
 
       case 'stats':
         return (
-          <div key={key} className="col-span-1 bg-[#1e1f22]/90 backdrop-blur-md p-5 rounded-2xl border border-white/10 hover:border-white/20 transition h-full flex flex-col justify-between group min-h-[140px]">
+          <div key={key} style={cardStyle} className="col-span-1 backdrop-blur-md p-5 rounded-2xl border border-white/10 hover:border-white/20 transition h-full flex flex-col justify-between group min-h-[140px]">
              <div className="flex justify-between items-start">
                 <div className="p-2.5 bg-white/5 rounded-xl text-white group-hover:bg-white/10 transition"><Trophy className="w-4 h-4" /></div>
                 <div className="text-right">
@@ -220,7 +224,7 @@ export default async function ProfilePage({ params }: Props) {
       case 'socials':
         const linkedCount = Object.values(firebaseUser.socials).filter(v => v).length + (firebaseUser.gaming.xbox ? 1 : 0) + (firebaseUser.gaming.epic ? 1 : 0);
         return (
-          <div key={key} className="col-span-1 bg-[#1e1f22]/90 backdrop-blur-md p-5 rounded-2xl border border-white/10 hover:border-white/20 transition h-full min-h-[140px]">
+          <div key={key} style={cardStyle} className="col-span-1 backdrop-blur-md p-5 rounded-2xl border border-white/10 hover:border-white/20 transition h-full min-h-[140px]">
              <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2"><LinkIcon className="w-3 h-3" /> Connections</h3>
                 <span className="bg-white/10 px-1.5 py-0.5 rounded text-[10px] font-mono text-zinc-400">{linkedCount}</span>
@@ -250,7 +254,7 @@ export default async function ProfilePage({ params }: Props) {
 
       case 'library':
         return otherGames.length > 0 ? (
-          <div key={key} className="col-span-1 md:col-span-1 bg-[#1e1f22]/90 backdrop-blur-md rounded-2xl border border-white/10 p-5 h-full overflow-hidden">
+          <div key={key} style={cardStyle} className="col-span-1 md:col-span-1 backdrop-blur-md rounded-2xl border border-white/10 p-5 h-full overflow-hidden">
              <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3 flex items-center gap-2"><LayoutGrid className="w-3 h-3" /> Library</h3>
              <div className="space-y-3">
                 {otherGames.slice(0, 3).map((game: any) => (
@@ -296,9 +300,12 @@ export default async function ProfilePage({ params }: Props) {
            <a href={homeUrl} className="flex items-center gap-2 font-bold text-xl tracking-tighter hover:opacity-80 transition">
              <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center"><Sparkles className="w-4 h-4 text-white" /></div>Pulse
            </a>
-           <a href={dashboardUrl} className="px-3 py-1.5 bg-[#1e1f22] border border-white/10 rounded-xl font-bold text-[10px] hover:bg-white hover:text-black transition flex items-center gap-2">
-              <Zap className="w-3 h-3 text-yellow-400 fill-current" /> Edit
-           </a>
+           <div className="flex items-center gap-3">
+              <ShareButton />
+              <a href={dashboardUrl} className="px-3 py-1.5 bg-[#1e1f22] border border-white/10 rounded-xl font-bold text-[10px] hover:bg-white hover:text-black transition flex items-center gap-2">
+                 <Zap className="w-3 h-3 text-yellow-400 fill-current" /> Edit
+              </a>
+           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -354,7 +361,7 @@ export default async function ProfilePage({ params }: Props) {
           <div className="lg:col-span-8 space-y-6">
             <div className="flex items-center gap-6 px-4">
                <button className="text-white font-bold border-b-2 border-white pb-1">Overview</button>
-               <button className="text-zinc-500 font-bold hover:text-zinc-300 transition pb-1">Activity</button>
+               <button className="text-zinc-500 font-bold hover:text-zinc-300 transition pb-1">About Me</button>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -7,7 +7,7 @@ import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, setDoc, g
 import { onAuthStateChanged, updateEmail, updatePassword } from "firebase/auth";
 import { getSteamLoginUrl, verifySteamLogin } from "../setup/actions"; 
 import { ArrowUp, ArrowDown, Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette } from "lucide-react";
-import { validateHandle } from "@/lib/validation"; // Import Validation
+import { validateHandle } from "@/lib/validation";
 
 function DashboardContent() {
   const router = useRouter();
@@ -257,12 +257,12 @@ function DashboardContent() {
 
   const isDev = process.env.NODE_ENV === 'development';
   const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || (typeof window !== 'undefined' ? window.location.host : 'pulse.gg');
-  const isVercel = rootDomain.includes('vercel.app');
+  
+  // FIX: Force path-based routing (pulse.gg/username) instead of subdomain (username.pulse.gg)
+  // This ensures the link in the dashboard always points to the correct path
   const profileUrl = isDev 
-    ? `http://${userData?.username}.localhost:3000` 
-    : isVercel 
-      ? `https://${rootDomain}/${userData?.username}`
-      : `https://${userData?.username}.${rootDomain}`;
+    ? `http://localhost:3000/${userData?.username}`
+    : `https://${rootDomain}/${userData?.username}`;
 
   if (loading) return <div className="min-h-screen bg-black text-white p-10">Loading...</div>;
 

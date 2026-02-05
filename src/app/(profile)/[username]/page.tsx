@@ -3,6 +3,7 @@ import { Sparkles, Gamepad2, Trophy, Clock, MapPin, Link as LinkIcon, ExternalLi
 import Link from 'next/link';
 import Image from 'next/image';
 import { Inter, Space_Grotesk, Press_Start_2P, Cinzel } from 'next/font/google';
+import ShareButton from '@/components/ShareButton';
 
 // Load Fonts
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
@@ -46,6 +47,7 @@ async function getFirebaseUser(username: string) {
       font: fields.theme?.mapValue?.fields?.font?.stringValue || "inter",
       nameEffect: fields.theme?.mapValue?.fields?.nameEffect?.stringValue || "solid",
       nameColor: fields.theme?.mapValue?.fields?.nameColor?.stringValue || "white",
+      primary: fields.theme?.mapValue?.fields?.primary?.stringValue || "#1e1f22", 
       layout: fields.layout?.arrayValue?.values || defaultLayout, 
       gaming: {
         xbox: fields.gaming?.mapValue?.fields?.xbox?.stringValue,
@@ -111,7 +113,7 @@ export default async function ProfilePage({ params }: Props) {
       getOwnedGamesCount(firebaseUser.steamId)
     ]);
 
-    // NEW: Fetch achievements for the hero game (most recent)
+    // Fetch achievements for the hero game (most recent)
     if (recentGames.length > 0) {
       heroGameProgress = await getGameProgress(firebaseUser.steamId, recentGames[0].appid);
     }
@@ -150,12 +152,47 @@ export default async function ProfilePage({ params }: Props) {
 
   const displayName = firebaseUser.displayName || profile?.personaname || username;
 
-  // Render Widget
+  // --- Dynamic Text Color Logic ---
+  // Detect if the card background is white (or close to it)
+  const isLightCard = firebaseUser.primary?.toLowerCase() === '#ffffff' || firebaseUser.primary?.toLowerCase() === 'white';
+  
+  // Default Dark Theme Text
+  let titleColor = "text-white";
+  let subtitleColor = "text-zinc-300";
+  let mutedColor = "text-zinc-500";
+  let iconBg = "bg-white/5";
+  let hoverIconBg = "group-hover:bg-white/10";
+  
+  if (isLightCard) {
+    // If nameColor is a solid color (not white, not gradient), use it for text
+    const shouldUseNameColor = firebaseUser.nameEffect !== 'gradient' && firebaseUser.nameColor !== 'white';
+
+    if (shouldUseNameColor) {
+      // Use the username color
+      titleColor = `text-${firebaseUser.nameColor}`;
+      subtitleColor = `text-${firebaseUser.nameColor} opacity-80`;
+      mutedColor = `text-${firebaseUser.nameColor} opacity-60`;
+      iconBg = `bg-${firebaseUser.nameColor} bg-opacity-10`;
+      hoverIconBg = `group-hover:bg-${firebaseUser.nameColor}/20`;
+    } else {
+      // Fallback: Username is white or gradient -> Force Black text on White Card
+      titleColor = "text-black";
+      subtitleColor = "text-zinc-700";
+      mutedColor = "text-zinc-500";
+      iconBg = "bg-black/5";
+      hoverIconBg = "group-hover:bg-black/10";
+    }
+  }
+
+  // Card Background with slight transparency
+  const cardStyle = { backgroundColor: `${firebaseUser.primary}E6` };
+
   const renderWidget = (id: string, key: string) => {
     switch (id) {
       case 'hero':
         if (!heroGame) return null;
         return (
+          // Hero widget keeps its own style (Dark Image Overlay) regardless of theme
           <div key={key} className="col-span-1 md:col-span-2 relative h-[260px] rounded-2xl overflow-hidden group border border-white/10 bg-zinc-900 shadow-xl">
              <Image 
                 src={`https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${heroGame.appid}/library_hero.jpg`} 
@@ -166,7 +203,7 @@ export default async function ProfilePage({ params }: Props) {
              />
              <div className="absolute inset-0 bg-gradient-to-t from-[#111] via-black/40 to-transparent"></div>
              
-             {/* Content */}
+             {/* Content - Always White Text for Hero */}
              <div className="absolute bottom-0 left-0 w-full p-6">
                 <div className="flex justify-between items-end mb-2">
                    <div>
@@ -202,17 +239,17 @@ export default async function ProfilePage({ params }: Props) {
 
       case 'stats':
         return (
-          <div key={key} className="col-span-1 bg-[#1e1f22]/90 backdrop-blur-md p-5 rounded-2xl border border-white/10 hover:border-white/20 transition h-full flex flex-col justify-between group min-h-[140px]">
+          <div key={key} style={cardStyle} className="col-span-1 backdrop-blur-md p-5 rounded-2xl border border-white/10 hover:border-white/20 transition h-full flex flex-col justify-between group min-h-[140px]">
              <div className="flex justify-between items-start">
-                <div className="p-2.5 bg-white/5 rounded-xl text-white group-hover:bg-white/10 transition"><Trophy className="w-4 h-4" /></div>
+                <div className={`p-2.5 rounded-xl ${iconBg} ${hoverIconBg} transition ${titleColor}`}><Trophy className="w-4 h-4" /></div>
                 <div className="text-right">
-                   <p className="text-[10px] font-bold text-zinc-500 uppercase">Level</p>
-                   <p className="text-lg font-mono text-white">{level}</p>
+                   <p className={`text-[10px] font-bold uppercase ${mutedColor}`}>Level</p>
+                   <p className={`text-lg font-mono ${titleColor}`}>{level}</p>
                 </div>
              </div>
              <div>
-                <p className="text-3xl font-black text-white mb-0.5">{gameCount}</p>
-                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Games Owned</p>
+                <p className={`text-3xl font-black mb-0.5 ${titleColor}`}>{gameCount}</p>
+                <p className={`text-[10px] font-bold uppercase tracking-widest ${mutedColor}`}>Games Owned</p>
              </div>
           </div>
         );
@@ -220,26 +257,26 @@ export default async function ProfilePage({ params }: Props) {
       case 'socials':
         const linkedCount = Object.values(firebaseUser.socials).filter(v => v).length + (firebaseUser.gaming.xbox ? 1 : 0) + (firebaseUser.gaming.epic ? 1 : 0);
         return (
-          <div key={key} className="col-span-1 bg-[#1e1f22]/90 backdrop-blur-md p-5 rounded-2xl border border-white/10 hover:border-white/20 transition h-full min-h-[140px]">
+          <div key={key} style={cardStyle} className="col-span-1 backdrop-blur-md p-5 rounded-2xl border border-white/10 hover:border-white/20 transition h-full min-h-[140px]">
              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2"><LinkIcon className="w-3 h-3" /> Connections</h3>
-                <span className="bg-white/10 px-1.5 py-0.5 rounded text-[10px] font-mono text-zinc-400">{linkedCount}</span>
+                <h3 className={`text-xs font-bold uppercase tracking-wider flex items-center gap-2 ${titleColor}`}><LinkIcon className="w-3 h-3" /> Connections</h3>
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${iconBg} ${subtitleColor}`}>{linkedCount}</span>
              </div>
              <div className="space-y-2">
                 {firebaseUser.steamId && (
-                  <a href={`https://steamcommunity.com/profiles/${firebaseUser.steamId}`} target="_blank" className="flex items-center justify-between p-1.5 rounded-lg hover:bg-white/5 transition group">
+                  <a href={`https://steamcommunity.com/profiles/${firebaseUser.steamId}`} target="_blank" className={`flex items-center justify-between p-1.5 rounded-lg hover:bg-black/5 transition group`}>
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 bg-[#171a21] rounded flex items-center justify-center"><Gamepad2 className="w-3 h-3 text-white" /></div>
-                      <span className="text-xs font-medium text-zinc-300 group-hover:text-white">Steam</span>
+                      <div className={`w-6 h-6 rounded flex items-center justify-center ${isLightCard ? 'bg-black text-white' : 'bg-[#171a21] text-white'}`}><Gamepad2 className="w-3 h-3" /></div>
+                      <span className={`text-xs font-medium group-hover:opacity-100 transition ${subtitleColor}`}>Steam</span>
                     </div>
-                    <ExternalLink className="w-3 h-3 text-zinc-600 group-hover:text-white" />
+                    <ExternalLink className={`w-3 h-3 ${mutedColor} group-hover:opacity-100`} />
                   </a>
                 )}
                 {firebaseUser.socials.discord && (
-                  <div className="flex items-center justify-between p-1.5 rounded-lg hover:bg-white/5 transition group">
+                  <div className={`flex items-center justify-between p-1.5 rounded-lg hover:bg-black/5 transition group`}>
                     <div className="flex items-center gap-2">
                       <div className="w-6 h-6 bg-[#5865F2] rounded flex items-center justify-center"><span className="text-white text-[10px] font-bold">Ds</span></div>
-                      <span className="text-xs font-medium text-zinc-300 group-hover:text-white">{firebaseUser.socials.discord}</span>
+                      <span className={`text-xs font-medium group-hover:opacity-100 transition ${subtitleColor}`}>{firebaseUser.socials.discord}</span>
                     </div>
                     {firebaseUser.socials.discord_verified && <VerifiedBadge />}
                   </div>
@@ -250,8 +287,8 @@ export default async function ProfilePage({ params }: Props) {
 
       case 'library':
         return otherGames.length > 0 ? (
-          <div key={key} className="col-span-1 md:col-span-1 bg-[#1e1f22]/90 backdrop-blur-md rounded-2xl border border-white/10 p-5 h-full overflow-hidden">
-             <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3 flex items-center gap-2"><LayoutGrid className="w-3 h-3" /> Library</h3>
+          <div key={key} style={cardStyle} className="col-span-1 md:col-span-1 backdrop-blur-md rounded-2xl border border-white/10 p-5 h-full overflow-hidden">
+             <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2 ${mutedColor}`}><LayoutGrid className="w-3 h-3" /> Library</h3>
              <div className="space-y-3">
                 {otherGames.slice(0, 3).map((game: any) => (
                   <div key={game.appid} className="flex items-center gap-3 group cursor-default">
@@ -265,8 +302,8 @@ export default async function ProfilePage({ params }: Props) {
                         />
                      </div>
                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-xs text-zinc-300 group-hover:text-white truncate transition">{game.name}</p>
-                        <p className="text-[10px] text-zinc-600 font-mono">{Math.round(game.playtime_forever / 60)}h</p>
+                        <p className={`font-bold text-xs truncate transition ${subtitleColor} group-hover:opacity-100`}>{game.name}</p>
+                        <p className={`text-[10px] font-mono ${mutedColor}`}>{Math.round(game.playtime_forever / 60)}h</p>
                      </div>
                   </div>
                 ))}
@@ -296,9 +333,12 @@ export default async function ProfilePage({ params }: Props) {
            <a href={homeUrl} className="flex items-center gap-2 font-bold text-xl tracking-tighter hover:opacity-80 transition">
              <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center"><Sparkles className="w-4 h-4 text-white" /></div>Pulse
            </a>
-           <a href={dashboardUrl} className="px-3 py-1.5 bg-[#1e1f22] border border-white/10 rounded-xl font-bold text-[10px] hover:bg-white hover:text-black transition flex items-center gap-2">
-              <Zap className="w-3 h-3 text-yellow-400 fill-current" /> Edit
-           </a>
+           <div className="flex items-center gap-3">
+              <ShareButton />
+              <a href={dashboardUrl} className="px-3 py-1.5 bg-[#1e1f22] border border-white/10 rounded-xl font-bold text-[10px] hover:bg-white hover:text-black transition flex items-center gap-2">
+                 <Zap className="w-3 h-3 text-yellow-400 fill-current" /> Edit
+              </a>
+           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -354,7 +394,7 @@ export default async function ProfilePage({ params }: Props) {
           <div className="lg:col-span-8 space-y-6">
             <div className="flex items-center gap-6 px-4">
                <button className="text-white font-bold border-b-2 border-white pb-1">Overview</button>
-               <button className="text-zinc-500 font-bold hover:text-zinc-300 transition pb-1">Activity</button>
+               <button className="text-zinc-500 font-bold hover:text-zinc-300 transition pb-1">About Me</button>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
