@@ -6,7 +6,7 @@ import { auth, db } from "@/lib/firebase";
 import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, setDoc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged, updateEmail, updatePassword } from "firebase/auth";
 import { getSteamLoginUrl, verifySteamLogin } from "../setup/actions"; 
-import { ArrowUp, ArrowDown, Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette } from "lucide-react";
+import { ArrowUp, ArrowDown, Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch } from "lucide-react";
 import { validateHandle } from "@/lib/validation";
 
 function DashboardContent() {
@@ -42,10 +42,22 @@ function DashboardContent() {
   const [discord, setDiscord] = useState("");
   const [twitter, setTwitter] = useState("");
   const [instagram, setInstagram] = useState("");
+
+  // Valorant State
+  const [riotName, setRiotName] = useState("");
+  const [riotTag, setRiotTag] = useState("");
+  const [riotRegion, setRiotRegion] = useState("na");
+
+  // Content Creator State
+  const [youtube, setYoutube] = useState("");
+  const [twitch, setTwitch] = useState("");
+
+  // Default widgets - Removed 'socials', added 'content'
   const [widgets, setWidgets] = useState([
     { id: "hero", label: "Recent Activity (Hero)", enabled: true },
+    { id: "content", label: "Creator Stack (YT/Twitch)", enabled: true },
     { id: "stats", label: "Stats Overview", enabled: true },
-    { id: "socials", label: "Linked Accounts", enabled: true },
+    { id: "valorant", label: "Valorant Rank", enabled: true },
     { id: "library", label: "Game Library", enabled: true },
   ]);
 
@@ -99,10 +111,51 @@ function DashboardContent() {
 
         setXbox(data.gaming?.xbox || "");
         setEpic(data.gaming?.epic || "");
+        
+        setRiotName(data.gaming?.valorant?.name || "");
+        setRiotTag(data.gaming?.valorant?.tag || "");
+        setRiotRegion(data.gaming?.valorant?.region || "na");
+
         setDiscord(data.socials?.discord || "");
         setTwitter(data.socials?.twitter || "");
         setInstagram(data.socials?.instagram || "");
-        if (data.layout) setWidgets(data.layout);
+        setYoutube(data.socials?.youtube || "");
+        setTwitch(data.socials?.twitch || "");
+        
+        if (data.layout) {
+          // Migration logic: Ensure new widgets exist and old 'socials' is removed if user didn't customize
+          // For simplicity, we filter out 'socials' if it exists to respect the "replace" request
+          let mergedLayout = data.layout.filter((w: any) => w.id !== 'socials');
+          
+          const existingIds = new Set(mergedLayout.map((w: any) => w.id));
+          const newDefaults = [
+             { id: "hero", label: "Recent Activity (Hero)", enabled: true },
+             { id: "content", label: "Creator Stack (YT/Twitch)", enabled: true },
+             { id: "stats", label: "Stats Overview", enabled: true },
+             { id: "valorant", label: "Valorant Rank", enabled: true },
+             { id: "library", label: "Game Library", enabled: true },
+          ];
+
+          // Insert content widget intelligently if missing
+          if (!existingIds.has('content')) {
+             mergedLayout.splice(1, 0, { id: "content", label: "Creator Stack (YT/Twitch)", enabled: true });
+             existingIds.add('content');
+          }
+          if (!existingIds.has('valorant')) {
+             mergedLayout.splice(2, 0, { id: "valorant", label: "Valorant Rank", enabled: true });
+             existingIds.add('valorant');
+          }
+
+          // Append any other missing defaults at the end
+          newDefaults.forEach(w => {
+            if (!existingIds.has(w.id)) {
+               mergedLayout.push(w);
+            }
+          });
+          
+          setWidgets(mergedLayout);
+        }
+        
         setLoading(false);
       } else {
         router.push("/signup");
@@ -144,9 +197,16 @@ function DashboardContent() {
       "theme.primary": primaryColor, 
       "gaming.xbox": xbox,
       "gaming.epic": epic,
+      "gaming.valorant": {
+        name: riotName,
+        tag: riotTag,
+        region: riotRegion
+      },
       "socials.discord": discord, 
       "socials.twitter": twitter,
       "socials.instagram": instagram,
+      "socials.youtube": youtube,
+      "socials.twitch": twitch,
       "layout": widgets
     });
     setSaving(false);
@@ -178,7 +238,7 @@ function DashboardContent() {
     const confirm = window.confirm(`Change handle to @${newUsername}? This will change your profile URL.`);
     if (!confirm) return;
 
-    // VALIDATE USERNAME before doing anything
+    // VALIDATE USERNAME
     const validationError = validateHandle(newUsername.toLowerCase());
     if (validationError) {
       alert(validationError);
@@ -258,8 +318,6 @@ function DashboardContent() {
   const isDev = process.env.NODE_ENV === 'development';
   const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || (typeof window !== 'undefined' ? window.location.host : 'pulse.gg');
   
-  // FIX: Force path-based routing (pulse.gg/username) instead of subdomain (username.pulse.gg)
-  // This ensures the link in the dashboard always points to the correct path
   const profileUrl = isDev 
     ? `http://localhost:3000/${userData?.username}`
     : `https://${rootDomain}/${userData?.username}`;
@@ -344,6 +402,36 @@ function DashboardContent() {
                 <section className="bg-[#121214] border border-zinc-800 rounded-2xl p-4 md:p-6">
                   <h2 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-6">Gaming Accounts</h2>
                   <div className="space-y-4">
+                    
+                    {/* VALORANT */}
+                    <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl mb-4">
+                      <div className="flex items-center gap-2 mb-3">
+                         <Swords className="w-5 h-5 text-red-500" />
+                         <span className="font-bold text-sm text-red-400">Valorant Integration</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 mb-3">
+                         <div>
+                            <label className="text-xs font-bold text-zinc-500 block mb-1">Riot Name</label>
+                            <input type="text" value={riotName} onChange={(e) => setRiotName(e.target.value)} className="w-full bg-black/50 border border-zinc-700 rounded-lg p-2 text-white text-sm outline-none focus:border-red-500" placeholder="TenZ" />
+                         </div>
+                         <div>
+                            <label className="text-xs font-bold text-zinc-500 block mb-1">Tagline</label>
+                            <input type="text" value={riotTag} onChange={(e) => setRiotTag(e.target.value)} className="w-full bg-black/50 border border-zinc-700 rounded-lg p-2 text-white text-sm outline-none focus:border-red-500" placeholder="001" />
+                         </div>
+                      </div>
+                      <div>
+                         <label className="text-xs font-bold text-zinc-500 block mb-1">Region</label>
+                         <select value={riotRegion} onChange={(e) => setRiotRegion(e.target.value)} className="w-full bg-black/50 border border-zinc-700 rounded-lg p-2 text-white text-sm outline-none focus:border-red-500">
+                           <option value="na">North America (NA)</option>
+                           <option value="eu">Europe (EU)</option>
+                           <option value="ap">Asia Pacific (AP)</option>
+                           <option value="kr">Korea (KR)</option>
+                           <option value="latam">Latin America (LATAM)</option>
+                           <option value="br">Brazil (BR)</option>
+                         </select>
+                      </div>
+                    </div>
+
                     <div className="flex items-center gap-3">
                        <div className="w-10 h-10 rounded-lg bg-[#107C10] flex items-center justify-center text-white font-bold shrink-0">X</div>
                        <div className="flex-1">
@@ -364,7 +452,28 @@ function DashboardContent() {
 
               <div className="space-y-6 md:space-y-8">
                 <section className="bg-[#121214] border border-zinc-800 rounded-2xl p-4 md:p-6">
-                  <h2 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-6">Social Links</h2>
+                  <h2 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-6">Content & Socials</h2>
+                  
+                  {/* CONTENT CREATOR SECTION */}
+                  <div className="mb-6 space-y-4">
+                     <div>
+                        <div className="flex items-center gap-2 mb-2">
+                           <Youtube className="w-4 h-4 text-red-500" />
+                           <label className="text-xs font-bold text-zinc-500">YouTube Link / Handle</label>
+                        </div>
+                        <input type="text" value={youtube} onChange={(e) => setYoutube(e.target.value)} className="w-full bg-black/50 border border-zinc-700 rounded-lg p-2 text-white text-sm outline-none focus:border-red-500" placeholder="https://youtube.com/@..." />
+                     </div>
+                     <div>
+                        <div className="flex items-center gap-2 mb-2">
+                           <Twitch className="w-4 h-4 text-purple-500" />
+                           <label className="text-xs font-bold text-zinc-500">Twitch Username</label>
+                        </div>
+                        <input type="text" value={twitch} onChange={(e) => setTwitch(e.target.value)} className="w-full bg-black/50 border border-zinc-700 rounded-lg p-2 text-white text-sm outline-none focus:border-purple-500" placeholder="shroud" />
+                     </div>
+                  </div>
+
+                  <div className="h-px bg-zinc-800 my-4"></div>
+
                   <div className="space-y-4">
                     <div className="relative">
                        <label className="text-xs font-bold text-zinc-500 block mb-1">Discord</label>

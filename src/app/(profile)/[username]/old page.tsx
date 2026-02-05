@@ -1,9 +1,11 @@
 import { getSteamProfile, getRecentlyPlayed, getSteamLevel, getOwnedGamesCount, getGameProgress } from '@/lib/steam';
-import { Sparkles, Gamepad2, Trophy, Clock, MapPin, Link as LinkIcon, ExternalLink, Ghost, Music, LayoutGrid, Zap } from 'lucide-react';
+import { getValorantProfile } from '@/lib/valorant';
+import { Sparkles, Gamepad2, Trophy, Clock, MapPin, Link as LinkIcon, ExternalLink, Ghost, Music, LayoutGrid, Zap, Swords } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Inter, Space_Grotesk, Press_Start_2P, Cinzel } from 'next/font/google';
 import ShareButton from '@/components/ShareButton';
+import { Metadata } from 'next';
 
 // Load Fonts
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
@@ -15,6 +17,16 @@ export const revalidate = 60;
 
 interface Props {
   params: Promise<{ username: string }>;
+}
+
+// Fix Metadata Warning
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { username } = await params;
+  return {
+    title: `${username} | Pulse`,
+    description: `Check out ${username}'s gaming profile on Pulse.`,
+    metadataBase: new URL('https://pulsegg.in'), // Uses your actual domain
+  };
 }
 
 async function getFirebaseUser(username: string) {
@@ -54,6 +66,11 @@ async function getFirebaseUser(username: string) {
         xbox_verified: isVerified(fields.gaming?.mapValue?.fields?.xbox_verified),
         epic: fields.gaming?.mapValue?.fields?.epic?.stringValue,
         epic_verified: isVerified(fields.gaming?.mapValue?.fields?.epic_verified),
+        valorant: {
+          name: fields.gaming?.mapValue?.fields?.valorant?.mapValue?.fields?.name?.stringValue,
+          tag: fields.gaming?.mapValue?.fields?.valorant?.mapValue?.fields?.tag?.stringValue,
+          region: fields.gaming?.mapValue?.fields?.valorant?.mapValue?.fields?.region?.stringValue,
+        }
       },
       socials: {
         discord: fields.socials?.mapValue?.fields?.discord?.stringValue,
@@ -98,25 +115,52 @@ export default async function ProfilePage({ params }: Props) {
     );
   }
 
-  // Fetch Steam Data
+  // Fetch Steam & Valorant Data
   let profile = null;
   let recentGames: any[] = [];
   let level = 0;
   let gameCount = 0;
   let heroGameProgress = null;
+  let valorantData = null;
+
+  const promises: Promise<any>[] = [];
 
   if (firebaseUser.steamId) {
-    [profile, recentGames, level, gameCount] = await Promise.all([
-      getSteamProfile(firebaseUser.steamId),
-      getRecentlyPlayed(firebaseUser.steamId),
-      getSteamLevel(firebaseUser.steamId),
-      getOwnedGamesCount(firebaseUser.steamId)
-    ]);
+    promises.push(getSteamProfile(firebaseUser.steamId));
+    promises.push(getRecentlyPlayed(firebaseUser.steamId));
+    promises.push(getSteamLevel(firebaseUser.steamId));
+    promises.push(getOwnedGamesCount(firebaseUser.steamId));
+  } else {
+    promises.push(Promise.resolve(null), Promise.resolve([]), Promise.resolve(0), Promise.resolve(0));
+  }
 
-    // NEW: Fetch achievements for the hero game (most recent)
-    if (recentGames.length > 0) {
-      heroGameProgress = await getGameProgress(firebaseUser.steamId, recentGames[0].appid);
-    }
+  if (firebaseUser.gaming.valorant?.name && firebaseUser.gaming.valorant?.tag) {
+    promises.push(getValorantProfile(
+      firebaseUser.gaming.valorant.name, 
+      firebaseUser.gaming.valorant.tag, 
+      firebaseUser.gaming.valorant.region || 'na'
+    ));
+  } else {
+    promises.push(Promise.resolve(null));
+  }
+
+  const [
+    steamProfile, 
+    steamGames, 
+    steamLevel, 
+    steamGameCount, 
+    valProfile
+  ] = await Promise.all(promises);
+
+  profile = steamProfile;
+  recentGames = steamGames || [];
+  level = steamLevel || 0;
+  gameCount = steamGameCount || 0;
+  valorantData = valProfile;
+
+  // Fetch achievements for the hero game (most recent)
+  if (recentGames.length > 0 && firebaseUser.steamId) {
+    heroGameProgress = await getGameProgress(firebaseUser.steamId, recentGames[0].appid);
   }
 
   const joinDate = profile?.timecreated ? new Date(profile.timecreated * 1000) : new Date();
@@ -152,7 +196,33 @@ export default async function ProfilePage({ params }: Props) {
 
   const displayName = firebaseUser.displayName || profile?.personaname || username;
 
-  // Render Widget
+  // --- Dynamic Text Color Logic ---
+  const isLightCard = firebaseUser.primary?.toLowerCase() === '#ffffff' || firebaseUser.primary?.toLowerCase() === 'white';
+  
+  let titleColor = "text-white";
+  let subtitleColor = "text-zinc-300";
+  let mutedColor = "text-zinc-500";
+  let iconBg = "bg-white/5";
+  let hoverIconBg = "group-hover:bg-white/10";
+  
+  if (isLightCard) {
+    const shouldUseNameColor = firebaseUser.nameEffect !== 'gradient' && firebaseUser.nameColor !== 'white';
+
+    if (shouldUseNameColor) {
+      titleColor = `text-${firebaseUser.nameColor}`;
+      subtitleColor = `text-${firebaseUser.nameColor} opacity-80`;
+      mutedColor = `text-${firebaseUser.nameColor} opacity-60`;
+      iconBg = `bg-${firebaseUser.nameColor} bg-opacity-10`;
+      hoverIconBg = `group-hover:bg-${firebaseUser.nameColor}/20`;
+    } else {
+      titleColor = "text-black";
+      subtitleColor = "text-zinc-700";
+      mutedColor = "text-zinc-500";
+      iconBg = "bg-black/5";
+      hoverIconBg = "group-hover:bg-black/10";
+    }
+  }
+
   const cardStyle = { backgroundColor: `${firebaseUser.primary}E6` };
 
   const renderWidget = (id: string, key: string) => {
@@ -170,7 +240,6 @@ export default async function ProfilePage({ params }: Props) {
              />
              <div className="absolute inset-0 bg-gradient-to-t from-[#111] via-black/40 to-transparent"></div>
              
-             {/* Content */}
              <div className="absolute bottom-0 left-0 w-full p-6">
                 <div className="flex justify-between items-end mb-2">
                    <div>
@@ -188,7 +257,6 @@ export default async function ProfilePage({ params }: Props) {
                    </div>
                 </div>
 
-                {/* ACHIEVEMENT BAR */}
                 {heroGameProgress !== null && (
                   <div className="mt-3">
                     <div className="flex justify-between text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">
@@ -204,19 +272,49 @@ export default async function ProfilePage({ params }: Props) {
           </div>
         );
 
+      case 'valorant':
+        if (!valorantData) return null;
+        return (
+          <div key={key} style={cardStyle} className="col-span-1 backdrop-blur-md p-5 rounded-2xl border border-white/10 hover:border-white/20 transition h-full flex flex-col justify-between group min-h-[140px] relative overflow-hidden">
+             {/* Subtle background glow based on rank */}
+             <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-red-500/20 to-transparent blur-3xl rounded-full -mr-10 -mt-10"></div>
+             
+             <div className="flex justify-between items-start relative z-10">
+                <div className={`p-2.5 rounded-xl ${iconBg} ${hoverIconBg} transition ${titleColor} flex items-center gap-2`}>
+                  <Swords className="w-4 h-4" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider">Valorant</span>
+                </div>
+                {valorantData.images?.small && (
+                   <Image src={valorantData.images.small} width={40} height={40} alt="Rank" className="drop-shadow-lg" unoptimized />
+                )}
+             </div>
+             
+             <div className="relative z-10 mt-4">
+                <p className={`text-[10px] font-bold uppercase tracking-widest ${mutedColor} mb-1`}>{valorantData.name}#{valorantData.tag}</p>
+                <p className={`text-xl font-black ${titleColor} mb-2`}>{valorantData.currenttierpatched}</p>
+                
+                {/* RR Bar */}
+                <div className="w-full h-1.5 bg-black/20 rounded-full overflow-hidden">
+                   <div className="h-full bg-gradient-to-r from-red-500 to-pink-500" style={{ width: `${valorantData.ranking_in_tier}%` }}></div>
+                </div>
+                <p className={`text-[10px] font-mono text-right mt-1 ${subtitleColor}`}>{valorantData.ranking_in_tier} RR</p>
+             </div>
+          </div>
+        );
+
       case 'stats':
         return (
           <div key={key} style={cardStyle} className="col-span-1 backdrop-blur-md p-5 rounded-2xl border border-white/10 hover:border-white/20 transition h-full flex flex-col justify-between group min-h-[140px]">
              <div className="flex justify-between items-start">
-                <div className="p-2.5 bg-white/5 rounded-xl text-white group-hover:bg-white/10 transition"><Trophy className="w-4 h-4" /></div>
+                <div className={`p-2.5 rounded-xl ${iconBg} ${hoverIconBg} transition ${titleColor}`}><Trophy className="w-4 h-4" /></div>
                 <div className="text-right">
-                   <p className="text-[10px] font-bold text-zinc-500 uppercase">Level</p>
-                   <p className="text-lg font-mono text-white">{level}</p>
+                   <p className={`text-[10px] font-bold uppercase ${mutedColor}`}>Level</p>
+                   <p className={`text-lg font-mono ${titleColor}`}>{level}</p>
                 </div>
              </div>
              <div>
-                <p className="text-3xl font-black text-white mb-0.5">{gameCount}</p>
-                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Games Owned</p>
+                <p className={`text-3xl font-black mb-0.5 ${titleColor}`}>{gameCount}</p>
+                <p className={`text-[10px] font-bold uppercase tracking-widest ${mutedColor}`}>Games Owned</p>
              </div>
           </div>
         );
@@ -226,24 +324,24 @@ export default async function ProfilePage({ params }: Props) {
         return (
           <div key={key} style={cardStyle} className="col-span-1 backdrop-blur-md p-5 rounded-2xl border border-white/10 hover:border-white/20 transition h-full min-h-[140px]">
              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2"><LinkIcon className="w-3 h-3" /> Connections</h3>
-                <span className="bg-white/10 px-1.5 py-0.5 rounded text-[10px] font-mono text-zinc-400">{linkedCount}</span>
+                <h3 className={`text-xs font-bold uppercase tracking-wider flex items-center gap-2 ${titleColor}`}><LinkIcon className="w-3 h-3" /> Connections</h3>
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${iconBg} ${subtitleColor}`}>{linkedCount}</span>
              </div>
              <div className="space-y-2">
                 {firebaseUser.steamId && (
-                  <a href={`https://steamcommunity.com/profiles/${firebaseUser.steamId}`} target="_blank" className="flex items-center justify-between p-1.5 rounded-lg hover:bg-white/5 transition group">
+                  <a href={`https://steamcommunity.com/profiles/${firebaseUser.steamId}`} target="_blank" className={`flex items-center justify-between p-1.5 rounded-lg hover:bg-black/5 transition group`}>
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 bg-[#171a21] rounded flex items-center justify-center"><Gamepad2 className="w-3 h-3 text-white" /></div>
-                      <span className="text-xs font-medium text-zinc-300 group-hover:text-white">Steam</span>
+                      <div className={`w-6 h-6 rounded flex items-center justify-center ${isLightCard ? 'bg-black text-white' : 'bg-[#171a21] text-white'}`}><Gamepad2 className="w-3 h-3" /></div>
+                      <span className={`text-xs font-medium group-hover:opacity-100 transition ${subtitleColor}`}>Steam</span>
                     </div>
-                    <ExternalLink className="w-3 h-3 text-zinc-600 group-hover:text-white" />
+                    <ExternalLink className={`w-3 h-3 ${mutedColor} group-hover:opacity-100`} />
                   </a>
                 )}
                 {firebaseUser.socials.discord && (
-                  <div className="flex items-center justify-between p-1.5 rounded-lg hover:bg-white/5 transition group">
+                  <div className={`flex items-center justify-between p-1.5 rounded-lg hover:bg-black/5 transition group`}>
                     <div className="flex items-center gap-2">
                       <div className="w-6 h-6 bg-[#5865F2] rounded flex items-center justify-center"><span className="text-white text-[10px] font-bold">Ds</span></div>
-                      <span className="text-xs font-medium text-zinc-300 group-hover:text-white">{firebaseUser.socials.discord}</span>
+                      <span className={`text-xs font-medium group-hover:opacity-100 transition ${subtitleColor}`}>{firebaseUser.socials.discord}</span>
                     </div>
                     {firebaseUser.socials.discord_verified && <VerifiedBadge />}
                   </div>
@@ -255,7 +353,7 @@ export default async function ProfilePage({ params }: Props) {
       case 'library':
         return otherGames.length > 0 ? (
           <div key={key} style={cardStyle} className="col-span-1 md:col-span-1 backdrop-blur-md rounded-2xl border border-white/10 p-5 h-full overflow-hidden">
-             <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3 flex items-center gap-2"><LayoutGrid className="w-3 h-3" /> Library</h3>
+             <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2 ${mutedColor}`}><LayoutGrid className="w-3 h-3" /> Library</h3>
              <div className="space-y-3">
                 {otherGames.slice(0, 3).map((game: any) => (
                   <div key={game.appid} className="flex items-center gap-3 group cursor-default">
@@ -269,8 +367,8 @@ export default async function ProfilePage({ params }: Props) {
                         />
                      </div>
                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-xs text-zinc-300 group-hover:text-white truncate transition">{game.name}</p>
-                        <p className="text-[10px] text-zinc-600 font-mono">{Math.round(game.playtime_forever / 60)}h</p>
+                        <p className={`font-bold text-xs truncate transition ${subtitleColor} group-hover:opacity-100`}>{game.name}</p>
+                        <p className={`text-[10px] font-mono ${mutedColor}`}>{Math.round(game.playtime_forever / 60)}h</p>
                      </div>
                   </div>
                 ))}
@@ -351,7 +449,7 @@ export default async function ProfilePage({ params }: Props) {
                    {firebaseUser.gaming.xbox && <div className="flex items-center justify-between group"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-[#107C10] rounded flex items-center justify-center font-bold text-xs">X</div><div><p className="text-sm font-bold">Xbox</p><p className="text-xs text-zinc-500">{firebaseUser.gaming.xbox}</p></div></div></div>}
                    {firebaseUser.gaming.epic && <div className="flex items-center justify-between group"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-[#313131] rounded flex items-center justify-center font-bold text-xs">E</div><div><p className="text-sm font-bold">Epic Games</p><p className="text-xs text-zinc-500">{firebaseUser.gaming.epic}</p></div></div></div>}
                    {firebaseUser.socials.twitter && <div className="flex items-center justify-between group"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-zinc-800 rounded flex items-center justify-center"><svg className="w-3 h-3 fill-white" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></div><div><p className="text-sm font-bold">Twitter</p><p className="text-xs text-zinc-500">{firebaseUser.socials.twitter}</p></div></div></div>}
-                   {firebaseUser.socials.instagram && <div className="flex items-center justify-between group"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-zinc-800 rounded flex items-center justify-center"><svg className="w-3 h-3 fill-white" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg></div><div><p className="text-sm font-bold">Instagram</p><p className="text-xs text-zinc-500">{firebaseUser.socials.instagram}</p></div></div></div>}
+                   {firebaseUser.socials.instagram && <div className="flex items-center justify-between group"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-zinc-800 rounded flex items-center justify-center"><svg className="w-3 h-3 fill-white" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg></div><div><p className="text-sm font-bold">Instagram</p><p className="text-xs text-zinc-500">{firebaseUser.socials.instagram}</p></div></div></div>}
                 </div>
               </div>
             </div>

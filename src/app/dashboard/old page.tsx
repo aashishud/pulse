@@ -6,7 +6,8 @@ import { auth, db } from "@/lib/firebase";
 import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, setDoc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged, updateEmail, updatePassword } from "firebase/auth";
 import { getSteamLoginUrl, verifySteamLogin } from "../setup/actions"; 
-import { ArrowUp, ArrowDown, Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette } from "lucide-react";
+import { ArrowUp, ArrowDown, Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords } from "lucide-react";
+import { validateHandle } from "@/lib/validation";
 
 function DashboardContent() {
   const router = useRouter();
@@ -29,7 +30,7 @@ function DashboardContent() {
   const [selectedFont, setSelectedFont] = useState("inter");
   const [nameEffect, setNameEffect] = useState("solid");
   const [nameColor, setNameColor] = useState("white");
-  const [primaryColor, setPrimaryColor] = useState("#1e1f22");
+  const [primaryColor, setPrimaryColor] = useState("#1e1f22"); 
 
   // Auth Update State
   const [newEmail, setNewEmail] = useState("");
@@ -41,14 +42,21 @@ function DashboardContent() {
   const [discord, setDiscord] = useState("");
   const [twitter, setTwitter] = useState("");
   const [instagram, setInstagram] = useState("");
+
+  // Valorant State
+  const [riotName, setRiotName] = useState("");
+  const [riotTag, setRiotTag] = useState("");
+  const [riotRegion, setRiotRegion] = useState("na");
+
   const [widgets, setWidgets] = useState([
     { id: "hero", label: "Recent Activity (Hero)", enabled: true },
     { id: "stats", label: "Stats Overview", enabled: true },
+    { id: "valorant", label: "Valorant Rank", enabled: true },
     { id: "socials", label: "Linked Accounts", enabled: true },
     { id: "library", label: "Game Library", enabled: true },
   ]);
 
-  // Gradients
+  // Gradients & Colors
   const gradients = [
     { name: "Sunset", class: "from-orange-400 to-pink-600" },
     { name: "Ocean", class: "from-cyan-400 to-blue-600" },
@@ -98,10 +106,35 @@ function DashboardContent() {
 
         setXbox(data.gaming?.xbox || "");
         setEpic(data.gaming?.epic || "");
+        
+        // Valorant Fetch
+        setRiotName(data.gaming?.valorant?.name || "");
+        setRiotTag(data.gaming?.valorant?.tag || "");
+        setRiotRegion(data.gaming?.valorant?.region || "na");
+
         setDiscord(data.socials?.discord || "");
         setTwitter(data.socials?.twitter || "");
         setInstagram(data.socials?.instagram || "");
-        if (data.layout) setWidgets(data.layout);
+        
+        if (data.layout) {
+          // Merge existing layout with new widgets if they are missing
+          const existingIds = new Set(data.layout.map((w: any) => w.id));
+          const defaultWidgets = [
+            { id: "hero", label: "Recent Activity (Hero)", enabled: true },
+            { id: "stats", label: "Stats Overview", enabled: true },
+            { id: "valorant", label: "Valorant Rank", enabled: true }, // Ensure new widget is present
+            { id: "socials", label: "Linked Accounts", enabled: true },
+            { id: "library", label: "Game Library", enabled: true },
+          ];
+          
+          const mergedLayout = [...data.layout];
+          defaultWidgets.forEach(w => {
+            if (!existingIds.has(w.id)) mergedLayout.splice(2, 0, w); // Insert reasonably early
+          });
+          
+          setWidgets(mergedLayout);
+        }
+        
         setLoading(false);
       } else {
         router.push("/signup");
@@ -143,6 +176,11 @@ function DashboardContent() {
       "theme.primary": primaryColor, 
       "gaming.xbox": xbox,
       "gaming.epic": epic,
+      "gaming.valorant": {
+        name: riotName,
+        tag: riotTag,
+        region: riotRegion
+      },
       "socials.discord": discord, 
       "socials.twitter": twitter,
       "socials.instagram": instagram,
@@ -176,6 +214,13 @@ function DashboardContent() {
     if (!newUsername || newUsername === userData.username) return;
     const confirm = window.confirm(`Change handle to @${newUsername}? This will change your profile URL.`);
     if (!confirm) return;
+
+    // VALIDATE USERNAME before doing anything
+    const validationError = validateHandle(newUsername.toLowerCase());
+    if (validationError) {
+      alert(validationError);
+      return;
+    }
 
     setSaving(true);
     try {
@@ -247,12 +292,14 @@ function DashboardContent() {
     setWidgets(newWidgets);
   };
 
-  // URL Logic
   const isDev = process.env.NODE_ENV === 'development';
-  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || (typeof window !== 'undefined' ? window.location.host : 'pulsegg.in');
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || (typeof window !== 'undefined' ? window.location.host : 'pulse.gg');
+  
   const profileUrl = isDev 
-    ? `http://localhost:3000/${userData?.username}` 
+    ? `http://localhost:3000/${userData?.username}`
     : `https://${rootDomain}/${userData?.username}`;
+
+  if (loading) return <div className="min-h-screen bg-black text-white p-10">Loading...</div>;
 
   // Background Style
   const dashBgStyle = backgroundUrl 
@@ -260,8 +307,6 @@ function DashboardContent() {
     : bannerUrl 
       ? { backgroundImage: `url(${bannerUrl})` } 
       : {};
-
-  if (loading) return <div className="min-h-screen bg-black text-white p-10">Loading...</div>;
 
   return (
     <div className="min-h-screen bg-[#0a0a0c] text-white font-sans relative">
@@ -334,6 +379,35 @@ function DashboardContent() {
                 <section className="bg-[#121214] border border-zinc-800 rounded-2xl p-4 md:p-6">
                   <h2 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-6">Gaming Accounts</h2>
                   <div className="space-y-4">
+                    {/* VALORANT SECTION */}
+                    <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl mb-4">
+                      <div className="flex items-center gap-2 mb-3">
+                         <Swords className="w-5 h-5 text-red-500" />
+                         <span className="font-bold text-sm text-red-400">Valorant Integration</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 mb-3">
+                         <div>
+                            <label className="text-xs font-bold text-zinc-500 block mb-1">Riot Name</label>
+                            <input type="text" value={riotName} onChange={(e) => setRiotName(e.target.value)} className="w-full bg-black/50 border border-zinc-700 rounded-lg p-2 text-white text-sm outline-none focus:border-red-500" placeholder="TenZ" />
+                         </div>
+                         <div>
+                            <label className="text-xs font-bold text-zinc-500 block mb-1">Tagline</label>
+                            <input type="text" value={riotTag} onChange={(e) => setRiotTag(e.target.value)} className="w-full bg-black/50 border border-zinc-700 rounded-lg p-2 text-white text-sm outline-none focus:border-red-500" placeholder="001" />
+                         </div>
+                      </div>
+                      <div>
+                         <label className="text-xs font-bold text-zinc-500 block mb-1">Region</label>
+                         <select value={riotRegion} onChange={(e) => setRiotRegion(e.target.value)} className="w-full bg-black/50 border border-zinc-700 rounded-lg p-2 text-white text-sm outline-none focus:border-red-500">
+                           <option value="na">North America (NA)</option>
+                           <option value="eu">Europe (EU)</option>
+                           <option value="ap">Asia Pacific (AP)</option>
+                           <option value="kr">Korea (KR)</option>
+                           <option value="latam">Latin America (LATAM)</option>
+                           <option value="br">Brazil (BR)</option>
+                         </select>
+                      </div>
+                    </div>
+
                     <div className="flex items-center gap-3">
                        <div className="w-10 h-10 rounded-lg bg-[#107C10] flex items-center justify-center text-white font-bold shrink-0">X</div>
                        <div className="flex-1">
