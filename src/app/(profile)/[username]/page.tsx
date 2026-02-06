@@ -9,7 +9,8 @@ import { Metadata } from 'next';
 import BadgeRack from '@/components/BadgeRack';
 import AvatarDecoration from '@/components/AvatarDecoration';
 import CursorEffects from '@/components/CursorEffects';
-import ProfileGrid from '@/components/ProfileGrid'; // Import the Client Component
+import ProfileGrid from '@/components/ProfileGrid'; 
+import GGButton from '@/components/GGButton'; 
 
 // Load Fonts
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
@@ -17,10 +18,12 @@ const spaceGrotesk = Space_Grotesk({ subsets: ['latin'], display: 'swap' });
 const pressStart = Press_Start_2P({ weight: '400', subsets: ['latin'], display: 'swap' });
 const cinzel = Cinzel({ subsets: ['latin'], display: 'swap' });
 
-export const revalidate = 60; 
+// Ensure fresh data on every request so Likes/Status updates immediately
+export const revalidate = 0; 
 
 interface Props {
   params: Promise<{ username: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -37,7 +40,8 @@ async function getFirebaseUser(username: string) {
   const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${username}`;
   
   try {
-    const res = await fetch(url, { next: { revalidate: 60 } });
+    // Revalidate 0 ensures we get the latest GGs count
+    const res = await fetch(url, { next: { revalidate: 0 } });
     if (!res.ok) return null;
     
     const data = await res.json();
@@ -50,8 +54,8 @@ async function getFirebaseUser(username: string) {
         return field?.arrayValue?.values?.map((v: any) => {
             const map = v.mapValue.fields;
             return {
-                label: map.label?.stringValue || "Link",
-                url: map.url?.stringValue || "#"
+                label: map.label.stringValue,
+                url: map.url.stringValue
             }
         }) || [];
     };
@@ -66,6 +70,9 @@ async function getFirebaseUser(username: string) {
     ];
 
     return {
+      // Pass the username as ID for the GG button to know which doc to update
+      id: username, 
+      ggs: fields.ggs?.integerValue ? parseInt(fields.ggs.integerValue) : 0,
       steamId: fields.steamId?.stringValue,
       displayName: fields.displayName?.stringValue,
       banner: fields.theme?.mapValue?.fields?.banner?.stringValue || "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2600&auto=format&fit=crop",
@@ -117,7 +124,6 @@ const VerifiedBadge = () => (
 
 export default async function ProfilePage({ params }: Props) {
   const { username } = await params;
-  
   const firebaseUser = await getFirebaseUser(username);
 
   const isDev = process.env.NODE_ENV === 'development';
@@ -186,7 +192,6 @@ export default async function ProfilePage({ params }: Props) {
   gameCount = steamGameCount || 0;
   valorantData = valProfile;
 
-  // NEW: Fetch achievements for the hero game (most recent)
   if (recentGames.length > 0 && firebaseUser.steamId) {
     heroGameProgress = await getGameProgress(firebaseUser.steamId, recentGames[0].appid);
   }
@@ -229,11 +234,12 @@ export default async function ProfilePage({ params }: Props) {
     level: steamLevel || 0,
     gameCount: steamGameCount || 0,
     heroGameProgress,
-    valorantData: valProfile
+    valorantData: valProfile,
+    totalAchievements: "1,204" // Hardcoded as placeholder for now, pending API expansion
   };
 
   return (
-    <div className={`min-h-screen bg-[#111214] text-white ${fontClass} overflow-x-hidden`}>
+    <div className={`min-h-screen bg-[#111214] text-white ${fontClass} overflow-x-hidden`} suppressHydrationWarning>
       <CursorEffects type={firebaseUser.cursorTrail} />
       
       {/* Background */}
@@ -282,12 +288,17 @@ export default async function ProfilePage({ params }: Props) {
                    )}
                 </div>
 
-                <div className="mb-6">
+                <div className="mb-2">
                   <h1 className={nameClasses} style={nameStyle}>{displayName}</h1>
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-zinc-400 font-medium">@{username}</p>
                     <BadgeRack badgeList={badges} />
                   </div>
+                </div>
+                
+                {/* GG BUTTON PLACEMENT */}
+                <div className="mb-6">
+                  <GGButton targetUserId={firebaseUser.id} initialCount={firebaseUser.ggs} />
                 </div>
 
                 {profile?.gameextrainfo && (

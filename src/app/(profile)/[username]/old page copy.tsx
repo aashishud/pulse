@@ -1,6 +1,6 @@
 import { getSteamProfile, getRecentlyPlayed, getSteamLevel, getOwnedGamesCount, getGameProgress } from '@/lib/steam';
 import { getValorantProfile } from '@/lib/valorant';
-import { Sparkles, Gamepad2, Trophy, Clock, MapPin, Link as LinkIcon, ExternalLink, Ghost, Music, LayoutGrid, Zap, Swords, Youtube, Twitch } from 'lucide-react';
+import { Sparkles, Gamepad2, Trophy, Clock, MapPin, Link as LinkIcon, ExternalLink, Ghost, Music, LayoutGrid, Zap, Swords, Youtube, Twitch, Globe, ArrowUpRight } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Inter, Space_Grotesk, Press_Start_2P, Cinzel } from 'next/font/google';
@@ -9,7 +9,7 @@ import { Metadata } from 'next';
 import BadgeRack from '@/components/BadgeRack';
 import AvatarDecoration from '@/components/AvatarDecoration';
 import CursorEffects from '@/components/CursorEffects';
-import ProfileGrid from '@/components/ProfileGrid'; // Importing the Client Component
+import ProfileGrid from '@/components/ProfileGrid'; // Import the Client Component
 
 // Load Fonts
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
@@ -50,8 +50,8 @@ async function getFirebaseUser(username: string) {
         return field?.arrayValue?.values?.map((v: any) => {
             const map = v.mapValue.fields;
             return {
-                label: map.label.stringValue,
-                url: map.url.stringValue
+                label: map.label?.stringValue || "Link",
+                url: map.url?.stringValue || "#"
             }
         }) || [];
     };
@@ -117,6 +117,7 @@ const VerifiedBadge = () => (
 
 export default async function ProfilePage({ params }: Props) {
   const { username } = await params;
+  
   const firebaseUser = await getFirebaseUser(username);
 
   const isDev = process.env.NODE_ENV === 'development';
@@ -185,6 +186,7 @@ export default async function ProfilePage({ params }: Props) {
   gameCount = steamGameCount || 0;
   valorantData = valProfile;
 
+  // NEW: Fetch achievements for the hero game (most recent)
   if (recentGames.length > 0 && firebaseUser.steamId) {
     heroGameProgress = await getGameProgress(firebaseUser.steamId, recentGames[0].appid);
   }

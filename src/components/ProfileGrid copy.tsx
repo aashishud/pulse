@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { 
   Trophy, Gamepad2, Link as LinkIcon, ExternalLink, LayoutGrid, 
-  Youtube, Twitch, Swords, Globe, ArrowUpRight, Clock, Award 
+  Youtube, Twitch, Swords, Globe, ArrowUpRight, Clock 
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -192,15 +192,15 @@ export default function ProfileGrid({
 
       case 'stats':
         return (
-          <div key={key} style={cardStyle} className={`${colSpanClass} backdrop-blur-md p-5 rounded-2xl border border-white/10 hover:border-white/20 transition h-full flex flex-col justify-between group min-h-[160px]`}>
-             <div className="flex justify-between items-start mb-4">
+          <div key={key} style={cardStyle} className={`${colSpanClass} backdrop-blur-md p-5 rounded-2xl border border-white/10 hover:border-white/20 transition h-full flex flex-col justify-between group min-h-[140px]`}>
+             <div className="flex justify-between items-start">
                 <div className={`p-2.5 rounded-xl ${iconBg} ${hoverIconBg} transition ${titleColor}`}><Trophy className="w-4 h-4" /></div>
                 <div className="text-right">
                    <p className={`text-[10px] font-bold uppercase ${mutedColor}`}>Level</p>
                    <p className={`text-2xl font-black ${titleColor}`}>{level}</p>
                 </div>
              </div>
-             <div className="grid grid-cols-2 gap-4">
+             <div className="mt-2 grid grid-cols-2 gap-2">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                      <Gamepad2 className={`w-3 h-3 ${mutedColor}`} />
@@ -208,6 +208,7 @@ export default function ProfileGrid({
                   </div>
                   <p className={`text-xl font-bold ${titleColor}`}>{gameCount}</p>
                 </div>
+                {/* ACHIEVEMENTS / PLAYTIME COUNTER */}
                 <div className="text-right">
                   <div className="flex items-center gap-2 mb-1 justify-end">
                      <Clock className={`w-3 h-3 ${mutedColor}`} />
@@ -215,18 +216,6 @@ export default function ProfileGrid({
                   </div>
                   <p className={`text-xl font-bold ${titleColor}`}>
                     {heroGame ? Math.round(heroGame.playtime_forever / 60) : 0}<span className="text-xs font-normal opacity-50 ml-1">h</span>
-                  </p>
-                </div>
-             </div>
-             {/* ACHIEVEMENT ROW ADDED HERE */}
-             <div className="mt-4 pt-4 border-t border-white/5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                     <Award className={`w-3 h-3 ${mutedColor}`} />
-                     <span className={`text-[10px] font-bold uppercase tracking-widest ${mutedColor}`}>Achievements</span>
-                  </div>
-                  <p className={`text-sm font-black ${titleColor}`}>
-                    {steam.totalAchievements || "1,204"} 
                   </p>
                 </div>
              </div>
@@ -264,7 +253,7 @@ export default function ProfileGrid({
   };
 
   return (
-    <div className="space-y-6" suppressHydrationWarning>
+    <div className="space-y-6">
       <div className="flex items-center gap-6 px-4">
          <button 
            onClick={() => setActiveTab("overview")}
