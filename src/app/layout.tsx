@@ -5,6 +5,11 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_ROOT_DOMAIN
+      ? `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN}`
+      : 'https://pulsegg.in'
+  ),
   title: "Pulse | The Linktree for Gamers",
   description: "Aggregate your achievements, showcase your stats, and build your ultimate gaming portfolio. Connect Steam, Xbox, Discord, and more.",
   openGraph: {
