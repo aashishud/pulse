@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { 
   Trophy, Gamepad2, Link as LinkIcon, ExternalLink, LayoutGrid, 
-  Youtube, Twitch, Swords, Globe, ArrowUpRight, Clock // Added Clock
+  Youtube, Twitch, Swords, Globe, ArrowUpRight, Clock 
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -170,7 +170,6 @@ export default function ProfileGrid({
         return (
           <div key={key} style={cardStyle} className={`${colSpanClass} backdrop-blur-md p-5 rounded-2xl border border-white/10 hover:border-white/20 transition h-full flex flex-col justify-between group min-h-[140px] relative overflow-hidden`}>
              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-red-500/20 to-transparent blur-3xl rounded-full -mr-10 -mt-10"></div>
-             
              <div className="flex justify-between items-start relative z-10">
                 <div className={`p-2.5 rounded-xl ${iconBg} ${hoverIconBg} transition ${titleColor} flex items-center gap-2`}>
                   <Swords className="w-4 h-4" />
@@ -180,11 +179,9 @@ export default function ProfileGrid({
                    <Image src={valorantData.images.small} width={40} height={40} alt="Rank" className="drop-shadow-lg" unoptimized />
                 )}
              </div>
-             
              <div className="relative z-10 mt-4">
                 <p className={`text-[10px] font-bold uppercase tracking-widest ${mutedColor} mb-1`}>{valorantData.name}#{valorantData.tag}</p>
                 <p className={`text-xl font-black ${titleColor} mb-2`}>{valorantData.currenttierpatched}</p>
-                
                 <div className="w-full h-1.5 bg-black/20 rounded-full overflow-hidden">
                    <div className="h-full bg-gradient-to-r from-red-500 to-pink-500" style={{ width: `${valorantData.ranking_in_tier}%` }}></div>
                 </div>
@@ -211,7 +208,7 @@ export default function ProfileGrid({
                   </div>
                   <p className={`text-xl font-bold ${titleColor}`}>{gameCount}</p>
                 </div>
-                {/* ACHIEVEMENT / PLAYTIME COUNTER */}
+                {/* ACHIEVEMENTS / PLAYTIME COUNTER */}
                 <div className="text-right">
                   <div className="flex items-center gap-2 mb-1 justify-end">
                      <Clock className={`w-3 h-3 ${mutedColor}`} />
