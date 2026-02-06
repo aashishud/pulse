@@ -1,6 +1,16 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Fix metadata base URL for social media images
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_ROOT_DOMAIN
+      ? `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN}`
+      : 'https://pulsegg.in'
+  ),
+
+  // Allow cross-origin requests from your domains during development
+  allowedDevOrigins: ['www.pulsegg.in', 'pulsegg.in'],
+
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'avatars.akamai.steamstatic.com' },
