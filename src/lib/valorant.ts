@@ -19,13 +19,13 @@ export async function getValorantProfile(name: string, tag: string, region: stri
   // We MUST encode the name and tag to handle spaces and special characters properly
   const encodedName = encodeURIComponent(name);
   const encodedTag = encodeURIComponent(tag);
-  
+
   const url = `https://api.henrikdev.xyz/valorant/v1/mmr/${region}/${encodedName}/${encodedTag}`;
   const apiKey = process.env.VALORANT_API_KEY;
 
   try {
-    const options: RequestInit = { 
-      next: { revalidate: 300 } 
+    const options: RequestInit = {
+      next: { revalidate: 120 } // Cache for 2 minutes (rank can change frequently)
     };
 
     // Add API Key if available
@@ -35,8 +35,8 @@ export async function getValorantProfile(name: string, tag: string, region: stri
       };
     }
 
-    const res = await fetch(url, options); 
-    
+    const res = await fetch(url, options);
+
     if (res.status === 401) {
       console.error("Valorant API Error: 401 Unauthorized. Please add VALORANT_API_KEY to your .env.local file.");
       return null;
@@ -48,7 +48,7 @@ export async function getValorantProfile(name: string, tag: string, region: stri
     }
 
     const json = await res.json();
-    
+
     // The API returns status 200 even for some logical errors, but usually checks status field
     if (json.status !== 200) {
       console.warn(`Valorant API Error: ${json.status}`, json.errors);
