@@ -17,7 +17,9 @@ export const RESERVED_HANDLES = [
   "dashboard", "login", "signup", "api", "admin", "settings", 
   "profile", "home", "about", "contact", "support", "help", "pulse",
   "auth", "user", "users", "404", "500", "null", "undefined",
-  "moderator", "staff", "team", "security", "bot", "system"
+  "moderator", "staff", "team", "security", "bot", "system",
+  // ADDED: Domain safety reserves
+  "pulsegg", "pulsegg.in", "www", "web", "host"
 ];
 
 export function validateHandle(username: string): string | null {
