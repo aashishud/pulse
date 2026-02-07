@@ -13,7 +13,7 @@ if (typeof window !== "undefined") {
   const missing = requiredEnvVars.filter(key => !process.env[key]);
   if (missing.length > 0) {
     console.error(`❌ Missing Firebase environment variables: ${missing.join(', ')}`);
-    console.error('Please create a .env.local file with all required Firebase credentials');
+    console.error('Make sure these are set in your deployment platform (Coolify, Vercel, etc.) or .env.local file');
   }
 
   // Warn if authDomain looks incorrect (this causes the /method redirect bug!)
