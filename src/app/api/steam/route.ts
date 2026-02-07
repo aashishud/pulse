@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
             level: level || 0,
             gameCount: gameCount || 0,
             heroGameProgress,
-            totalAchievements: "1,204" // Placeholder
+            totalAchievements: "0" // Placeholder
         });
     } catch (error) {
         console.error('Steam API Error:', error);

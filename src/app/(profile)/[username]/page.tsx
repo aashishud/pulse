@@ -1,6 +1,6 @@
 import { getSteamProfile, getRecentlyPlayed, getSteamLevel, getOwnedGamesCount, getGameProgress } from '@/lib/steam';
 import { getValorantProfile } from '@/lib/valorant';
-import { Sparkles, Gamepad2, Trophy, Clock, MapPin, Link as LinkIcon, ExternalLink, Ghost, Music, LayoutGrid, Zap, Swords, Youtube, Twitch, Globe, ArrowUpRight } from 'lucide-react';
+import { Sparkles, Gamepad2, Trophy, Clock, MapPin, Link as LinkIcon, ExternalLink, Ghost, Music, LayoutGrid, Zap, Swords, Youtube, Twitch, Globe, ArrowUpRight, Share2 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Inter, Space_Grotesk, Press_Start_2P, Cinzel } from 'next/font/google';
@@ -9,7 +9,9 @@ import { Metadata } from 'next';
 import BadgeRack from '@/components/BadgeRack';
 import AvatarDecoration from '@/components/AvatarDecoration';
 import CursorEffects from '@/components/CursorEffects';
-import ProfileGrid from '@/components/ProfileGrid'; // Import the Client Component
+import ProfileGrid from '@/components/ProfileGrid'; // Client Component
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 // Load Fonts
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
@@ -56,6 +58,21 @@ async function getFirebaseUser(username: string) {
         }) || [];
     };
 
+    // Helper for Gear
+    const getGear = (field: any) => {
+        const map = field?.mapValue?.fields;
+        if (!map) return {};
+        return {
+            cpu: map.cpu?.stringValue || "",
+            gpu: map.gpu?.stringValue || "",
+            ram: map.ram?.stringValue || "",
+            mouse: map.mouse?.stringValue || "",
+            keyboard: map.keyboard?.stringValue || "",
+            headset: map.headset?.stringValue || "",
+            monitor: map.monitor?.stringValue || "",
+        };
+    };
+
     // Default Layout
     const defaultLayout = [
       { mapValue: { fields: { id: { stringValue: "hero" }, enabled: { booleanValue: true }, size: { stringValue: 'full' } } } },
@@ -63,6 +80,7 @@ async function getFirebaseUser(username: string) {
       { mapValue: { fields: { id: { stringValue: "stats" }, enabled: { booleanValue: true }, size: { stringValue: 'half' } } } },
       { mapValue: { fields: { id: { stringValue: "valorant" }, enabled: { booleanValue: true }, size: { stringValue: 'half' } } } },
       { mapValue: { fields: { id: { stringValue: "library" }, enabled: { booleanValue: true }, size: { stringValue: 'half' } } } },
+      { mapValue: { fields: { id: { stringValue: "gear" }, enabled: { booleanValue: true }, size: { stringValue: 'half' } } } },
     ];
 
     return {
@@ -81,6 +99,7 @@ async function getFirebaseUser(username: string) {
       bio: fields.bio?.stringValue || "",
       customLinks: getMapArray(fields.customLinks),
       layout: fields.layout?.arrayValue?.values || defaultLayout, 
+      gear: getGear(fields.gear), // NEW: Fetch Gear
       gaming: {
         xbox: fields.gaming?.mapValue?.fields?.xbox?.stringValue,
         xbox_verified: isVerified(fields.gaming?.mapValue?.fields?.xbox_verified),
@@ -122,7 +141,7 @@ export default async function ProfilePage({ params }: Props) {
 
   const isDev = process.env.NODE_ENV === 'development';
   const protocol = isDev ? 'http' : 'https';
-  const domain = isDev ? 'localhost:3000' : (process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'pulsegg.vercel.app');
+  const domain = isDev ? 'localhost:3000' : (process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'pulsegg.in');
   
   const dashboardUrl = `${protocol}://${domain}/dashboard`;
   const homeUrl = `${protocol}://${domain}`;
@@ -192,7 +211,6 @@ export default async function ProfilePage({ params }: Props) {
   }
 
   const joinDate = profile?.timecreated ? new Date(profile.timecreated * 1000) : new Date();
-  const yearsOnSteam = new Date().getFullYear() - joinDate.getFullYear();
   
   const avatarSource = firebaseUser.avatar || profile?.avatarfull || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png";
   
@@ -248,9 +266,9 @@ export default async function ProfilePage({ params }: Props) {
         
         {/* TOP NAV */}
         <div className="flex justify-between items-center mb-8 px-2">
-           <a href={homeUrl} className="flex items-center gap-2 font-bold text-xl tracking-tighter hover:opacity-80 transition">
+           <Link href="/" className="flex items-center gap-2 font-bold text-xl tracking-tighter hover:opacity-80 transition">
              <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center"><Sparkles className="w-4 h-4 text-white" /></div>Pulse
-           </a>
+           </Link>
            <div className="flex items-center gap-3">
               <ShareButton />
               <a href={dashboardUrl} className="px-3 py-1.5 bg-[#1e1f22] border border-white/10 rounded-xl font-bold text-[10px] hover:bg-white hover:text-black transition flex items-center gap-2">

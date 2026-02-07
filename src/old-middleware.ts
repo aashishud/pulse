@@ -42,6 +42,7 @@ export default async function middleware(req: NextRequest) {
   // --- SUBDOMAIN LOGIC (Placeholder) ---
   // If you eventually want 'sour.pulsegg.in', you would handle rewrites here.
   // For now, allow standard routing to prevent the "Claim @pulsegg.in" bug.
+  // Also dumbass, stop changing stuff without letting me know first
   
   return NextResponse.next();
 }

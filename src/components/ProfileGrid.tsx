@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import {
   Trophy, Gamepad2, Link as LinkIcon, ExternalLink, LayoutGrid,
-  Youtube, Twitch, Swords, Globe, ArrowUpRight, Clock, Award, Loader2
+  Youtube, Twitch, Swords, Globe, ArrowUpRight, Clock, Award, Loader2,
+  Cpu, Mouse, Keyboard, Monitor, Headphones
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -13,14 +14,10 @@ const VerifiedBadge = () => (
   </span>
 );
 
-// HELPER: Ensures links always go to an absolute URL
 const ensureProtocol = (url: string) => {
   if (!url) return "#";
-  // If it starts with http or https, it's fine
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  // If it's a mailto link, leave it
   if (url.startsWith("mailto:")) return url;
-  // Otherwise, assume it's a website and prepend https://
   return `https://${url}`;
 };
 
@@ -68,8 +65,6 @@ export default function ProfileGrid({
       }
     };
 
-    // Only fetch if initial data is missing or we want to refresh
-    // Logic here: if initialSteam has profile data, we use it. If not, and we have IDs, we fetch.
     if (!steam.profile && (user.steamId || user.gaming?.valorant)) {
         fetchData();
     }
@@ -271,7 +266,7 @@ export default function ProfileGrid({
                 </p>
               </div>
             </div>
-            {/* ACHIEVEMENT ROW ADDED HERE */}
+            {/* ACHIEVEMENT ROW - REMOVED HARDCODED VALUE */}
             <div className="mt-4 pt-4 border-t border-white/5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -279,7 +274,7 @@ export default function ProfileGrid({
                   <span className={`text-[10px] font-bold uppercase tracking-widest ${mutedColor}`}>Achievements</span>
                 </div>
                 <p className={`text-sm font-black ${titleColor}`}>
-                  {steam.totalAchievements || "1,204"}
+                  {steam.totalAchievements || 0} 
                 </p>
               </div>
             </div>
@@ -336,13 +331,17 @@ export default function ProfileGrid({
       {activeTab === "overview" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 auto-rows-min">
           {(user.layout || []).map((widget: any, index: number) => {
-            const id = widget.mapValue?.fields?.id?.stringValue || widget.id;
-            const enabled = widget.mapValue?.fields?.enabled?.booleanValue ?? widget.enabled;
-            const size = widget.mapValue?.fields?.size?.stringValue || widget.size || 'half';
+            const id = widget.id || widget.mapValue?.fields?.id?.stringValue;
+            const enabled = widget.enabled !== undefined 
+                ? widget.enabled 
+                : widget.mapValue?.fields?.enabled?.booleanValue;
+            const size = widget.size || widget.mapValue?.fields?.size?.stringValue || 'half';
             
-            // Safety check
             if (!id) return null;
             
+            // HIDE GEAR FROM OVERVIEW (It's in "About Me" now)
+            if (id === 'gear') return null;
+
             return enabled ? renderWidget(id, `${id}-${index}`, size) : null;
           })}
         </div>
@@ -362,7 +361,7 @@ export default function ProfileGrid({
               {user.customLinks.map((link: any, idx: number) => (
                 <a
                   key={idx}
-                  href={ensureProtocol(link.url)} // FIX APPLIED HERE
+                  href={ensureProtocol(link.url)}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={cardStyle}
@@ -378,6 +377,59 @@ export default function ProfileGrid({
                 </a>
               ))}
             </div>
+          )}
+
+          {/* Hardware & Gear Section (Moved here) */}
+          {user.gear && Object.values(user.gear).some((val: any) => val && (val as string).trim() !== "") && (
+             <div style={cardStyle} className="backdrop-blur-md p-6 rounded-2xl border border-white/10 mt-4">
+                <h3 className={`text-sm font-bold uppercase tracking-wider mb-6 ${mutedColor} flex items-center gap-2`}>
+                   <Cpu className="w-4 h-4" /> Setup & Gear
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-4">
+                   {user.gear.cpu && (
+                      <div className="flex items-start gap-3">
+                         <div className={`p-2 rounded-lg ${iconBg} shrink-0`}><Cpu className={`w-4 h-4 ${titleColor}`} /></div>
+                         <div><p className={`text-[10px] font-bold uppercase ${mutedColor}`}>CPU</p><p className={`text-sm font-bold ${titleColor}`}>{user.gear.cpu}</p></div>
+                      </div>
+                   )}
+                   {user.gear.gpu && (
+                      <div className="flex items-start gap-3">
+                         <div className={`p-2 rounded-lg ${iconBg} shrink-0`}><Cpu className={`w-4 h-4 ${titleColor}`} /></div>
+                         <div><p className={`text-[10px] font-bold uppercase ${mutedColor}`}>GPU</p><p className={`text-sm font-bold ${titleColor}`}>{user.gear.gpu}</p></div>
+                      </div>
+                   )}
+                   {user.gear.ram && (
+                      <div className="flex items-start gap-3">
+                         <div className={`p-2 rounded-lg ${iconBg} shrink-0`}><Cpu className={`w-4 h-4 ${titleColor}`} /></div>
+                         <div><p className={`text-[10px] font-bold uppercase ${mutedColor}`}>RAM</p><p className={`text-sm font-bold ${titleColor}`}>{user.gear.ram}</p></div>
+                      </div>
+                   )}
+                   {user.gear.monitor && (
+                      <div className="flex items-start gap-3">
+                         <div className={`p-2 rounded-lg ${iconBg} shrink-0`}><Monitor className={`w-4 h-4 ${titleColor}`} /></div>
+                         <div><p className={`text-[10px] font-bold uppercase ${mutedColor}`}>Monitor</p><p className={`text-sm font-bold ${titleColor}`}>{user.gear.monitor}</p></div>
+                      </div>
+                   )}
+                   {user.gear.mouse && (
+                      <div className="flex items-start gap-3">
+                         <div className={`p-2 rounded-lg ${iconBg} shrink-0`}><Mouse className={`w-4 h-4 ${titleColor}`} /></div>
+                         <div><p className={`text-[10px] font-bold uppercase ${mutedColor}`}>Mouse</p><p className={`text-sm font-bold ${titleColor}`}>{user.gear.mouse}</p></div>
+                      </div>
+                   )}
+                   {user.gear.keyboard && (
+                      <div className="flex items-start gap-3">
+                         <div className={`p-2 rounded-lg ${iconBg} shrink-0`}><Keyboard className={`w-4 h-4 ${titleColor}`} /></div>
+                         <div><p className={`text-[10px] font-bold uppercase ${mutedColor}`}>Keyboard</p><p className={`text-sm font-bold ${titleColor}`}>{user.gear.keyboard}</p></div>
+                      </div>
+                   )}
+                   {user.gear.headset && (
+                      <div className="flex items-start gap-3">
+                         <div className={`p-2 rounded-lg ${iconBg} shrink-0`}><Headphones className={`w-4 h-4 ${titleColor}`} /></div>
+                         <div><p className={`text-[10px] font-bold uppercase ${mutedColor}`}>Headset</p><p className={`text-sm font-bold ${titleColor}`}>{user.gear.headset}</p></div>
+                      </div>
+                   )}
+                </div>
+             </div>
           )}
         </div>
       )}
