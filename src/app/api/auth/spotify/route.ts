@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Missing Spotify Client ID" }, { status: 500 });
   }
 
-  const scope = "user-read-private user-read-email user-read-currently-playing user-modify-playback-state user-read-playback-state";
+  const scope = "user-read-private user-read-email user-read-currently-playing user-modify-playback-state user-read-playback-state user-top-read";
 
   const authUrl = new URL("https://accounts.spotify.com/authorize");
   authUrl.searchParams.append("response_type", "code");

@@ -79,6 +79,7 @@ async function getFirebaseUser(username: string) {
     const defaultLayout = [
       { mapValue: { fields: { id: { stringValue: "hero" }, enabled: { booleanValue: true }, size: { stringValue: 'full' } } } },
       { mapValue: { fields: { id: { stringValue: "content" }, enabled: { booleanValue: true }, size: { stringValue: 'half' } } } },
+      { mapValue: { fields: { id: { stringValue: "spotify" }, enabled: { booleanValue: true }, size: { stringValue: 'half' } } } },
       { mapValue: { fields: { id: { stringValue: "stats" }, enabled: { booleanValue: true }, size: { stringValue: 'half' } } } },
       { mapValue: { fields: { id: { stringValue: "valorant" }, enabled: { booleanValue: true }, size: { stringValue: 'half' } } } },
       { mapValue: { fields: { id: { stringValue: "library" }, enabled: { booleanValue: true }, size: { stringValue: 'half' } } } },
@@ -86,6 +87,7 @@ async function getFirebaseUser(username: string) {
     ];
 
     return {
+      owner_uid: fields.owner_uid?.stringValue,
       steamId: fields.steamId?.stringValue,
       displayName: fields.displayName?.stringValue,
       banner: fields.theme?.mapValue?.fields?.banner?.stringValue || "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2600&auto=format&fit=crop",
@@ -101,7 +103,7 @@ async function getFirebaseUser(username: string) {
       bio: fields.bio?.stringValue || "",
       customLinks: getMapArray(fields.customLinks),
       layout: fields.layout?.arrayValue?.values || defaultLayout, 
-      gear: getGear(fields.gear), // NEW: Fetch Gear
+      gear: getGear(fields.gear),
       gaming: {
         xbox: fields.gaming?.mapValue?.fields?.xbox?.stringValue,
         xbox_verified: isVerified(fields.gaming?.mapValue?.fields?.xbox_verified),
@@ -164,16 +166,18 @@ export default async function ProfilePage({ params }: Props) {
   if (firebaseUser.steamId) badges.push('steam');
   if (firebaseUser.socials.discord_verified) badges.push('discord');
 
-  // Fetch Steam & Valorant Data
+  // Fetch External Data (Steam, Valorant, Spotify)
   let profile = null;
   let recentGames: any[] = [];
   let level = 0;
   let gameCount = 0;
   let heroGameProgress = null;
   let valorantData = null;
+  let spotifyData = null;
 
   const promises: Promise<any>[] = [];
 
+  // Steam Promises
   if (firebaseUser.steamId) {
     promises.push(getSteamProfile(firebaseUser.steamId));
     promises.push(getRecentlyPlayed(firebaseUser.steamId));
@@ -183,6 +187,7 @@ export default async function ProfilePage({ params }: Props) {
     promises.push(Promise.resolve(null), Promise.resolve([]), Promise.resolve(0), Promise.resolve(0));
   }
 
+  // Valorant Promises
   if (firebaseUser.gaming.valorant?.name && firebaseUser.gaming.valorant?.tag) {
     promises.push(getValorantProfile(
       firebaseUser.gaming.valorant.name, 
@@ -193,12 +198,20 @@ export default async function ProfilePage({ params }: Props) {
     promises.push(Promise.resolve(null));
   }
 
+  // NEW: Spotify Fetch (Passing username as ID since that's what the API route expects as the doc ID)
+  promises.push(
+    fetch(`${protocol}://${domain}/api/spotify/now-playing?uid=${username}`, { cache: 'no-store' })
+      .then(res => res.ok ? res.json() : null)
+      .catch(err => { console.error("Spotify Fetch Error:", err); return null; })
+  );
+
   const [
     steamProfile, 
     steamGames, 
     steamLevel, 
     steamGameCount, 
-    valProfile
+    valProfile,
+    fetchedSpotifyData
   ] = await Promise.all(promises);
 
   profile = steamProfile;
@@ -206,8 +219,9 @@ export default async function ProfilePage({ params }: Props) {
   level = steamLevel || 0;
   gameCount = steamGameCount || 0;
   valorantData = valProfile;
+  spotifyData = fetchedSpotifyData;
 
-  // NEW: Fetch achievements for the hero game (most recent)
+  // Fetch achievements for the hero game (most recent)
   if (recentGames.length > 0 && firebaseUser.steamId) {
     heroGameProgress = await getGameProgress(firebaseUser.steamId, recentGames[0].appid);
   }
@@ -310,10 +324,40 @@ export default async function ProfilePage({ params }: Props) {
                   </div>
                 </div>
 
+                {/* Steam Playing Now Widget */}
                 {profile?.gameextrainfo && (
-                  <div className="mb-6 p-3 bg-[#111214] rounded-xl border border-white/5 flex items-center gap-3">
+                  <div className="mb-4 p-3 bg-[#111214] rounded-xl border border-white/5 flex items-center gap-3">
                       <div className="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400"><Gamepad2 className="w-5 h-5" /></div>
                       <div className="flex-1 min-w-0"><p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Playing now</p><p className="text-sm font-bold text-white truncate">{profile.gameextrainfo}</p></div>
+                  </div>
+                )}
+
+                {/* Spotify Playing Now Widget */}
+                {spotifyData?.nowPlaying?.isPlaying && (
+                  <div className="mb-6 p-3 bg-[#111214] rounded-xl border border-[#1DB954]/20 flex items-center gap-3 group relative overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-r from-[#1DB954]/5 to-transparent opacity-0 group-hover:opacity-100 transition duration-500"></div>
+                      <div className="w-12 h-12 rounded-lg bg-[#1DB954]/10 flex items-center justify-center text-[#1DB954] overflow-hidden relative shrink-0 shadow-lg shadow-[#1DB954]/10">
+                         {spotifyData.nowPlaying.albumArt ? (
+                           <Image src={spotifyData.nowPlaying.albumArt} fill className="object-cover" alt="Album" unoptimized />
+                         ) : (
+                           <Music className="w-6 h-6" />
+                         )}
+                      </div>
+                      <div className="flex-1 min-w-0 relative z-10">
+                         <p className="text-[10px] font-bold text-[#1DB954] uppercase tracking-wider flex items-center gap-1.5 mb-0.5">
+                            <Music className="w-3 h-3" /> Listening on Spotify
+                         </p>
+                         <a href={spotifyData.nowPlaying.url} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-white truncate block hover:underline leading-tight">
+                            {spotifyData.nowPlaying.title}
+                         </a>
+                         <p className="text-xs text-zinc-400 truncate mt-0.5">{spotifyData.nowPlaying.artist}</p>
+                      </div>
+                      {/* Animated EQ Bars */}
+                      <div className="flex items-end gap-1 h-5 px-1 shrink-0">
+                         <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-full"></span>
+                         <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-2/3" style={{ animationDelay: '200ms' }}></span>
+                         <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-4/5" style={{ animationDelay: '400ms' }}></span>
+                      </div>
                   </div>
                 )}
                 
@@ -334,7 +378,8 @@ export default async function ProfilePage({ params }: Props) {
 
           {/* WIDGET BOARD (Right Column) - Handled by Client Component */}
           <div className="lg:col-span-8">
-            <ProfileGrid user={firebaseUser} steam={steamData} />
+            {/* @ts-ignore - Temporary ignore until ProfileGrid is updated */}
+            <ProfileGrid user={firebaseUser} steam={steamData} spotify={spotifyData} />
           </div>
 
         </div>
