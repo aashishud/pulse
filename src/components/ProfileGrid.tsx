@@ -106,7 +106,6 @@ export default function ProfileGrid({
         );
 
       case 'spotify':
-        // If Spotify isn't connected at all, don't show the widget
         if (!spotify) return null;
         
         return (
@@ -163,6 +162,15 @@ export default function ProfileGrid({
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-white text-[#9146FF] flex items-center justify-center shadow-lg group-hover:scale-110 transition"><Twitch className="w-4 h-4 fill-current" /></div>
                   <div><p className="text-[10px] font-bold text-[#9146FF] uppercase tracking-wider">Twitch</p></div>
+                </div>
+                <ExternalLink className={`w-3 h-3 ${mutedColor}`} />
+              </a>
+            )}
+            {user.steamId && (
+              <a href={`https://steamcommunity.com/profiles/${user.steamId}`} target="_blank" className="flex-1 bg-[#66c0f4]/10 border border-[#66c0f4]/30 rounded-xl p-3 flex items-center justify-between group transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-white text-[#66c0f4] flex items-center justify-center shadow-lg group-hover:scale-110 transition"><Gamepad2 className="w-4 h-4 fill-current" /></div>
+                  <div><p className="text-[10px] font-bold text-[#66c0f4] uppercase tracking-wider">Steam Profile</p></div>
                 </div>
                 <ExternalLink className={`w-3 h-3 ${mutedColor}`} />
               </a>
