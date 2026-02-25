@@ -18,10 +18,11 @@ export async function GET(request: Request) {
 
   const authUrl = new URL("https://accounts.spotify.com/authorize");
   authUrl.searchParams.append("response_type", "code");
-  // .trim() safely removes any invisible spaces you might have accidentally copied!
   authUrl.searchParams.append("client_id", clientId.trim()); 
   authUrl.searchParams.append("scope", scope);
   authUrl.searchParams.append("redirect_uri", redirectUri);
+  // Force the Spotify connection dialog to show up every time
+  authUrl.searchParams.append("show_dialog", "true");
   
   if (state) {
     authUrl.searchParams.append("state", state);

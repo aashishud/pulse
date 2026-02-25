@@ -82,8 +82,9 @@ export async function verifyDiscordLogin(code: string, origin: string) {
 
 // --- SPOTIFY (NEW) ---
 export async function getSpotifyTokens(code: string, redirectUri: string) {
-  const clientId = process.env.SPOTIFY_CLIENT_ID;
-  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+  // .trim() prevents accidental invisible spaces from breaking the API call
+  const clientId = process.env.SPOTIFY_CLIENT_ID?.trim();
+  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET?.trim();
 
   if (!clientId || !clientSecret) {
     return { success: false, error: "Spotify credentials missing in environment variables." };
