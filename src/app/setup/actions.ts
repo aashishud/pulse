@@ -39,7 +39,7 @@ export async function verifySteamLogin(queryString: string) {
   }
 }
 
-// --- DISCORD (NEW) ---
+// --- DISCORD ---
 export async function verifyDiscordLogin(code: string, origin: string) {
   const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
   const CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
@@ -77,5 +77,62 @@ export async function verifyDiscordLogin(code: string, origin: string) {
   } catch (error) {
     console.error("Discord API Error:", error);
     return { success: false, error: "Failed to connect to Discord" };
+  }
+}
+
+// --- SPOTIFY (NEW) ---
+export async function getSpotifyTokens(code: string, redirectUri: string) {
+  const clientId = process.env.SPOTIFY_CLIENT_ID;
+  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    return { success: false, error: "Spotify credentials missing in environment variables." };
+  }
+
+  try {
+    // 1. Exchange the authorization code for an access token
+    const response = await fetch("https://accounts.spotify.com/api/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
+      },
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: redirectUri,
+      }),
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      console.error("Spotify Token Error:", data);
+      return { success: false, error: data.error_description || "Failed to get tokens" };
+    }
+
+    // 2. Fetch the user's Spotify profile to get their name/avatar
+    const profileRes = await fetch("https://api.spotify.com/v1/me", {
+      headers: { Authorization: `Bearer ${data.access_token}` }
+    });
+    
+    const profile = await profileRes.json();
+
+    return {
+      success: true,
+      tokens: {
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token,
+        expiresAt: Date.now() + (data.expires_in * 1000), // Calculate expiration timestamp
+      },
+      profile: {
+        id: profile.id,
+        display_name: profile.display_name,
+        url: profile.external_urls?.spotify
+      }
+    };
+  } catch (error: any) {
+    console.error("Spotify Auth Error:", error);
+    return { success: false, error: error.message };
   }
 }

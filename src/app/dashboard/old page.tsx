@@ -4,9 +4,9 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { auth, db } from "../../lib/firebase";
 import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, setDoc, getDoc } from "firebase/firestore";
-import { onAuthStateChanged, updateEmail, updatePassword } from "firebase/auth";
-import { getSteamLoginUrl, verifySteamLogin, verifyDiscordLogin } from "../setup/actions"; // Added verifyDiscordLogin
-import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X, Cpu, Monitor, Keyboard, Mouse, Headphones, Trophy, Gamepad2 } from "lucide-react";
+import { onAuthStateChanged, updateEmail, updatePassword, signOut } from "firebase/auth";
+import { getSteamLoginUrl, verifySteamLogin, verifyDiscordLogin } from "../setup/actions"; 
+import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X, Cpu, Monitor, Keyboard, Mouse, Headphones, Trophy, Gamepad2, Clock } from "lucide-react";
 import { validateHandle } from "../../lib/validation";
 
 // DND Kit Imports
@@ -138,7 +138,7 @@ function DashboardContent() {
   const [newEmail, setNewEmail] = useState("");
   const [newPass, setNewPass] = useState("");
 
-  // Gradients & Colors (Restored from old dashboard)
+  // Gradients & Colors
   const gradients = [
     { name: "Sunset", class: "from-orange-400 to-pink-600" },
     { name: "Ocean", class: "from-cyan-400 to-blue-600" },
@@ -187,7 +187,7 @@ function DashboardContent() {
         }
       }
 
-      // 2. Discord Callback Check (NEW)
+      // 2. Discord Callback Check
       const discordCode = searchParams.get('discord_code');
       if (discordCode) {
          const result = await verifyDiscordLogin(discordCode, window.location.origin);
@@ -200,12 +200,10 @@ function DashboardContent() {
                    "socials.discord": result.username,
                    "socials.discord_verified": true 
                });
-               // Clear URL
                router.replace('/dashboard');
             }
          } else {
             console.error(result.error);
-            // Optionally show error toast here
          }
       }
 
@@ -219,7 +217,7 @@ function DashboardContent() {
         setUser({ ...userData, id: uid });
         
         setDisplayName(userData.displayName || "");
-        setNewUsername(userData.username || uid); // Default to ID if username missing
+        setNewUsername(userData.username || uid); 
         setBio(userData.bio || "");
         
         // Merge Theme defaults
@@ -242,7 +240,7 @@ function DashboardContent() {
         setCustomLinks(userData.customLinks || []);
         setGear(userData.gear || { cpu: "", gpu: "", ram: "", mouse: "", keyboard: "", headset: "", monitor: "" });
 
-        // Ensure Layout has all widgets (including new 'gear')
+        // Ensure Layout has all widgets
         const defaultWidgets = [
             { id: 'hero', label: 'Recent Activity', enabled: true, size: 'full' },
             { id: 'content', label: 'Creator Stack', enabled: true, size: 'half' },
@@ -340,7 +338,6 @@ function DashboardContent() {
 
   const connectDiscord = () => {
     if (!user?.id) return;
-    // Just trigger the route, passing the state
     window.location.href = `/api/auth/discord?state=${user.id}`;
   };
 
@@ -366,9 +363,20 @@ function DashboardContent() {
     }
   };
 
+  // --- 12 HOUR USERNAME COOLDOWN LOGIC ---
+  const COOLDOWN_MS = 12 * 60 * 60 * 1000; // 12 Hours in milliseconds
+  const isOnCooldown = user?.lastUsernameChange && (Date.now() - user.lastUsernameChange < COOLDOWN_MS);
+  const hoursLeft = isOnCooldown ? Math.ceil((COOLDOWN_MS - (Date.now() - user.lastUsernameChange)) / (1000 * 60 * 60)) : 0;
+
   const handleChangeUsername = async () => {
     if (!newUsername || newUsername === user.username) return;
-    if (!confirm(`Change handle to @${newUsername}? This will change your profile URL.`)) return;
+
+    if (isOnCooldown) {
+      alert(`You can only change your username once every 12 hours. Please try again in ${hoursLeft} hours.`);
+      return;
+    }
+
+    if (!confirm(`Change handle to @${newUsername}? This will change your profile URL and delete old ones.`)) return;
 
     const validationError = validateHandle(newUsername.toLowerCase());
     if (validationError) { alert(validationError); return; }
@@ -377,27 +385,38 @@ function DashboardContent() {
     try {
       const newRef = doc(db, "users", newUsername.toLowerCase());
       const snap = await getDoc(newRef);
-      if (snap.exists()) {
+      
+      if (snap.exists() && snap.data().owner_uid !== auth.currentUser?.uid) {
         alert("Username is already taken.");
         setSaving(false);
         return;
       }
 
-      // FIX: Store old ID safely and clone the object so we don't mutate state in-place
       const oldId = user.id; 
-      const userData = { ...user }; 
-      userData.username = newUsername.toLowerCase();
-      // Remove old 'id' from object if it was there to avoid confusion
-      delete userData.id; 
-      
-      await setDoc(newRef, userData);
-      await deleteDoc(doc(db, "users", oldId)); // Now safely deletes the old doc!
+      const userDataToSave = { ...user };
+      userDataToSave.username = newUsername.toLowerCase();
+      // Add the timestamp for the 12-hour cooldown
+      userDataToSave.lastUsernameChange = Date.now();
+      delete userDataToSave.id; 
+
+      await setDoc(newRef, userDataToSave);
+
+      // BULK DELETION to clean up ghosts
+      const q = query(collection(db, "users"), where("owner_uid", "==", auth.currentUser?.uid));
+      const allMyDocs = await getDocs(q);
+
+      const cleanupPromises = allMyDocs.docs
+        .filter(docSnap => docSnap.id !== newUsername.toLowerCase()) 
+        .map(docSnap => deleteDoc(doc(db, "users", docSnap.id)));
+
+      await Promise.all(cleanupPromises);
 
       alert("Username changed! Reloading...");
       window.location.href = `/dashboard`;
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert("Failed to change username.");
+      alert("Failed to change username: " + e.message);
+    } finally {
       setSaving(false);
     }
   };
@@ -439,7 +458,7 @@ function DashboardContent() {
             <button onClick={handleSave} disabled={saving} className="px-6 py-2 text-xs font-bold bg-white text-black rounded-lg hover:bg-zinc-200 transition disabled:opacity-50">
                {saving ? "Saving..." : "Save Changes"}
             </button>
-            <button onClick={() => auth.signOut()} className="p-2 hover:bg-red-500/10 hover:text-red-500 rounded-lg transition text-zinc-500">
+            <button onClick={() => signOut(auth)} className="p-2 hover:bg-red-500/10 hover:text-red-500 rounded-lg transition text-zinc-500">
                <LogOut className="w-4 h-4" />
             </button>
          </div>
@@ -827,9 +846,13 @@ function DashboardContent() {
                     <label className="block text-sm font-medium mb-2 text-zinc-300">Username / Handle</label>
                     <div className="flex gap-2">
                         <input type="text" value={newUsername} onChange={(e) => setNewUsername(e.target.value.replace(/[^a-zA-Z0-9-_]/g, ''))} className="w-full bg-black/50 border border-zinc-700 rounded-xl p-3 text-white text-sm outline-none focus:border-indigo-500 font-mono" />
-                        <button onClick={handleChangeUsername} disabled={saving || newUsername === user.username} className="px-4 bg-zinc-800 rounded-xl font-bold text-sm hover:bg-zinc-700 disabled:opacity-50 transition">Change</button>
+                        <button onClick={handleChangeUsername} disabled={saving || newUsername === user.username || isOnCooldown} className="px-4 bg-zinc-800 rounded-xl font-bold text-sm hover:bg-zinc-700 disabled:opacity-50 transition">Change</button>
                     </div>
-                    <p className="text-xs text-orange-400 mt-2 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Changing this will change your profile URL.</p>
+                    {isOnCooldown ? (
+                       <p className="text-xs text-red-400 mt-2 flex items-center gap-1"><Clock className="w-3 h-3" /> Username change is locked. Please try again in {hoursLeft} hours.</p>
+                    ) : (
+                       <p className="text-xs text-orange-400 mt-2 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Changing this will change your profile URL.</p>
+                    )}
                   </div>
                 </div>
               </section>
