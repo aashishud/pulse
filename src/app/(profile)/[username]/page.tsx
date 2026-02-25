@@ -13,13 +13,15 @@ import ProfileGrid from '@/components/ProfileGrid'; // Client Component
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
+export const dynamic = 'force-dynamic';
+
 // Load Fonts
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
 const spaceGrotesk = Space_Grotesk({ subsets: ['latin'], display: 'swap' });
 const pressStart = Press_Start_2P({ weight: '400', subsets: ['latin'], display: 'swap' });
 const cinzel = Cinzel({ subsets: ['latin'], display: 'swap' });
 
-export const revalidate = 60; 
+export const revalidate = 0;
 
 interface Props {
   params: Promise<{ username: string }>;
@@ -39,7 +41,7 @@ async function getFirebaseUser(username: string) {
   const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${username}`;
   
   try {
-    const res = await fetch(url, { next: { revalidate: 60 } });
+    const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) return null;
     
     const data = await res.json();

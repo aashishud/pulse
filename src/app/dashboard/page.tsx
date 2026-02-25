@@ -367,37 +367,65 @@ function DashboardContent() {
   };
 
   const handleChangeUsername = async () => {
-    if (!newUsername || newUsername === user.username) return;
-    if (!confirm(`Change handle to @${newUsername}? This will change your profile URL.`)) return;
+    if (!newUsername || !user) return;
+    const lowerNew = newUsername.toLowerCase().trim();
 
-    const validationError = validateHandle(newUsername.toLowerCase());
+    if (lowerNew === user.username) return;
+
+    if (!confirm(`Change handle to @${lowerNew}? This will change your profile URL.`)) return;
+
+    const validationError = validateHandle(lowerNew);
     if (validationError) { alert(validationError); return; }
 
     setSaving(true);
     try {
-      const newRef = doc(db, "users", newUsername.toLowerCase());
+      const newRef = doc(db, "users", lowerNew);
       const snap = await getDoc(newRef);
-      if (snap.exists()) {
+      
+      if (snap.exists() && snap.data().owner_uid !== auth.currentUser?.uid) {
         alert("Username is already taken.");
         setSaving(false);
         return;
       }
 
-      // FIX: Store old ID safely and clone the object so we don't mutate state in-place
-      const oldId = user.id; 
-      const userData = { ...user }; 
-      userData.username = newUsername.toLowerCase();
-      // Remove old 'id' from object if it was there to avoid confusion
-      delete userData.id; 
-      
-      await setDoc(newRef, userData);
-      await deleteDoc(doc(db, "users", oldId)); // Now safely deletes the old doc!
+      // CRITICAL FIX 1: Capture the exact old ID ('sour') before making changes
+      const oldDocId = user.id;
+
+      const userDataToSave = { ...user };
+      userDataToSave.username = lowerNew;
+      delete userDataToSave.id;
+
+      // 1. Create the new document ('soured')
+      await setDoc(newRef, userDataToSave);
+
+      // 2. CRITICAL FIX 2: EXPLICITLY target and destroy the old document
+      // We no longer rely on queries. We tell it exactly what to delete.
+      if (oldDocId && oldDocId !== lowerNew) {
+        const oldDocRef = doc(db, "users", oldDocId);
+        await deleteDoc(oldDocRef);
+        console.log(`Successfully deleted old document: ${oldDocId}`);
+      }
+
+      // 3. Fallback: Sweep the database for any other stray ghost profiles 
+      // (in case you have sour123, sour_test lingering around)
+      const q = query(collection(db, "users"), where("owner_uid", "==", auth.currentUser?.uid));
+      const oldDocsSnap = await getDocs(q);
+
+      const deletionPromises = oldDocsSnap.docs
+        .filter(docSnap => docSnap.id !== lowerNew) 
+        .map(docSnap => {
+            console.log(`Sweeping stray ghost profile: ${docSnap.id}`);
+            return deleteDoc(doc(db, "users", docSnap.id));
+        });
+
+      await Promise.all(deletionPromises);
 
       alert("Username changed! Reloading...");
       window.location.href = `/dashboard`;
-    } catch (e) {
-      console.error(e);
-      alert("Failed to change username.");
+    } catch (e: any) {
+      console.error("Firebase Deletion Error:", e);
+      alert("Failed to change username completely. Please check browser console.");
+    } finally {
       setSaving(false);
     }
   };
