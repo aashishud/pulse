@@ -1,9 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Allow cross-origin requests from your domains during development
-  allowedDevOrigins: ['www.pulsegg.in', 'pulsegg.in'],
-
+  // We remove allowedDevOrigins to let Vercel handle the host headers automatically
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'avatars.akamai.steamstatic.com' },

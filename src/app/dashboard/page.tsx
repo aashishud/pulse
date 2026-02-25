@@ -2,12 +2,12 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { auth, db } from "@/lib/firebase";
+import { auth, db } from "../../lib/firebase";
 import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, setDoc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged, updateEmail, updatePassword } from "firebase/auth";
 import { getSteamLoginUrl, verifySteamLogin, verifyDiscordLogin } from "../setup/actions"; // Added verifyDiscordLogin
 import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X, Cpu, Monitor, Keyboard, Mouse, Headphones, Trophy, Gamepad2 } from "lucide-react";
-import { validateHandle } from "@/lib/validation";
+import { validateHandle } from "../../lib/validation";
 
 // DND Kit Imports
 import {
@@ -383,14 +383,15 @@ function DashboardContent() {
         return;
       }
 
-      // Copy data to new doc
-      const userData = user;
+      // FIX: Store old ID safely and clone the object so we don't mutate state in-place
+      const oldId = user.id; 
+      const userData = { ...user }; 
       userData.username = newUsername.toLowerCase();
       // Remove old 'id' from object if it was there to avoid confusion
       delete userData.id; 
       
       await setDoc(newRef, userData);
-      await deleteDoc(doc(db, "users", user.id)); // Delete old doc
+      await deleteDoc(doc(db, "users", oldId)); // Now safely deletes the old doc!
 
       alert("Username changed! Reloading...");
       window.location.href = `/dashboard`;
