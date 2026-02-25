@@ -2,12 +2,12 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { auth, db } from "../../lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, setDoc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged, updateEmail, updatePassword, signOut } from "firebase/auth";
-import { getSteamLoginUrl, verifySteamLogin, verifyDiscordLogin } from "../setup/actions"; 
+import { getSteamLoginUrl, verifySteamLogin, verifyDiscordLogin, getSpotifyTokens } from "@/app/setup/actions"; 
 import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X, Cpu, Monitor, Keyboard, Mouse, Headphones, Trophy, Gamepad2, Clock, Music } from "lucide-react";
-import { validateHandle } from "../../lib/validation";
+import { validateHandle } from "@/lib/validation";
 
 // DND Kit Imports
 import {
@@ -92,7 +92,7 @@ function DashboardContent() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState("identity");
+  const [activeTab, setActiveTab] = useState("gaming"); // Set to gaming by default to easily test Spotify
 
   // Form States
   const [displayName, setDisplayName] = useState("");
@@ -202,8 +202,35 @@ function DashboardContent() {
                });
                router.replace('/dashboard');
             }
+         }
+      }
+
+      // 3. Spotify Callback Check
+      const spotifyCode = searchParams.get('spotify_code');
+      if (spotifyCode) {
+         const redirectUri = `${window.location.origin}/api/auth/spotify/callback`;
+         const result = await getSpotifyTokens(spotifyCode, redirectUri);
+         
+         if (result.success && result.tokens && result.profile) {
+            const q = query(collection(db, "users"), where("owner_uid", "==", currentUser.uid));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+               const userDoc = querySnapshot.docs[0];
+               await updateDoc(doc(db, "users", userDoc.id), { 
+                   spotify: {
+                       connected: true,
+                       display_name: result.profile.display_name,
+                       id: result.profile.id,
+                       url: result.profile.url,
+                       access_token: result.tokens.accessToken,
+                       refresh_token: result.tokens.refreshToken,
+                       expires_at: result.tokens.expiresAt
+                   }
+               });
+               router.replace('/dashboard'); // This wipes the ?spotify_code= URL out!
+            }
          } else {
-            console.error(result.error);
+            console.error("Spotify Connection Error:", result.error);
          }
       }
 
@@ -623,55 +650,61 @@ function DashboardContent() {
 
                 {/* Socials & Discord */}
                 <section className="bg-[#121214] border border-white/5 rounded-2xl p-6">
-                   <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-6">Socials</h3>
+                   <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-6">Social Connections</h3>
                    <div className="space-y-4">
+                      
                       {/* Spotify OAuth Button */}
-                      <div className="relative">
+                      <div className="relative mb-6">
                          <label className="text-xs font-bold text-zinc-500 block mb-1">Spotify</label>
                          {user?.spotify?.connected ? (
                             <div className="flex gap-2">
-                               <div className="w-full bg-black/50 border border-[#1DB954]/50 rounded-lg p-2 text-[#1DB954] text-sm flex items-center gap-2">
-                                  <Music className="w-4 h-4" /> Connected as {user.spotify.display_name || 'Spotify User'}
+                               <div className="flex-1 bg-black/50 border border-[#1DB954]/50 rounded-lg p-3 text-[#1DB954] text-sm flex items-center gap-2">
+                                  <Music className="w-4 h-4" /> Connected as <span className="font-bold text-white">{user.spotify.display_name || 'Spotify User'}</span>
                                </div>
-                               <button onClick={() => handleDisconnect('spotify')} className="bg-zinc-800 p-2 rounded-lg text-xs hover:bg-red-900 text-white font-medium">Unlink</button>
+                               <button onClick={() => handleDisconnect('spotify')} className="bg-red-500/10 hover:bg-red-500/20 px-4 rounded-lg text-sm text-red-500 font-bold transition">Unlink</button>
                             </div>
                          ) : (
-                            <button onClick={connectSpotify} className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black p-2 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2">
-                               <Music className="w-5 h-5"/> Connect Spotify
+                            <button onClick={connectSpotify} className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black p-3 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-[#1DB954]/20">
+                               <Music className="w-5 h-5"/> Connect Spotify Profile
                             </button>
                          )}
                       </div>
 
                       {/* Discord OAuth Button */}
-                      <div className="relative mt-4">
+                      <div className="relative mb-6">
                          <label className="text-xs font-bold text-zinc-500 block mb-1">Discord</label>
-                         {socials.discord ? (
+                         {user?.socials?.discord ? (
                             <div className="flex gap-2">
-                               <input disabled type="text" value={socials.discord} className="w-full bg-black/50 border border-green-500/50 rounded-lg p-2 text-green-400 text-sm outline-none" />
-                               <button onClick={() => handleDisconnect('discord')} className="bg-zinc-800 p-2 rounded-lg text-xs hover:bg-red-900 text-white font-medium">Unlink</button>
+                               <div className="flex-1 bg-black/50 border border-indigo-500/50 rounded-lg p-3 text-indigo-400 text-sm flex items-center gap-2">
+                                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
+                                  Linked as <span className="font-bold text-white">{socials.discord}</span>
+                               </div>
+                               <button onClick={() => handleDisconnect('discord')} className="bg-red-500/10 hover:bg-red-500/20 px-4 rounded-lg text-sm text-red-500 font-bold transition">Unlink</button>
                             </div>
                          ) : (
-                            <button onClick={connectDiscord} className="w-full bg-[#5865F2] hover:bg-[#4752c4] text-white p-2 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2">Connect Discord</button>
+                            <button onClick={connectDiscord} className="w-full bg-[#5865F2] hover:bg-[#4752c4] text-white p-3 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-[#5865F2]/20">Connect Discord Profile</button>
                          )}
                       </div>
+
+                      <div className="h-px bg-white/5 my-4"></div>
 
                       {/* Other Socials */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                          <div>
                             <label className="text-xs font-bold text-zinc-500 block mb-1">Twitter / X</label>
-                            <input type="text" value={socials.twitter} onChange={(e) => setSocials({...socials, twitter: e.target.value})} className="w-full bg-black/50 border border-zinc-700 rounded-lg p-2 text-white text-sm outline-none focus:border-white" placeholder="@username" />
+                            <input type="text" value={socials.twitter} onChange={(e) => setSocials({...socials, twitter: e.target.value})} className="w-full bg-black/50 border border-zinc-700 rounded-lg p-3 text-white text-sm outline-none focus:border-white" placeholder="@username" />
                          </div>
                          <div>
                             <label className="text-xs font-bold text-zinc-500 block mb-1">Instagram</label>
-                            <input type="text" value={socials.instagram} onChange={(e) => setSocials({...socials, instagram: e.target.value})} className="w-full bg-black/50 border border-zinc-700 rounded-lg p-2 text-white text-sm outline-none focus:border-[#E1306C]" placeholder="@username" />
+                            <input type="text" value={socials.instagram} onChange={(e) => setSocials({...socials, instagram: e.target.value})} className="w-full bg-black/50 border border-zinc-700 rounded-lg p-3 text-white text-sm outline-none focus:border-[#E1306C]" placeholder="@username" />
                          </div>
                          <div>
                             <label className="text-xs font-bold text-zinc-500 block mb-1">YouTube</label>
-                            <input type="text" value={socials.youtube} onChange={(e) => setSocials({...socials, youtube: e.target.value})} className="w-full bg-black/50 border border-zinc-700 rounded-lg p-2 text-white text-sm outline-none focus:border-red-600" placeholder="Channel Link/Handle" />
+                            <input type="text" value={socials.youtube} onChange={(e) => setSocials({...socials, youtube: e.target.value})} className="w-full bg-black/50 border border-zinc-700 rounded-lg p-3 text-white text-sm outline-none focus:border-red-600" placeholder="Channel Link/Handle" />
                          </div>
                          <div>
                             <label className="text-xs font-bold text-zinc-500 block mb-1">Twitch</label>
-                            <input type="text" value={socials.twitch} onChange={(e) => setSocials({...socials, twitch: e.target.value})} className="w-full bg-black/50 border border-zinc-700 rounded-lg p-2 text-white text-sm outline-none focus:border-purple-500" placeholder="Username" />
+                            <input type="text" value={socials.twitch} onChange={(e) => setSocials({...socials, twitch: e.target.value})} className="w-full bg-black/50 border border-zinc-700 rounded-lg p-3 text-white text-sm outline-none focus:border-purple-500" placeholder="Username" />
                          </div>
                       </div>
                    </div>

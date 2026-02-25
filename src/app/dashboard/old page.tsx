@@ -6,7 +6,7 @@ import { auth, db } from "../../lib/firebase";
 import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, setDoc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged, updateEmail, updatePassword, signOut } from "firebase/auth";
 import { getSteamLoginUrl, verifySteamLogin, verifyDiscordLogin } from "../setup/actions"; 
-import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X, Cpu, Monitor, Keyboard, Mouse, Headphones, Trophy, Gamepad2, Clock } from "lucide-react";
+import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X, Cpu, Monitor, Keyboard, Mouse, Headphones, Trophy, Gamepad2, Clock, Music } from "lucide-react";
 import { validateHandle } from "../../lib/validation";
 
 // DND Kit Imports
@@ -47,7 +47,7 @@ function SortableWidget({ widget, onToggleVisibility, onToggleSize }: { widget: 
     switch (id) {
       case 'hero': return <User className="w-4 h-4" />;
       case 'content': return <Link2 className="w-4 h-4" />;
-      case 'stats': return <Trophy className="w-4 h-4" />;
+      case 'spotify': return <Music className="w-4 h-4" />;
       case 'valorant': return <Swords className="w-4 h-4" />;
       case 'library': return <Gamepad2 className="w-4 h-4" />;
       case 'gear': return <Cpu className="w-4 h-4" />;
@@ -244,7 +244,7 @@ function DashboardContent() {
         const defaultWidgets = [
             { id: 'hero', label: 'Recent Activity', enabled: true, size: 'full' },
             { id: 'content', label: 'Creator Stack', enabled: true, size: 'half' },
-            { id: 'stats', label: 'Stats Overview', enabled: true, size: 'half' },
+            { id: 'spotify', label: 'Spotify Overview', enabled: true, size: 'half' },
             { id: 'valorant', label: 'Valorant Rank', enabled: true, size: 'half' },
             { id: 'library', label: 'Game Library', enabled: true, size: 'half' },
             { id: 'gear', label: 'Hardware Setup', enabled: true, size: 'half' },
@@ -322,7 +322,7 @@ function DashboardContent() {
     setLayout([
         { id: 'hero', label: 'Recent Activity', enabled: true, size: 'full' },
         { id: 'content', label: 'Creator Stack', enabled: true, size: 'half' },
-        { id: 'stats', label: 'Stats Overview', enabled: true, size: 'half' },
+        { id: 'spotify', label: 'Spotify Overview', enabled: true, size: 'half' },
         { id: 'valorant', label: 'Valorant Rank', enabled: true, size: 'half' },
         { id: 'library', label: 'Game Library', enabled: true, size: 'half' },
         { id: 'gear', label: 'Hardware Setup', enabled: true, size: 'half' },
@@ -341,6 +341,11 @@ function DashboardContent() {
     window.location.href = `/api/auth/discord?state=${user.id}`;
   };
 
+  const connectSpotify = () => {
+    if (!user?.id) return;
+    window.location.href = `/api/auth/spotify?state=${user.id}`;
+  };
+
   const handleDisconnect = async (platform: string) => {
     if (!confirm(`Disconnect ${platform}?`)) return;
     if (!user) return;
@@ -355,6 +360,10 @@ function DashboardContent() {
         if (platform === 'discord') {
             await updateDoc(userRef, { "socials.discord": "", "socials.discord_verified": false });
             setSocials(prev => ({ ...prev, discord: "", discord_verified: false }));
+        }
+        if (platform === 'spotify') {
+            await updateDoc(userRef, { spotify: null });
+            setUser((prev: any) => ({ ...prev, spotify: null }));
         }
     } catch (e) {
         console.error(e);
@@ -616,8 +625,25 @@ function DashboardContent() {
                 <section className="bg-[#121214] border border-white/5 rounded-2xl p-6">
                    <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-6">Socials</h3>
                    <div className="space-y-4">
-                      {/* Discord OAuth Button */}
+                      {/* Spotify OAuth Button */}
                       <div className="relative">
+                         <label className="text-xs font-bold text-zinc-500 block mb-1">Spotify</label>
+                         {user?.spotify?.connected ? (
+                            <div className="flex gap-2">
+                               <div className="w-full bg-black/50 border border-[#1DB954]/50 rounded-lg p-2 text-[#1DB954] text-sm flex items-center gap-2">
+                                  <Music className="w-4 h-4" /> Connected as {user.spotify.display_name || 'Spotify User'}
+                               </div>
+                               <button onClick={() => handleDisconnect('spotify')} className="bg-zinc-800 p-2 rounded-lg text-xs hover:bg-red-900 text-white font-medium">Unlink</button>
+                            </div>
+                         ) : (
+                            <button onClick={connectSpotify} className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black p-2 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2">
+                               <Music className="w-5 h-5"/> Connect Spotify
+                            </button>
+                         )}
+                      </div>
+
+                      {/* Discord OAuth Button */}
+                      <div className="relative mt-4">
                          <label className="text-xs font-bold text-zinc-500 block mb-1">Discord</label>
                          {socials.discord ? (
                             <div className="flex gap-2">
