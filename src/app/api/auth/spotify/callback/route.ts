@@ -5,13 +5,14 @@ export async function GET(request: Request) {
   const code = searchParams.get("code");
   const state = searchParams.get("state"); 
 
+  // Force use of your custom domain so you don't get bounced to a .vercel.app domain
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || origin;
+
   if (!code) {
-    return NextResponse.redirect(`${origin}/dashboard?error=spotify_no_code`);
+    return NextResponse.redirect(`${baseUrl}/dashboard?error=spotify_no_code`);
   }
 
-  // Redirect back to the dashboard with the code. 
-  // The dashboard's client-side useEffect will catch this and hit the Server Action.
-  const dashboardUrl = new URL("/dashboard", origin);
+  const dashboardUrl = new URL("/dashboard", baseUrl);
   dashboardUrl.searchParams.append("spotify_code", code);
   if (state) {
     dashboardUrl.searchParams.append("state", state);

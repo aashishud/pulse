@@ -2,21 +2,24 @@ import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
-  const state = searchParams.get("state"); // We pass the User ID here
+  const state = searchParams.get("state"); 
 
   const clientId = process.env.SPOTIFY_CLIENT_ID;
-  const redirectUri = `${origin}/api/auth/spotify/callback`;
+  
+  // Force use of your custom domain to prevent Vercel URL mismatches
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || origin;
+  const redirectUri = `${baseUrl}/api/auth/spotify/callback`;
 
   if (!clientId) {
     return NextResponse.json({ error: "Missing Spotify Client ID" }, { status: 500 });
   }
 
-  // Scopes needed for displaying what you're listening to and controlling playback
   const scope = "user-read-private user-read-email user-read-currently-playing user-modify-playback-state user-read-playback-state";
 
   const authUrl = new URL("https://accounts.spotify.com/authorize");
   authUrl.searchParams.append("response_type", "code");
-  authUrl.searchParams.append("client_id", clientId);
+  // .trim() safely removes any invisible spaces you might have accidentally copied!
+  authUrl.searchParams.append("client_id", clientId.trim()); 
   authUrl.searchParams.append("scope", scope);
   authUrl.searchParams.append("redirect_uri", redirectUri);
   
