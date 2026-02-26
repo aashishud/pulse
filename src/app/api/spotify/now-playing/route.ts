@@ -21,34 +21,63 @@ export async function GET(request: Request) {
 
     let { access_token, refresh_token, expires_at } = userData.spotify;
 
-    // 1. Refresh Token if expired
-    if (Date.now() > expires_at - 5 * 60 * 1000) {
-      const clientId = process.env.SPOTIFY_CLIENT_ID?.trim();
-      const clientSecret = process.env.SPOTIFY_CLIENT_SECRET?.trim();
+    // 1. Refresh Token if expired (or if the expires_at timestamp is somehow missing)
+    if (!expires_at || Date.now() > expires_at - 5 * 60 * 1000) {
+      
+      if (!refresh_token) {
+         return NextResponse.json({ nowPlaying: { isPlaying: false }, topTracks: [], message: "Missing refresh token" });
+      }
+
+      const clientId = process.env.SPOTIFY_CLIENT_ID?.trim() || "";
+      const clientSecret = process.env.SPOTIFY_CLIENT_SECRET?.trim() || "";
+
+      // Securely encode the credentials
+      const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
 
       const refreshRes = await fetch("https://accounts.spotify.com/api/token", {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
-          Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
+          Authorization: `Basic ${basicAuth}`,
         },
+        // IMPORTANT: We use .toString() here to prevent Next.js fetch body bugs
         body: new URLSearchParams({
           grant_type: "refresh_token",
           refresh_token: refresh_token,
-        }),
+          client_id: clientId, // Passing client ID here as well for double safety
+        }).toString(), 
       });
 
       if (refreshRes.ok) {
         const refreshData = await refreshRes.json();
         access_token = refreshData.access_token;
+        // Set new expiration time (usually 3600 seconds / 1 hour from now)
         expires_at = Date.now() + refreshData.expires_in * 1000;
-        if (refreshData.refresh_token) refresh_token = refreshData.refresh_token;
+        
+        // Spotify doesn't always return a new refresh token, only update it if they do
+        if (refreshData.refresh_token) {
+           refresh_token = refreshData.refresh_token;
+        }
 
-        await updateDoc(userRef, {
-          "spotify.access_token": access_token,
-          "spotify.refresh_token": refresh_token,
-          "spotify.expires_at": expires_at,
-        });
+        try {
+          // Attempt to save the fresh tokens back to Firebase
+          // This uses the Client SDK on the server, so it may hit PERMISSION_DENIED
+          await updateDoc(userRef, {
+            "spotify.access_token": access_token,
+            "spotify.refresh_token": refresh_token,
+            "spotify.expires_at": expires_at,
+          });
+        } catch (dbError) {
+          // We catch the permission error silently!
+          // The API still has the new access_token in memory, so we can keep going
+          // and fetch the songs without crashing the 500 route!
+          console.warn("Firestore write blocked. Token refreshed in memory for this request.");
+        }
+      } else {
+        const errorText = await refreshRes.text();
+        console.error("Critical Spotify Refresh Error:", refreshRes.status, errorText);
+        // If refresh utterly fails, return empty arrays instead of crashing
+        return NextResponse.json({ nowPlaying: { isPlaying: false }, topTracks: [], message: "Token refresh failed" });
       }
     }
 
@@ -60,8 +89,7 @@ export async function GET(request: Request) {
 
     let nowPlaying = { isPlaying: false, title: "", artist: "", albumArt: "", url: "" };
     
-    // We only parse the data if a song is actually playing (Status 200)
-    // Notice how there is NO "early return" here if it fails!
+    // Status 200 means a song is actively playing right now
     if (nowPlayingRes.status === 200) {
       const song = await nowPlayingRes.json();
       if (song && song.item) {
@@ -75,7 +103,7 @@ export async function GET(request: Request) {
       }
     }
 
-    // 3. Always Fetch Top 3 Tracks (Short Term = last 4 weeks)
+    // 3. Fetch Top 3 Tracks (Short Term = last 4 weeks)
     const topTracksRes = await fetch("https://api.spotify.com/v1/me/top/tracks?limit=3&time_range=short_term", {
       headers: { Authorization: `Bearer ${access_token}` },
       cache: "no-store",
@@ -96,14 +124,13 @@ export async function GET(request: Request) {
        }
     }
 
-    // Return BOTH pieces of data safely
     return NextResponse.json({
       nowPlaying,
       topTracks
     });
 
   } catch (error: any) {
-    console.error("Spotify API Error:", error);
+    console.error("Spotify API Catch Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
