@@ -21,7 +21,7 @@ export async function GET(request: Request) {
 
     let { access_token, refresh_token, expires_at } = userData.spotify;
 
-    // 1. Check if token is expired (adding a 5 min buffer to be safe)
+    // 1. Refresh Token if expired
     if (Date.now() > expires_at - 5 * 60 * 1000) {
       const clientId = process.env.SPOTIFY_CLIENT_ID?.trim();
       const clientSecret = process.env.SPOTIFY_CLIENT_SECRET?.trim();
@@ -38,14 +38,12 @@ export async function GET(request: Request) {
         }),
       });
 
-      const refreshData = await refreshRes.json();
-
       if (refreshRes.ok) {
+        const refreshData = await refreshRes.json();
         access_token = refreshData.access_token;
         expires_at = Date.now() + refreshData.expires_in * 1000;
         if (refreshData.refresh_token) refresh_token = refreshData.refresh_token;
 
-        // Save the new tokens back to Firebase so we don't have to keep refreshing
         await updateDoc(userRef, {
           "spotify.access_token": access_token,
           "spotify.refresh_token": refresh_token,
@@ -62,6 +60,8 @@ export async function GET(request: Request) {
 
     let nowPlaying = { isPlaying: false, title: "", artist: "", albumArt: "", url: "" };
     
+    // We only parse the data if a song is actually playing (Status 200)
+    // Notice how there is NO "early return" here if it fails!
     if (nowPlayingRes.status === 200) {
       const song = await nowPlayingRes.json();
       if (song && song.item) {
@@ -75,7 +75,7 @@ export async function GET(request: Request) {
       }
     }
 
-    // 3. Fetch Top 3 Tracks (Short Term = last 4 weeks)
+    // 3. Always Fetch Top 3 Tracks (Short Term = last 4 weeks)
     const topTracksRes = await fetch("https://api.spotify.com/v1/me/top/tracks?limit=3&time_range=short_term", {
       headers: { Authorization: `Bearer ${access_token}` },
       cache: "no-store",
@@ -96,7 +96,7 @@ export async function GET(request: Request) {
        }
     }
 
-    // Return both pieces of data!
+    // Return BOTH pieces of data safely
     return NextResponse.json({
       nowPlaying,
       topTracks
