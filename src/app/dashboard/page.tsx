@@ -6,7 +6,7 @@ import { auth, db } from "@/lib/firebase";
 import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, setDoc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged, updateEmail, updatePassword, signOut } from "firebase/auth";
 import { getSteamLoginUrl, verifySteamLogin, verifyDiscordLogin, getSpotifyTokens } from "@/app/setup/actions"; 
-import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X, Cpu, Monitor, Keyboard, Mouse, Headphones, Trophy, Gamepad2, Clock, Music } from "lucide-react";
+import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X, Cpu, Monitor, Keyboard, Mouse, Headphones, Trophy, Gamepad2, Clock, Music, Video } from "lucide-react";
 import { validateHandle } from "@/lib/validation";
 
 // DND Kit Imports
@@ -92,7 +92,7 @@ function DashboardContent() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState("gaming"); // Set to gaming by default to easily test Spotify
+  const [activeTab, setActiveTab] = useState("gaming");
 
   // Form States
   const [displayName, setDisplayName] = useState("");
@@ -132,6 +132,7 @@ function DashboardContent() {
   });
   
   const [customLinks, setCustomLinks] = useState<{label: string, url: string}[]>([]);
+  const [clips, setClips] = useState<{title: string, url: string}[]>([]); // NEW CLIPS STATE
   const [layout, setLayout] = useState<any[]>([]);
 
   // Security
@@ -265,6 +266,7 @@ function DashboardContent() {
         setSocials({ ...userData.socials });
         setGaming({ ...userData.gaming || { valorant: { name: "", tag: "", region: "na" } } });
         setCustomLinks(userData.customLinks || []);
+        setClips(userData.clips || []); // INJECT CLIPS STATE
         setGear(userData.gear || { cpu: "", gpu: "", ram: "", mouse: "", keyboard: "", headset: "", monitor: "" });
 
         // Ensure Layout has all widgets
@@ -311,6 +313,7 @@ function DashboardContent() {
         socials,
         gaming,
         customLinks,
+        clips, // SAVE CLIPS TO FIREBASE
         layout,
         gear
       });
@@ -573,6 +576,48 @@ function DashboardContent() {
           {/* --- GAMING TAB --- */}
           {activeTab === 'gaming' && (
              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                
+                {/* NEW FEATURED CLIPS SECTION */}
+                <section className="bg-[#121214] border border-indigo-500/30 rounded-2xl p-6 relative overflow-hidden">
+                   <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 blur-3xl rounded-full -mr-20 -mt-20 pointer-events-none"></div>
+                   <div className="flex justify-between items-center mb-2 relative z-10">
+                      <h2 className="text-sm font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
+                         <Video className="w-4 h-4" /> Featured Clips
+                      </h2>
+                      {clips.length < 3 && (
+                         <button onClick={() => setClips([...clips, {title: "", url: ""}])} className="text-xs font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+                            <Plus className="w-3 h-3" /> Add Clip
+                         </button>
+                      )}
+                   </div>
+                   <p className="text-zinc-500 text-xs mb-6 relative z-10">Paste a YouTube Short, standard YouTube video, Twitch Clip, or Medal.tv link. Maximum 3.</p>
+                   
+                   <div className="space-y-3 relative z-10">
+                      {clips.length === 0 ? (
+                         <div className="text-center py-6 bg-black/30 rounded-xl border border-dashed border-white/10">
+                            <p className="text-zinc-500 text-sm">No clips added yet. Show off your best moments!</p>
+                         </div>
+                      ) : (
+                         clips.map((clip, idx) => (
+                             <div key={idx} className="flex flex-col gap-2 p-3 bg-black/40 border border-white/5 rounded-xl">
+                                <div className="flex justify-between items-center mb-1">
+                                   <label className="text-xs font-bold text-zinc-400">Clip {idx + 1}</label>
+                                   <button onClick={() => {
+                                       const newClips = clips.filter((_, i) => i !== idx); setClips(newClips);
+                                   }} className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1"><Trash2 className="w-3 h-3" /> Remove</button>
+                                </div>
+                                <input type="text" placeholder="Title (e.g., Crazy 1v5 Clutch)" value={clip.title} onChange={(e) => {
+                                    const newClips = [...clips]; newClips[idx].title = e.target.value; setClips(newClips);
+                                }} className="w-full bg-[#0a0a0c] border border-white/10 rounded-lg p-3 text-sm text-white outline-none focus:border-indigo-500" />
+                                <input type="text" placeholder="URL (YouTube, Twitch Clip, Medal.tv)" value={clip.url} onChange={(e) => {
+                                    const newClips = [...clips]; newClips[idx].url = e.target.value; setClips(newClips);
+                                }} className="w-full bg-[#0a0a0c] border border-white/10 rounded-lg p-3 text-sm text-white outline-none focus:border-indigo-500 font-mono" />
+                             </div>
+                         ))
+                      )}
+                   </div>
+                </section>
+
                 {/* Steam - Primary Account Style */}
                 <section className="bg-[#121214] border border-zinc-800 rounded-2xl p-6">
                    <h2 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-4">Primary Account</h2>
