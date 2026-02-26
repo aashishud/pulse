@@ -1,6 +1,6 @@
 import { getSteamProfile, getRecentlyPlayed, getSteamLevel, getOwnedGamesCount, getGameProgress } from '@/lib/steam';
 import { getValorantProfile } from '@/lib/valorant';
-import { Sparkles, Gamepad2, Trophy, Clock, MapPin, Link as LinkIcon, ExternalLink, Ghost, Music, LayoutGrid, Zap, Swords, Youtube, Twitch, Globe, ArrowUpRight, Share2 } from 'lucide-react';
+import { Sparkles, Gamepad2, Trophy, Clock, MapPin, Link as LinkIcon, ExternalLink, Ghost, Music, LayoutGrid, Zap, Swords, Youtube, Twitch, Globe, ArrowUpRight, Share2, Users } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Inter, Space_Grotesk, Press_Start_2P, Cinzel } from 'next/font/google';
@@ -10,7 +10,7 @@ import BadgeRack from '@/components/BadgeRack';
 import AvatarDecoration from '@/components/AvatarDecoration';
 import CursorEffects from '@/components/CursorEffects';
 import ProfileGrid from '@/components/ProfileGrid'; // Client Component
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 export const dynamic = 'force-dynamic';
@@ -59,7 +59,7 @@ async function getFirebaseUser(username: string) {
         }) || [];
     };
 
-    // NEW: Fetch Clips
+    // Fetch Clips
     const getClipsArray = (field: any) => {
         return field?.arrayValue?.values?.map((v: any) => {
             const map = v.mapValue.fields;
@@ -109,8 +109,10 @@ async function getFirebaseUser(username: string) {
       avatarDecoration: fields.theme?.mapValue?.fields?.avatarDecoration?.stringValue || "none",
       cursorTrail: fields.theme?.mapValue?.fields?.cursorTrail?.stringValue || "none",
       bio: fields.bio?.stringValue || "",
+      // FIX: Use ?? instead of || so that an explicitly saved empty string ("") is preserved!
+      primaryCommunity: fields.primaryCommunity?.stringValue ?? null,
       customLinks: getMapArray(fields.customLinks),
-      clips: getClipsArray(fields.clips), // Added clips here
+      clips: getClipsArray(fields.clips),
       layout: fields.layout?.arrayValue?.values || defaultLayout, 
       gear: getGear(fields.gear),
       gaming: {
@@ -181,6 +183,7 @@ export default async function ProfilePage({ params }: Props) {
   let heroGameProgress = null;
   let valorantData = null;
   let spotifyData = null;
+  let community = null;
 
   const promises: Promise<any>[] = [];
 
@@ -209,13 +212,49 @@ export default async function ProfilePage({ params }: Props) {
       .catch(err => { console.error("Spotify Fetch Error:", err); return null; })
   );
 
+  // Fetch Community Data
+  promises.push(
+    firebaseUser.owner_uid ? (async () => {
+      try {
+        // FIX: If the user explicitly saved "None (Hidden)" -> it is an empty string
+        if (firebaseUser.primaryCommunity === "") {
+           return null;
+        }
+
+        if (firebaseUser.primaryCommunity) {
+           // 1. Fetch specifically selected community
+           const commRef = doc(db, "communities", firebaseUser.primaryCommunity);
+           const commSnap = await getDoc(commRef);
+           
+           // Verify they are actually still a member of the community they're trying to rep
+           if (commSnap.exists() && commSnap.data().members?.includes(firebaseUser.owner_uid)) {
+              return commSnap.data();
+           }
+        }
+        
+        // 2. Fallback: If no preference is set (null), OR their selected community is invalid/left
+        const commQ = query(collection(db, "communities"), where("members", "array-contains", firebaseUser.owner_uid));
+        const commSnap = await getDocs(commQ);
+        if (!commSnap.empty) {
+           return commSnap.docs[0].data();
+        }
+        
+        return null;
+      } catch (e) {
+        console.error("Community Fetch Error:", e);
+        return null;
+      }
+    })() : Promise.resolve(null)
+  );
+
   const [
     steamProfile, 
     steamGames, 
     steamLevel, 
     steamGameCount, 
     valProfile,
-    fetchedSpotifyData
+    fetchedSpotifyData,
+    fetchedCommunity
   ] = await Promise.all(promises);
 
   profile = steamProfile;
@@ -224,6 +263,7 @@ export default async function ProfilePage({ params }: Props) {
   gameCount = steamGameCount || 0;
   valorantData = valProfile;
   spotifyData = fetchedSpotifyData;
+  community = fetchedCommunity;
 
   if (recentGames.length > 0 && firebaseUser.steamId) {
     heroGameProgress = await getGameProgress(firebaseUser.steamId, recentGames[0].appid);
@@ -308,12 +348,34 @@ export default async function ProfilePage({ params }: Props) {
                    )}
                 </div>
 
-                <div className="mb-6">
-                  <h1 className={nameClasses} style={nameStyle}>{displayName}</h1>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-zinc-400 font-medium">@{username}</p>
-                    <BadgeRack badgeList={badges} />
+                <div className="flex justify-between items-start mb-6 gap-4">
+                  <div className="min-w-0 flex-1">
+                    <h1 className={`${nameClasses} truncate`} style={nameStyle}>{displayName}</h1>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-zinc-400 font-medium">@{username}</p>
+                      <BadgeRack badgeList={badges} />
+                    </div>
                   </div>
+
+                  {/* --- COMMUNITY BADGE (RIGHT SIDE) --- */}
+                  {community && (
+                    <Link href={`/c/${community.handle}`} className="shrink-0 group mt-1">
+                       <div className="flex items-center gap-3 px-3 py-2 bg-[#111214] hover:bg-white/5 border border-white/5 rounded-2xl transition shadow-lg relative overflow-hidden">
+                           <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition duration-500"></div>
+                           <div className="text-right relative z-10 hidden sm:block">
+                              <p className="text-[9px] font-bold text-indigo-400/80 uppercase tracking-widest leading-none mb-1.5">Squad</p>
+                              <p className="text-xs font-black text-white group-hover:text-indigo-400 transition truncate max-w-[120px] leading-none">{community.name}</p>
+                           </div>
+                           <div className="w-10 h-10 rounded-xl bg-zinc-800 overflow-hidden flex items-center justify-center shrink-0 border border-white/10 group-hover:scale-105 transition relative z-10 shadow-md">
+                              {community.avatar ? (
+                                 <img src={community.avatar} alt={community.name} className="w-full h-full object-cover" />
+                              ) : (
+                                 <Users className="w-5 h-5 text-zinc-400" />
+                              )}
+                           </div>
+                       </div>
+                    </Link>
+                  )}
                 </div>
 
                 {profile?.gameextrainfo && (

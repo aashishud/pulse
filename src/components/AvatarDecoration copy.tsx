@@ -16,11 +16,10 @@ interface DecorationProps {
 
 // ASSET LINKS - Pointing to your local files in /public
 const GOD_TIER_ASSETS: Record<string, string> = {
+  // Make sure these files exist in your 'public' folder!
   'fire_god': '/fire.json', 
-  'electric_god': '/lighting.json', 
+  'electric_god': '/lighting.json', // Check spelling: is it lighting.json or lightning.json?
   'crown_god': '/crown.json', 
-  'cat_god': '/cat.json',       // NEW: Cat
-  'cherry_god': '/cherry.json', // NEW: Cherry Blossoms
 };
 
 export default function AvatarDecoration({ type, children }: DecorationProps) {
@@ -35,13 +34,6 @@ export default function AvatarDecoration({ type, children }: DecorationProps) {
   if (type === 'crown_god') {
     // Shift Crown UPWARDS so it sits on the head, not the face
     positionClass = "inset-x-[-50%] -top-[85%] bottom-[15%]"; 
-  } else if (type === 'cat_god') {
-    // If the cat is meant to sit on the head, change this to match the crown:
-    // positionClass = "inset-x-[-50%] -top-[85%] bottom-[15%]";
-    positionClass = "inset-[-35%]"; 
-  } else if (type === 'cherry_god') {
-    // Cherry blossoms usually look best when they cover slightly more area
-    positionClass = "inset-[-45%]";
   }
 
   return (
