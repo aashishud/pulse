@@ -5,8 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { onAuthStateChanged, updateEmail, updatePassword, signOut } from "firebase/auth";
-import { getSteamLoginUrl, verifySteamLogin, verifyDiscordLogin, getSpotifyTokens } from "@/app/setup/actions"; 
-import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X, Cpu, Monitor, Keyboard, Mouse, Headphones, Trophy, Gamepad2, Clock, Music, Video, Users, Crown, AlertCircle } from "lucide-react";
+import { getSteamLoginUrl, verifySteamLogin, verifyDiscordLogin } from "@/app/setup/actions"; 
+import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X, Cpu, Monitor, Keyboard, Mouse, Headphones, Trophy, Gamepad2, Clock, Music, Video, Users, Crown } from "lucide-react";
 import { validateHandle } from "@/lib/validation";
 
 import { Filter } from 'bad-words';
@@ -103,9 +103,6 @@ function DashboardContent() {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("layout");
 
-  // Auth Error state
-  const [connectionError, setConnectionError] = useState<string | null>(null);
-
   // Form States
   const [displayName, setDisplayName] = useState("");
   const [newUsername, setNewUsername] = useState("");
@@ -147,6 +144,7 @@ function DashboardContent() {
   const [clips, setClips] = useState<{title: string, url: string}[]>([]); 
   const [layout, setLayout] = useState<any[]>([]);
   const [primaryCommunity, setPrimaryCommunity] = useState("");
+  const [lastfm, setLastfm] = useState("");
 
   // --- COMMUNITY STATES ---
   const [myCommunities, setMyCommunities] = useState<any[]>([]);
@@ -202,68 +200,42 @@ function DashboardContent() {
         return;
       }
 
-      // 1. Steam Callback Check
+      // Handle Authentication Callbacks (Steam, Discord)
       const openidMode = searchParams.get('openid.mode');
-      if (openidMode) {
-        const result = await verifySteamLogin(searchParams.toString());
-        if (result.success && result.steamId) {
-           const q = query(collection(db, "users"), where("owner_uid", "==", currentUser.uid));
-           const querySnapshot = await getDocs(q);
-           if (!querySnapshot.empty) {
-             const userDoc = querySnapshot.docs[0];
-             await updateDoc(doc(db, "users", userDoc.id), { steamId: result.steamId });
-             router.replace('/dashboard');
+      const discordCode = searchParams.get('discord_code');
+
+      if (openidMode || discordCode) {
+        setLoading(true);
+        
+        // 1. Steam
+        if (openidMode) {
+          const result = await verifySteamLogin(searchParams.toString());
+          if (result.success && result.steamId) {
+            const q = query(collection(db, "users"), where("owner_uid", "==", currentUser.uid));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+              await updateDoc(doc(db, "users", querySnapshot.docs[0].id), { steamId: result.steamId });
+            }
+          }
+        }
+
+        // 2. Discord
+        if (discordCode) {
+           const result = await verifyDiscordLogin(discordCode, window.location.origin);
+           if (result.success && result.username) {
+              const q = query(collection(db, "users"), where("owner_uid", "==", currentUser.uid));
+              const querySnapshot = await getDocs(q);
+              if (!querySnapshot.empty) {
+                 await updateDoc(doc(db, "users", querySnapshot.docs[0].id), { 
+                     "socials.discord": result.username,
+                     "socials.discord_verified": true 
+                 });
+              }
            }
         }
-      }
 
-      // 2. Discord Callback Check
-      const discordCode = searchParams.get('discord_code');
-      if (discordCode) {
-         const result = await verifyDiscordLogin(discordCode, window.location.origin);
-         if (result.success && result.username) {
-            const q = query(collection(db, "users"), where("owner_uid", "==", currentUser.uid));
-            const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) {
-               const userDoc = querySnapshot.docs[0];
-               await updateDoc(doc(db, "users", userDoc.id), { 
-                   "socials.discord": result.username,
-                   "socials.discord_verified": true 
-               });
-               router.replace('/dashboard');
-            }
-         }
-      }
-
-      // 3. Spotify Callback Check
-      const spotifyCode = searchParams.get('spotify_code');
-      if (spotifyCode) {
-         const redirectUri = `${window.location.origin}/api/auth/spotify/callback`;
-         const result = await getSpotifyTokens(spotifyCode, redirectUri);
-         
-         if (result.success && result.tokens && result.profile) {
-            const q = query(collection(db, "users"), where("owner_uid", "==", currentUser.uid));
-            const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) {
-               const userDoc = querySnapshot.docs[0];
-               await updateDoc(doc(db, "users", userDoc.id), { 
-                   spotify: {
-                       connected: true,
-                       display_name: result.profile.display_name,
-                       id: result.profile.id,
-                       url: result.profile.url,
-                       access_token: result.tokens.accessToken,
-                       refresh_token: result.tokens.refreshToken,
-                       expires_at: result.tokens.expiresAt
-                   }
-               });
-               router.replace('/dashboard'); 
-            }
-         } else {
-            console.error("Spotify Connection Error:", result.error);
-            setConnectionError("Spotify connection failed. Ensure you are whitelisted in the Spotify developer dashboard.");
-            router.replace('/dashboard'); // Clear the URL param so it doesn't get stuck in a loop
-         }
+        router.replace('/dashboard');
+        return;
       }
 
       // Fetch User Data
@@ -299,13 +271,14 @@ function DashboardContent() {
         setCustomLinks(userData.customLinks || []);
         setClips(userData.clips || []); 
         setPrimaryCommunity(userData.primaryCommunity || "");
+        setLastfm(userData.lastfm || "");
         setGear(userData.gear || { cpu: "", gpu: "", ram: "", mouse: "", keyboard: "", headset: "", monitor: "" });
 
         // Ensure Layout has all widgets
         const defaultWidgets = [
             { id: 'hero', label: 'Recent Activity', enabled: true, size: 'full' },
             { id: 'content', label: 'Creator Stack', enabled: true, size: 'half' },
-            { id: 'spotify', label: 'Spotify Overview', enabled: true, size: 'half' },
+            { id: 'spotify', label: 'Music Overview', enabled: true, size: 'half' },
             { id: 'valorant', label: 'Valorant Rank', enabled: true, size: 'half' },
             { id: 'library', label: 'Game Library', enabled: true, size: 'half' },
             { id: 'gear', label: 'Hardware Setup', enabled: true, size: 'half' },
@@ -376,6 +349,7 @@ function DashboardContent() {
         customLinks,
         clips, 
         primaryCommunity,
+        lastfm,
         layout,
         gear
       });
@@ -509,7 +483,7 @@ function DashboardContent() {
     setLayout([
         { id: 'hero', label: 'Recent Activity', enabled: true, size: 'full' },
         { id: 'content', label: 'Creator Stack', enabled: true, size: 'half' },
-        { id: 'spotify', label: 'Spotify Overview', enabled: true, size: 'half' },
+        { id: 'spotify', label: 'Music Overview', enabled: true, size: 'half' },
         { id: 'valorant', label: 'Valorant Rank', enabled: true, size: 'half' },
         { id: 'library', label: 'Game Library', enabled: true, size: 'half' },
         { id: 'gear', label: 'Hardware Setup', enabled: true, size: 'half' },
@@ -528,11 +502,6 @@ function DashboardContent() {
     window.location.href = `/api/auth/discord?state=${user.id}`;
   };
 
-  const connectSpotify = () => {
-    if (!user?.id) return;
-    window.location.href = `/api/auth/spotify?state=${user.id}`;
-  };
-
   const handleDisconnect = async (platform: string) => {
     if (!confirm(`Disconnect ${platform}?`)) return;
     if (!user) return;
@@ -547,10 +516,6 @@ function DashboardContent() {
         if (platform === 'discord') {
             await updateDoc(userRef, { "socials.discord": "", "socials.discord_verified": false });
             setSocials(prev => ({ ...prev, discord: "", discord_verified: false }));
-        }
-        if (platform === 'spotify') {
-            await updateDoc(userRef, { spotify: null });
-            setUser((prev: any) => ({ ...prev, spotify: null }));
         }
     } catch (e) {
         console.error(e);
@@ -752,18 +717,6 @@ function DashboardContent() {
 
         {/* Main Content Area */}
         <main className="lg:col-span-9 space-y-6">
-
-          {/* Connection Error Notification */}
-          {connectionError && (
-             <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 flex items-start gap-3 animate-in slide-in-from-top-2 duration-300">
-                <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-                <div className="flex-1">
-                   <p className="text-sm font-bold text-red-500">Connection Error</p>
-                   <p className="text-xs text-red-400/80 mt-1">{connectionError}</p>
-                </div>
-                <button onClick={() => setConnectionError(null)} className="p-1 hover:bg-white/5 rounded-lg"><X className="w-4 h-4 text-red-500" /></button>
-             </div>
-          )}
 
           {/* --- COMMUNITIES TAB --- */}
           {activeTab === 'communities' && (
@@ -996,21 +949,22 @@ function DashboardContent() {
                    <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-6">Social Connections</h3>
                    <div className="space-y-4">
                       
-                      {/* Spotify OAuth Button */}
+                      {/* Last.fm Input */}
                       <div className="relative mb-6">
-                         <label className="text-xs font-bold text-zinc-500 block mb-1">Spotify</label>
-                         {user?.spotify?.connected ? (
-                            <div className="flex gap-2">
-                               <div className="flex-1 bg-black/50 border border-[#1DB954]/50 rounded-lg p-3 text-[#1DB954] text-sm flex items-center gap-2">
-                                  <Music className="w-4 h-4" /> Connected as <span className="font-bold text-white">{user.spotify.display_name || 'Spotify User'}</span>
-                               </div>
-                               <button onClick={() => handleDisconnect('spotify')} className="bg-red-500/10 hover:bg-red-500/20 px-4 rounded-lg text-sm text-red-500 font-bold transition">Unlink</button>
+                         <label className="text-xs font-bold text-zinc-500 block mb-1">Last.fm Username (For Live Music)</label>
+                         <div className="flex gap-2">
+                            <div className="flex-1 bg-black/50 border border-red-500/30 focus-within:border-red-500/80 rounded-lg p-3 text-red-500 text-sm flex items-center gap-2 transition">
+                               <Music className="w-4 h-4 shrink-0" />
+                               <input
+                                 type="text"
+                                 value={lastfm}
+                                 onChange={(e) => setLastfm(e.target.value.trim())}
+                                 placeholder="Your Last.fm username..."
+                                 className="bg-transparent outline-none text-white w-full placeholder:text-zinc-600"
+                               />
                             </div>
-                         ) : (
-                            <button onClick={connectSpotify} className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-black p-3 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-[#1DB954]/20">
-                               <Music className="w-5 h-5"/> Connect Spotify Profile
-                            </button>
-                         )}
+                         </div>
+                         <p className="text-[10px] text-zinc-500 mt-1">Tracks your live Spotify/Apple Music listening automatically. Leave blank to disable.</p>
                       </div>
 
                       {/* Discord OAuth Button */}

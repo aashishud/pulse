@@ -3,11 +3,20 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
-import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, setDoc, getDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { onAuthStateChanged, updateEmail, updatePassword, signOut } from "firebase/auth";
 import { getSteamLoginUrl, verifySteamLogin, verifyDiscordLogin, getSpotifyTokens } from "@/app/setup/actions"; 
-import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X, Cpu, Monitor, Keyboard, Mouse, Headphones, Trophy, Gamepad2, Clock, Music, Video } from "lucide-react";
+import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X, Cpu, Monitor, Keyboard, Mouse, Headphones, Trophy, Gamepad2, Clock, Music, Video, Users, Crown, AlertCircle } from "lucide-react";
 import { validateHandle } from "@/lib/validation";
+
+import { Filter } from 'bad-words';
+
+const filter = new Filter();
+
+const isProfane = (text: any) => {
+  if (!text || typeof text !== 'string') return false;
+  return filter.isProfane(text);
+};
 
 // DND Kit Imports
 import {
@@ -92,7 +101,10 @@ function DashboardContent() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState("gaming");
+  const [activeTab, setActiveTab] = useState("layout");
+
+  // Auth Error state
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   // Form States
   const [displayName, setDisplayName] = useState("");
@@ -132,8 +144,25 @@ function DashboardContent() {
   });
   
   const [customLinks, setCustomLinks] = useState<{label: string, url: string}[]>([]);
-  const [clips, setClips] = useState<{title: string, url: string}[]>([]); // NEW CLIPS STATE
+  const [clips, setClips] = useState<{title: string, url: string}[]>([]); 
   const [layout, setLayout] = useState<any[]>([]);
+  const [primaryCommunity, setPrimaryCommunity] = useState("");
+
+  // --- COMMUNITY STATES ---
+  const [myCommunities, setMyCommunities] = useState<any[]>([]);
+  
+  // Creation
+  const [isCreatingCommunity, setIsCreatingCommunity] = useState(false);
+  const [commName, setCommName] = useState("");
+  const [commHandle, setCommHandle] = useState("");
+  const [commDesc, setCommDesc] = useState("");
+
+  // Editing
+  const [editingCommunity, setEditingCommunity] = useState<any>(null);
+  const [editCommName, setEditCommName] = useState("");
+  const [editCommDesc, setEditCommDesc] = useState("");
+  const [editCommAvatar, setEditCommAvatar] = useState("");
+  const [editCommBanner, setEditCommBanner] = useState("");
 
   // Security
   const [newEmail, setNewEmail] = useState("");
@@ -228,10 +257,12 @@ function DashboardContent() {
                        expires_at: result.tokens.expiresAt
                    }
                });
-               router.replace('/dashboard'); // This wipes the ?spotify_code= URL out!
+               router.replace('/dashboard'); 
             }
          } else {
             console.error("Spotify Connection Error:", result.error);
+            setConnectionError("Spotify connection failed. Ensure you are whitelisted in the Spotify developer dashboard.");
+            router.replace('/dashboard'); // Clear the URL param so it doesn't get stuck in a loop
          }
       }
 
@@ -266,7 +297,8 @@ function DashboardContent() {
         setSocials({ ...userData.socials });
         setGaming({ ...userData.gaming || { valorant: { name: "", tag: "", region: "na" } } });
         setCustomLinks(userData.customLinks || []);
-        setClips(userData.clips || []); // INJECT CLIPS STATE
+        setClips(userData.clips || []); 
+        setPrimaryCommunity(userData.primaryCommunity || "");
         setGear(userData.gear || { cpu: "", gpu: "", ram: "", mouse: "", keyboard: "", headset: "", monitor: "" });
 
         // Ensure Layout has all widgets
@@ -281,7 +313,6 @@ function DashboardContent() {
 
         let currentLayout = userData.layout || defaultWidgets;
         
-        // Merge missing widgets
         const existingIds = new Set(currentLayout.map((w: any) => w.id));
         defaultWidgets.forEach(dw => {
             if (!existingIds.has(dw.id)) {
@@ -290,6 +321,17 @@ function DashboardContent() {
         });
 
         setLayout(currentLayout);
+
+        // SAFELY FETCH COMMUNITIES
+        try {
+            const commQ = query(collection(db, "communities"), where("owner_uid", "==", currentUser.uid));
+            const commSnap = await getDocs(commQ);
+            setMyCommunities(commSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        } catch (err) {
+            console.warn("Could not fetch communities. You need to update Firebase Security Rules:", err);
+            setMyCommunities([]);
+        }
+
       } else {
         router.push("/setup");
       }
@@ -303,6 +345,25 @@ function DashboardContent() {
 
   const handleSave = async () => {
     if (!user) return;
+
+    // --- PROFANITY CHECK ---
+    const hasProfanity = 
+      isProfane(displayName) ||
+      isProfane(bio) ||
+      Object.values(gear).some(isProfane) ||
+      Object.values(socials).some(isProfane) ||
+      isProfane(gaming.xbox) ||
+      isProfane(gaming.epic) ||
+      isProfane(gaming.valorant?.name) ||
+      isProfane(gaming.valorant?.tag) ||
+      customLinks.some(link => isProfane(link.label)) ||
+      clips.some(clip => isProfane(clip.title));
+
+    if (hasProfanity) {
+      alert("⚠️ We detected inappropriate language in your profile settings. Please remove it before saving.");
+      return;
+    }
+
     setSaving(true);
     try {
       const userRef = doc(db, "users", user.id);
@@ -313,7 +374,8 @@ function DashboardContent() {
         socials,
         gaming,
         customLinks,
-        clips, // SAVE CLIPS TO FIREBASE
+        clips, 
+        primaryCommunity,
         layout,
         gear
       });
@@ -322,6 +384,101 @@ function DashboardContent() {
       console.error(e);
       setSaving(false);
     }
+  };
+
+  const handleCreateCommunity = async () => {
+    if (!commName || !commHandle) return;
+
+    if (isProfane(commName) || isProfane(commHandle) || isProfane(commDesc)) {
+        alert("⚠️ We detected inappropriate language in your community details.");
+        return;
+    }
+
+    setSaving(true);
+    try {
+        const cleanHandle = commHandle.toLowerCase().replace(/[^a-z0-9-]/g, '');
+        const docRef = doc(db, "communities", cleanHandle);
+        const snap = await getDoc(docRef);
+        if (snap.exists()) { 
+           alert("This community handle is already taken. Choose another one!"); 
+           setSaving(false); 
+           return; 
+        }
+
+        await setDoc(docRef, {
+            name: commName,
+            handle: cleanHandle,
+            description: commDesc,
+            owner_uid: auth.currentUser?.uid,
+            members: [auth.currentUser?.uid],
+            created_at: serverTimestamp(),
+            memberCount: 1,
+            banner: "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2600&auto=format&fit=crop",
+            avatar: ""
+        });
+
+        alert("Community Launch Successful!");
+        setIsCreatingCommunity(false);
+        setCommName(""); setCommHandle(""); setCommDesc("");
+        
+        if (auth.currentUser) {
+            try {
+                const commQ = query(collection(db, "communities"), where("owner_uid", "==", auth.currentUser.uid));
+                const commSnap = await getDocs(commQ);
+                setMyCommunities(commSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+            } catch (err) {
+                console.warn(err);
+            }
+        }
+    } catch (e) { 
+        console.error(e); 
+        alert("Permission denied. Ensure your Firebase Rules are updated.");
+    } finally { 
+        setSaving(false); 
+    }
+  };
+
+  const openEditModal = (comm: any) => {
+     setEditingCommunity(comm);
+     setEditCommName(comm.name || "");
+     setEditCommDesc(comm.description || "");
+     setEditCommAvatar(comm.avatar || "");
+     setEditCommBanner(comm.banner || "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2600&auto=format&fit=crop");
+  };
+
+  const handleUpdateCommunity = async () => {
+     if (!editingCommunity) return;
+     if (!editCommName) { alert("Community name cannot be empty."); return; }
+
+     if (isProfane(editCommName) || isProfane(editCommDesc)) {
+         alert("⚠️ We detected inappropriate language in your community details.");
+         return;
+     }
+
+     setSaving(true);
+     try {
+         const commRef = doc(db, "communities", editingCommunity.handle);
+         await updateDoc(commRef, {
+             name: editCommName,
+             description: editCommDesc,
+             avatar: editCommAvatar,
+             banner: editCommBanner
+         });
+
+         alert("Community updated successfully!");
+         setEditingCommunity(null);
+         
+         if (auth.currentUser) {
+             const commQ = query(collection(db, "communities"), where("owner_uid", "==", auth.currentUser.uid));
+             const commSnap = await getDocs(commQ);
+             setMyCommunities(commSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+         }
+     } catch (e) {
+         console.error(e);
+         alert("Failed to update community details.");
+     } finally {
+         setSaving(false);
+     }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -402,8 +559,7 @@ function DashboardContent() {
     }
   };
 
-  // --- 12 HOUR USERNAME COOLDOWN LOGIC ---
-  const COOLDOWN_MS = 12 * 60 * 60 * 1000; // 12 Hours in milliseconds
+  const COOLDOWN_MS = 12 * 60 * 60 * 1000;
   const isOnCooldown = user?.lastUsernameChange && (Date.now() - user.lastUsernameChange < COOLDOWN_MS);
   const hoursLeft = isOnCooldown ? Math.ceil((COOLDOWN_MS - (Date.now() - user.lastUsernameChange)) / (1000 * 60 * 60)) : 0;
 
@@ -420,6 +576,11 @@ function DashboardContent() {
     const validationError = validateHandle(newUsername.toLowerCase());
     if (validationError) { alert(validationError); return; }
 
+    if (isProfane(newUsername)) {
+        alert("⚠️ This handle contains inappropriate language.");
+        return;
+    }
+
     setSaving(true);
     try {
       const newRef = doc(db, "users", newUsername.toLowerCase());
@@ -431,16 +592,13 @@ function DashboardContent() {
         return;
       }
 
-      const oldId = user.id; 
       const userDataToSave = { ...user };
       userDataToSave.username = newUsername.toLowerCase();
-      // Add the timestamp for the 12-hour cooldown
       userDataToSave.lastUsernameChange = Date.now();
       delete userDataToSave.id; 
 
       await setDoc(newRef, userDataToSave);
 
-      // BULK DELETION to clean up ghosts
       const q = query(collection(db, "users"), where("owner_uid", "==", auth.currentUser?.uid));
       const allMyDocs = await getDocs(q);
 
@@ -484,6 +642,71 @@ function DashboardContent() {
   return (
     <div className="min-h-screen bg-[#0a0a0c] text-white font-sans selection:bg-indigo-500/30">
       
+      {/* Creation Modal */}
+      {isCreatingCommunity && (
+         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-[#121214] border border-white/10 rounded-[32px] p-8 w-full max-w-lg shadow-2xl">
+               <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-black flex items-center gap-3"><Users className="w-6 h-6 text-indigo-500" /> Start Community</h2>
+                  <button onClick={() => setIsCreatingCommunity(false)} className="p-2 hover:bg-white/5 rounded-full"><X className="w-5 h-5" /></button>
+               </div>
+               <div className="space-y-4">
+                  <div>
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-2">Display Name</label>
+                    <input type="text" value={commName} onChange={e => setCommName(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 outline-none focus:border-indigo-500 transition text-white" placeholder="e.g. SOUR GANG" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-2">Community Handle (URL)</label>
+                    <div className="flex items-center gap-2 bg-black/50 border border-white/10 rounded-xl px-3 py-1">
+                      <span className="text-zinc-500 text-sm">pulsegg.in/c/</span>
+                      <input type="text" value={commHandle} onChange={e => setCommHandle(e.target.value.toLowerCase())} className="flex-1 bg-transparent py-2 outline-none text-sm text-white" placeholder="handle" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-2">Short Description</label>
+                    <textarea value={commDesc} onChange={e => setCommDesc(e.target.value)} rows={3} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 outline-none focus:border-indigo-500 transition resize-none text-white" placeholder="What's this group about?" />
+                  </div>
+                  <button onClick={handleCreateCommunity} disabled={saving || !commName || !commHandle} className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl transition shadow-lg shadow-indigo-500/20 disabled:opacity-50">
+                    {saving ? "Creating..." : "Launch Community"}
+                  </button>
+               </div>
+            </div>
+         </div>
+      )}
+
+      {/* Edit Community Modal */}
+      {editingCommunity && (
+         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-[#121214] border border-white/10 rounded-[32px] p-8 w-full max-w-lg shadow-2xl">
+               <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-black flex items-center gap-3"><Settings className="w-6 h-6 text-indigo-500" /> Edit Community</h2>
+                  <button onClick={() => setEditingCommunity(null)} className="p-2 hover:bg-white/5 rounded-full"><X className="w-5 h-5" /></button>
+               </div>
+               <div className="space-y-4">
+                  <div>
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-2">Display Name</label>
+                    <input type="text" value={editCommName} onChange={e => setEditCommName(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 outline-none focus:border-indigo-500 transition text-white" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-2">Description</label>
+                    <textarea value={editCommDesc} onChange={e => setEditCommDesc(e.target.value)} rows={3} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 outline-none focus:border-indigo-500 transition resize-none text-white" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-2">Avatar Image URL</label>
+                    <input type="text" value={editCommAvatar} onChange={e => setEditCommAvatar(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 outline-none focus:border-indigo-500 transition text-white" placeholder="https://..." />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-2">Banner Image URL</label>
+                    <input type="text" value={editCommBanner} onChange={e => setEditCommBanner(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 outline-none focus:border-indigo-500 transition text-white" placeholder="https://..." />
+                  </div>
+                  <button onClick={handleUpdateCommunity} disabled={saving || !editCommName} className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl transition shadow-lg shadow-indigo-500/20 disabled:opacity-50">
+                    {saving ? "Saving..." : "Save Changes"}
+                  </button>
+               </div>
+            </div>
+         </div>
+      )}
+
       {/* Top Bar */}
       <div className="sticky top-0 z-50 bg-[#0a0a0c]/80 backdrop-blur-md border-b border-white/5 px-6 py-4 flex justify-between items-center">
          <div className="flex items-center gap-3">
@@ -511,6 +734,7 @@ function DashboardContent() {
               {[
                 { id: 'identity', icon: User, label: 'Identity' },
                 { id: 'gaming', icon: Gamepad2, label: 'Gaming & Socials' },
+                { id: 'communities', icon: Users, label: 'Communities' },
                 { id: 'gear', icon: Cpu, label: 'Hardware Setup' },
                 { id: 'layout', icon: Palette, label: 'Layout & Theme' },
                 { id: 'settings', icon: Settings, label: 'Settings' },
@@ -528,6 +752,80 @@ function DashboardContent() {
 
         {/* Main Content Area */}
         <main className="lg:col-span-9 space-y-6">
+
+          {/* Connection Error Notification */}
+          {connectionError && (
+             <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 flex items-start gap-3 animate-in slide-in-from-top-2 duration-300">
+                <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                   <p className="text-sm font-bold text-red-500">Connection Error</p>
+                   <p className="text-xs text-red-400/80 mt-1">{connectionError}</p>
+                </div>
+                <button onClick={() => setConnectionError(null)} className="p-1 hover:bg-white/5 rounded-lg"><X className="w-4 h-4 text-red-500" /></button>
+             </div>
+          )}
+
+          {/* --- COMMUNITIES TAB --- */}
+          {activeTab === 'communities' && (
+             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <section className="bg-indigo-600/10 border border-indigo-500/20 rounded-[32px] p-8 flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative">
+                   <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/20 blur-3xl rounded-full -mr-32 -mt-32"></div>
+                   <div className="relative z-10 flex-1">
+                      <h2 className="text-2xl font-black mb-2">Build your group.</h2>
+                      <p className="text-indigo-200/60 text-sm max-w-md">Create a shared space for your clan, friend group, or esports team. Display a roster of Pulse profiles on one page.</p>
+                   </div>
+                   <button onClick={() => setIsCreatingCommunity(true)} className="relative z-10 px-8 py-4 bg-white text-black font-black rounded-2xl hover:bg-indigo-50 transition flex items-center gap-2 shadow-xl">
+                      <Plus className="w-5 h-5" /> New Community
+                   </button>
+                </section>
+
+                {myCommunities.length > 0 && (
+                   <section className="bg-[#121214] border border-white/5 rounded-3xl p-6">
+                      <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-2">Represented Community</h3>
+                      <p className="text-xs text-zinc-500 mb-4">Choose which community badge appears on your public profile.</p>
+                      <select 
+                         value={primaryCommunity} 
+                         onChange={(e) => setPrimaryCommunity(e.target.value)} 
+                         className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-indigo-500 cursor-pointer"
+                      >
+                         <option value="">None (Hidden)</option>
+                         {myCommunities.map(c => (
+                            <option key={c.id} value={c.handle}>{c.name} (/c/{c.handle})</option>
+                         ))}
+                      </select>
+                   </section>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                   {myCommunities.length === 0 ? (
+                      <div className="col-span-full py-12 text-center border-2 border-dashed border-white/5 rounded-[32px]">
+                         <Users className="w-8 h-8 text-zinc-700 mx-auto mb-3" />
+                         <p className="text-zinc-500 font-bold">You haven't founded any communities yet.</p>
+                      </div>
+                   ) : (
+                      myCommunities.map(comm => (
+                         <div key={comm.id} className="bg-[#121214] border border-white/5 rounded-3xl p-6 group hover:border-indigo-500/30 transition">
+                            <div className="flex items-start justify-between mb-4">
+                               <div className="w-16 h-16 bg-zinc-800 rounded-2xl overflow-hidden flex items-center justify-center text-zinc-500 shrink-0">
+                                  {comm.avatar ? <img src={comm.avatar} className="w-full h-full object-cover" /> : <Users className="w-8 h-8" />}
+                               </div>
+                               <div className="flex gap-2">
+                                  <a href={`/c/${comm.handle}`} target="_blank" className="p-2 bg-white/5 hover:bg-white/10 rounded-lg transition"><ExternalLink className="w-4 h-4" /></a>
+                                  <button onClick={() => openEditModal(comm)} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg transition"><Settings className="w-4 h-4" /></button>
+                               </div>
+                            </div>
+                            <h3 className="text-lg font-black flex items-center gap-2 truncate">{comm.name} <Crown className="w-3 h-3 text-yellow-500 shrink-0" /></h3>
+                            <p className="text-zinc-500 text-xs mt-1 mb-4 line-clamp-1">{comm.description || "A community on Pulse."}</p>
+                            <div className="flex items-center justify-between pt-4 border-t border-white/5">
+                               <div className="flex items-center gap-2"><div className="px-2 py-1 bg-zinc-900 rounded-md text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{comm.memberCount || 1} Members</div></div>
+                               <span className="text-[10px] font-mono text-zinc-600">/c/{comm.handle}</span>
+                            </div>
+                         </div>
+                      ))
+                   )}
+                </div>
+             </div>
+          )}
           
           {/* --- IDENTITY TAB --- */}
           {activeTab === 'identity' && (
@@ -893,6 +1191,8 @@ function DashboardContent() {
                                <option value="fire_god">Realistic Fire 🔥</option>
                                <option value="electric_god">Lightning Storm ⚡</option>
                                <option value="crown_god">King's Crown 👑</option>
+                               <option value="cat_god">Cat Companion 🐱</option>
+                               <option value="cherry_god">Cherry Blossoms 🌸</option>
                              </optgroup>
                           </select>
                        </div>

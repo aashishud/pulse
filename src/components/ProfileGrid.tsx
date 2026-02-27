@@ -236,8 +236,12 @@ export default function ProfileGrid({
               {spotify.topTracks && spotify.topTracks.length > 0 ? (
                 spotify.topTracks.map((track: any, i: number) => (
                   <a key={track.id} href={track.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 group/track hover:bg-white/5 p-1 -m-1 rounded-lg transition-all">
-                    <div className="relative w-10 h-10 rounded-md overflow-hidden bg-zinc-800 shrink-0 shadow-sm">
-                      <img src={track.albumArt} alt={track.title} className="w-full h-full object-cover" />
+                    <div className="relative w-10 h-10 rounded-md overflow-hidden bg-zinc-800 shrink-0 shadow-sm flex items-center justify-center">
+                      {track.albumArt ? (
+                         <img src={track.albumArt} alt={track.title} className="w-full h-full object-cover" />
+                      ) : (
+                         <Music className={`w-4 h-4 ${mutedColor}`} />
+                      )}
                       <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover/track:opacity-100 transition">
                         <ExternalLink className="w-3 h-3 text-white" />
                       </div>

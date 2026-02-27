@@ -59,7 +59,6 @@ async function getFirebaseUser(username: string) {
         }) || [];
     };
 
-    // Fetch Clips
     const getClipsArray = (field: any) => {
         return field?.arrayValue?.values?.map((v: any) => {
             const map = v.mapValue.fields;
@@ -109,8 +108,8 @@ async function getFirebaseUser(username: string) {
       avatarDecoration: fields.theme?.mapValue?.fields?.avatarDecoration?.stringValue || "none",
       cursorTrail: fields.theme?.mapValue?.fields?.cursorTrail?.stringValue || "none",
       bio: fields.bio?.stringValue || "",
-      // FIX: Use ?? instead of || so that an explicitly saved empty string ("") is preserved!
       primaryCommunity: fields.primaryCommunity?.stringValue ?? null,
+      lastfm: fields.lastfm?.stringValue || "", // <-- ADDED LASTFM BINDING
       customLinks: getMapArray(fields.customLinks),
       clips: getClipsArray(fields.clips),
       layout: fields.layout?.arrayValue?.values || defaultLayout, 
@@ -182,7 +181,7 @@ export default async function ProfilePage({ params }: Props) {
   let gameCount = 0;
   let heroGameProgress = null;
   let valorantData = null;
-  let spotifyData = null;
+  let musicData = null;
   let community = null;
 
   const promises: Promise<any>[] = [];
@@ -206,33 +205,32 @@ export default async function ProfilePage({ params }: Props) {
     promises.push(Promise.resolve(null));
   }
 
+  // --- NEW LASTFM FETCH (Replaces Spotify) ---
   promises.push(
-    fetch(`${protocol}://${domain}/api/spotify/now-playing?uid=${username}`, { cache: 'no-store' })
-      .then(res => res.ok ? res.json() : null)
-      .catch(err => { console.error("Spotify Fetch Error:", err); return null; })
+    firebaseUser.lastfm 
+      ? fetch(`${protocol}://${domain}/api/lastfm/now-playing?user=${firebaseUser.lastfm}`, { cache: 'no-store' })
+          .then(res => res.ok ? res.json() : null)
+          .catch(err => { console.error("Last.fm Fetch Error:", err); return null; })
+      : Promise.resolve(null)
   );
 
   // Fetch Community Data
   promises.push(
     firebaseUser.owner_uid ? (async () => {
       try {
-        // FIX: If the user explicitly saved "None (Hidden)" -> it is an empty string
         if (firebaseUser.primaryCommunity === "") {
            return null;
         }
 
         if (firebaseUser.primaryCommunity) {
-           // 1. Fetch specifically selected community
            const commRef = doc(db, "communities", firebaseUser.primaryCommunity);
            const commSnap = await getDoc(commRef);
            
-           // Verify they are actually still a member of the community they're trying to rep
            if (commSnap.exists() && commSnap.data().members?.includes(firebaseUser.owner_uid)) {
               return commSnap.data();
            }
         }
         
-        // 2. Fallback: If no preference is set (null), OR their selected community is invalid/left
         const commQ = query(collection(db, "communities"), where("members", "array-contains", firebaseUser.owner_uid));
         const commSnap = await getDocs(commQ);
         if (!commSnap.empty) {
@@ -253,7 +251,7 @@ export default async function ProfilePage({ params }: Props) {
     steamLevel, 
     steamGameCount, 
     valProfile,
-    fetchedSpotifyData,
+    fetchedMusicData,
     fetchedCommunity
   ] = await Promise.all(promises);
 
@@ -262,7 +260,7 @@ export default async function ProfilePage({ params }: Props) {
   level = steamLevel || 0;
   gameCount = steamGameCount || 0;
   valorantData = valProfile;
-  spotifyData = fetchedSpotifyData;
+  musicData = fetchedMusicData;
   community = fetchedCommunity;
 
   if (recentGames.length > 0 && firebaseUser.steamId) {
@@ -330,7 +328,7 @@ export default async function ProfilePage({ params }: Props) {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
-          <div className="lg:col-span-4 lg:sticky lg:top-8">
+          <div className="lg:col-span-4 lg:sticky lg:top-8 z-20">
             <div className="bg-[#1e1f22]/80 backdrop-blur-md rounded-[32px] overflow-hidden border border-white/5 shadow-2xl relative">
               <div className="h-32 bg-zinc-900 relative group">
                 <Image src={firebaseUser.banner} alt="Banner" fill className="object-cover group-hover:scale-105 transition duration-700" unoptimized />
@@ -357,7 +355,6 @@ export default async function ProfilePage({ params }: Props) {
                     </div>
                   </div>
 
-                  {/* --- COMMUNITY BADGE (RIGHT SIDE) --- */}
                   {community && (
                     <Link href={`/c/${community.handle}`} className="shrink-0 group mt-1">
                        <div className="flex items-center gap-3 px-3 py-2 bg-[#111214] hover:bg-white/5 border border-white/5 rounded-2xl transition shadow-lg relative overflow-hidden">
@@ -385,12 +382,13 @@ export default async function ProfilePage({ params }: Props) {
                   </div>
                 )}
 
-                {spotifyData?.nowPlaying?.isPlaying && (
+                {/* UPDATE: Displaying Last.fm data (Still styled like Spotify) */}
+                {musicData?.nowPlaying?.isPlaying && (
                   <div className="mb-6 p-3 bg-[#111214] rounded-xl border border-[#1DB954]/20 flex items-center gap-3 group relative overflow-hidden">
                       <div className="absolute inset-0 bg-gradient-to-r from-[#1DB954]/5 to-transparent opacity-0 group-hover:opacity-100 transition duration-500"></div>
                       <div className="w-12 h-12 rounded-lg bg-[#1DB954]/10 flex items-center justify-center text-[#1DB954] overflow-hidden relative shrink-0 shadow-lg shadow-[#1DB954]/10">
-                         {spotifyData.nowPlaying.albumArt ? (
-                           <Image src={spotifyData.nowPlaying.albumArt} fill className="object-cover" alt="Album" unoptimized />
+                         {musicData.nowPlaying.albumArt ? (
+                           <Image src={musicData.nowPlaying.albumArt} fill className="object-cover" alt="Album" unoptimized />
                          ) : (
                            <Music className="w-6 h-6" />
                          )}
@@ -399,10 +397,10 @@ export default async function ProfilePage({ params }: Props) {
                          <p className="text-[10px] font-bold text-[#1DB954] uppercase tracking-wider flex items-center gap-1.5 mb-0.5">
                             <Music className="w-3 h-3" /> Listening on Spotify
                          </p>
-                         <a href={spotifyData.nowPlaying.url} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-white truncate block hover:underline leading-tight">
-                            {spotifyData.nowPlaying.title}
+                         <a href={musicData.nowPlaying.url} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-white truncate block hover:underline leading-tight">
+                            {musicData.nowPlaying.title}
                          </a>
-                         <p className="text-xs text-zinc-400 truncate mt-0.5">{spotifyData.nowPlaying.artist}</p>
+                         <p className="text-xs text-zinc-400 truncate mt-0.5">{musicData.nowPlaying.artist}</p>
                       </div>
                       <div className="flex items-end gap-1 h-5 px-1 shrink-0">
                          <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-full"></span>
@@ -428,7 +426,8 @@ export default async function ProfilePage({ params }: Props) {
           </div>
 
           <div className="lg:col-span-8">
-            <ProfileGrid user={firebaseUser} steam={steamData} spotify={spotifyData} />
+            {/* Pass the Last.fm data into the same prop ProfileGrid uses */}
+            <ProfileGrid user={firebaseUser} steam={steamData} spotify={musicData} />
           </div>
 
         </div>
