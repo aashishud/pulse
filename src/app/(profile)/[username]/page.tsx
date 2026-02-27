@@ -59,6 +59,7 @@ async function getFirebaseUser(username: string) {
         }) || [];
     };
 
+    // NEW: Fetch Clips
     const getClipsArray = (field: any) => {
         return field?.arrayValue?.values?.map((v: any) => {
             const map = v.mapValue.fields;
@@ -109,9 +110,9 @@ async function getFirebaseUser(username: string) {
       cursorTrail: fields.theme?.mapValue?.fields?.cursorTrail?.stringValue || "none",
       bio: fields.bio?.stringValue || "",
       primaryCommunity: fields.primaryCommunity?.stringValue ?? null,
-      lastfm: fields.lastfm?.stringValue || "", // <-- ADDED LASTFM BINDING
+      lastfm: fields.lastfm?.stringValue || "", 
       customLinks: getMapArray(fields.customLinks),
-      clips: getClipsArray(fields.clips),
+      clips: getClipsArray(fields.clips), 
       layout: fields.layout?.arrayValue?.values || defaultLayout, 
       gear: getGear(fields.gear),
       gaming: {
@@ -181,7 +182,7 @@ export default async function ProfilePage({ params }: Props) {
   let gameCount = 0;
   let heroGameProgress = null;
   let valorantData = null;
-  let musicData = null;
+  let spotifyData = null;
   let community = null;
 
   const promises: Promise<any>[] = [];
@@ -205,7 +206,6 @@ export default async function ProfilePage({ params }: Props) {
     promises.push(Promise.resolve(null));
   }
 
-  // --- NEW LASTFM FETCH (Replaces Spotify) ---
   promises.push(
     firebaseUser.lastfm 
       ? fetch(`${protocol}://${domain}/api/lastfm/now-playing?user=${firebaseUser.lastfm}`, { cache: 'no-store' })
@@ -245,13 +245,14 @@ export default async function ProfilePage({ params }: Props) {
     })() : Promise.resolve(null)
   );
 
+  // EXACT FIX: Added fetchedCommunity back to the destructuring list
   const [
     steamProfile, 
     steamGames, 
     steamLevel, 
     steamGameCount, 
     valProfile,
-    fetchedMusicData,
+    fetchedSpotifyData,
     fetchedCommunity
   ] = await Promise.all(promises);
 
@@ -260,7 +261,7 @@ export default async function ProfilePage({ params }: Props) {
   level = steamLevel || 0;
   gameCount = steamGameCount || 0;
   valorantData = valProfile;
-  musicData = fetchedMusicData;
+  spotifyData = fetchedSpotifyData;
   community = fetchedCommunity;
 
   if (recentGames.length > 0 && firebaseUser.steamId) {
@@ -382,13 +383,12 @@ export default async function ProfilePage({ params }: Props) {
                   </div>
                 )}
 
-                {/* UPDATE: Displaying Last.fm data (Still styled like Spotify) */}
-                {musicData?.nowPlaying?.isPlaying && (
+                {spotifyData?.nowPlaying?.isPlaying && (
                   <div className="mb-6 p-3 bg-[#111214] rounded-xl border border-[#1DB954]/20 flex items-center gap-3 group relative overflow-hidden">
                       <div className="absolute inset-0 bg-gradient-to-r from-[#1DB954]/5 to-transparent opacity-0 group-hover:opacity-100 transition duration-500"></div>
                       <div className="w-12 h-12 rounded-lg bg-[#1DB954]/10 flex items-center justify-center text-[#1DB954] overflow-hidden relative shrink-0 shadow-lg shadow-[#1DB954]/10">
-                         {musicData.nowPlaying.albumArt ? (
-                           <Image src={musicData.nowPlaying.albumArt} fill className="object-cover" alt="Album" unoptimized />
+                         {spotifyData.nowPlaying.albumArt ? (
+                           <Image src={spotifyData.nowPlaying.albumArt} fill className="object-cover" alt="Album" unoptimized />
                          ) : (
                            <Music className="w-6 h-6" />
                          )}
@@ -397,10 +397,10 @@ export default async function ProfilePage({ params }: Props) {
                          <p className="text-[10px] font-bold text-[#1DB954] uppercase tracking-wider flex items-center gap-1.5 mb-0.5">
                             <Music className="w-3 h-3" /> Listening on Spotify
                          </p>
-                         <a href={musicData.nowPlaying.url} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-white truncate block hover:underline leading-tight">
-                            {musicData.nowPlaying.title}
+                         <a href={spotifyData.nowPlaying.url} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-white truncate block hover:underline leading-tight">
+                            {spotifyData.nowPlaying.title}
                          </a>
-                         <p className="text-xs text-zinc-400 truncate mt-0.5">{musicData.nowPlaying.artist}</p>
+                         <p className="text-xs text-zinc-400 truncate mt-0.5">{spotifyData.nowPlaying.artist}</p>
                       </div>
                       <div className="flex items-end gap-1 h-5 px-1 shrink-0">
                          <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-full"></span>
@@ -427,7 +427,7 @@ export default async function ProfilePage({ params }: Props) {
 
           <div className="lg:col-span-8">
             {/* Pass the Last.fm data into the same prop ProfileGrid uses */}
-            <ProfileGrid user={firebaseUser} steam={steamData} spotify={musicData} />
+            <ProfileGrid user={firebaseUser} steam={steamData} spotify={spotifyData} />
           </div>
 
         </div>
