@@ -6,7 +6,7 @@ import { auth, db } from "@/lib/firebase";
 import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { onAuthStateChanged, updateEmail, updatePassword, signOut } from "firebase/auth";
 import { getSteamLoginUrl, verifySteamLogin, verifyDiscordLogin, getSpotifyTokens } from "@/app/setup/actions"; 
-import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X, Cpu, Monitor, Keyboard, Mouse, Headphones, Trophy, Gamepad2, Clock, Music, Video, Users, Crown } from "lucide-react";
+import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X, Cpu, Monitor, Keyboard, Mouse, Headphones, Trophy, Gamepad2, Clock, Music, Video, Users, Crown, AlertCircle } from "lucide-react";
 import { validateHandle } from "@/lib/validation";
 
 import { Filter } from 'bad-words';
@@ -102,6 +102,9 @@ function DashboardContent() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("layout");
+
+  // Auth Error state
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   // Form States
   const [displayName, setDisplayName] = useState("");
@@ -258,6 +261,8 @@ function DashboardContent() {
             }
          } else {
             console.error("Spotify Connection Error:", result.error);
+            setConnectionError("Spotify connection failed. Ensure you are whitelisted in the Spotify developer dashboard.");
+            router.replace('/dashboard'); // Clear the URL param so it doesn't get stuck in a loop
          }
       }
 
@@ -747,6 +752,18 @@ function DashboardContent() {
 
         {/* Main Content Area */}
         <main className="lg:col-span-9 space-y-6">
+
+          {/* Connection Error Notification */}
+          {connectionError && (
+             <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 flex items-start gap-3 animate-in slide-in-from-top-2 duration-300">
+                <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                   <p className="text-sm font-bold text-red-500">Connection Error</p>
+                   <p className="text-xs text-red-400/80 mt-1">{connectionError}</p>
+                </div>
+                <button onClick={() => setConnectionError(null)} className="p-1 hover:bg-white/5 rounded-lg"><X className="w-4 h-4 text-red-500" /></button>
+             </div>
+          )}
 
           {/* --- COMMUNITIES TAB --- */}
           {activeTab === 'communities' && (
