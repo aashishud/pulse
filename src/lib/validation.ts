@@ -14,7 +14,7 @@ try {
 // if (filter.addWords) filter.addWords('custombadword');
 
 export const RESERVED_HANDLES = [
-  "dashboard", "login", "signup", "api", "admin", "settings", 
+  "dashboard", "terms", "login", "signup", "api", "admin", "settings", 
   "profile", "home", "about", "contact", "support", "help", "pulse",
   "auth", "user", "users", "404", "500", "null", "undefined",
   "moderator", "staff", "team", "security", "bot", "system",
