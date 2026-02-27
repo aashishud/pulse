@@ -25,6 +25,7 @@ function SignupContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [captchaValue, setCaptchaValue] = useState<string | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const saveUserProfile = async (user: any) => {
     const username = handle.toLowerCase().trim();
@@ -58,13 +59,19 @@ function SignupContent() {
     e.preventDefault();
     setError("");
 
-    // 1. Bot Check
+    // 1. Terms Check
+    if (!termsAccepted) {
+      setError("Please accept the Terms of Service to continue.");
+      return;
+    }
+
+    // 2. Bot Check
     if (!captchaValue) {
       setError("Please verify that you are not a robot.");
       return;
     }
 
-    // 2. Validation Check
+    // 3. Validation Check
     const validationError = validateHandle(handle.toLowerCase().trim());
     if (validationError) {
       setError(validationError);
@@ -99,6 +106,12 @@ function SignupContent() {
 
   const handleGoogleSignup = async () => {
     setError("");
+
+    if (!termsAccepted) {
+      setError("Please accept the Terms of Service to continue.");
+      return;
+    }
+
     const validationError = validateHandle(handle.toLowerCase().trim());
     if (validationError) {
       setError(validationError);
@@ -179,6 +192,20 @@ function SignupContent() {
 
             {error && <p className="text-red-400 text-xs font-bold text-center bg-red-500/10 border border-red-500/20 p-3 rounded-xl">{error}</p>}
 
+            {/* Terms Checkbox */}
+            <div className="flex items-start gap-3 py-2">
+              <input
+                type="checkbox"
+                id="terms"
+                checked={termsAccepted}
+                onChange={(e) => setTermsAccepted(e.target.checked)}
+                className="mt-1 w-4 h-4 rounded border-zinc-700 bg-zinc-800 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-zinc-900 cursor-pointer"
+              />
+              <label htmlFor="terms" className="text-xs text-zinc-400 leading-relaxed cursor-pointer">
+                I agree to the <Link href="/terms" className="text-indigo-400 hover:text-indigo-300 transition hover:underline">Terms of Service</Link> and <Link href="/terms" className="text-indigo-400 hover:text-indigo-300 transition hover:underline">Privacy Policy</Link>.
+              </label>
+            </div>
+
             {/* reCAPTCHA Checkbox */}
             <div className="flex justify-center py-2 scale-90 sm:scale-100">
               <ReCAPTCHA
@@ -190,7 +217,7 @@ function SignupContent() {
 
             <button 
               type="submit" 
-              disabled={loading || !captchaValue}
+              disabled={loading || !captchaValue || !termsAccepted}
               className="w-full bg-white text-black font-black py-4 rounded-xl hover:bg-zinc-200 transition disabled:opacity-50 flex items-center justify-center"
             >
               {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Create Account"}
