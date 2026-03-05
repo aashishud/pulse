@@ -98,14 +98,6 @@ export default function LandingPage() {
         }
         .animate-word-slide { animation: word-slide 8s cubic-bezier(0.87, 0, 0.13, 1) infinite; }
 
-        /* Falling Meteors */
-        @keyframes meteor {
-          0% { transform: rotate(215deg) translateX(0); opacity: 1; }
-          70% { opacity: 1; }
-          100% { transform: rotate(215deg) translateX(-1000px); opacity: 0; }
-        }
-        .meteor-trail { animation: meteor linear infinite; }
-
         /* Flickering Grid */
         @keyframes flicker {
           0%, 100% { opacity: 0.1; }
@@ -118,21 +110,39 @@ export default function LandingPage() {
           background-image: radial-gradient(rgba(255, 255, 255, 0.15) 1px, transparent 1px);
           background-size: 24px 24px;
         }
+
+        /* --- SHADER BLOB ANIMATIONS --- */
+        @keyframes blob-1 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          50% { transform: translate(15%, 15%) scale(1.2); }
+        }
+        @keyframes blob-2 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          50% { transform: translate(-10%, -20%) scale(1.1); }
+        }
+        @keyframes blob-3 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          50% { transform: translate(20%, -10%) scale(1.3); }
+        }
       `}</style>
 
-      {/* --- BACKGROUND AMBIENCE --- */}
+      {/* --- GRAINY AURORA SHADER BACKGROUND --- */}
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none bg-[#0a0a0c]">
-         {/* Dot Matrix with Radial Fade Mask */}
-         <div className="absolute inset-0 bg-dot-pattern opacity-50" style={{ maskImage: 'radial-gradient(ellipse at center, black 20%, transparent 80%)', WebkitMaskImage: 'radial-gradient(ellipse at center, black 20%, transparent 80%)' }}></div>
          
-         {/* Falling Meteors (Pure CSS) */}
-         <div className="absolute top-[-20%] left-[20%] w-[2px] h-[150px] bg-gradient-to-b from-indigo-500 to-transparent rounded-full meteor-trail opacity-0 blur-[1px]" style={{ animationDuration: '4s', animationDelay: '1s' }}></div>
-         <div className="absolute top-[-20%] left-[60%] w-[2px] h-[100px] bg-gradient-to-b from-purple-500 to-transparent rounded-full meteor-trail opacity-0 blur-[1px]" style={{ animationDuration: '6s', animationDelay: '3s' }}></div>
-         <div className="absolute top-[-20%] left-[80%] w-[2px] h-[200px] bg-gradient-to-b from-pink-500 to-transparent rounded-full meteor-trail opacity-0 blur-[2px]" style={{ animationDuration: '5s', animationDelay: '0s' }}></div>
-
-         {/* Glowing Orbs */}
-         <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-indigo-600/10 blur-[150px] rounded-full mix-blend-screen"></div>
-         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-600/10 blur-[120px] rounded-full mix-blend-screen"></div>
+         {/* SVG Grain/Noise Filter */}
+         <div 
+           className="absolute inset-0 opacity-[0.25] z-20 mix-blend-overlay pointer-events-none" 
+           style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}
+         ></div>
+         
+         {/* Animated Fluid Gradients (The Shader) */}
+         <div className="absolute top-[-20%] left-[-10%] w-[70vw] h-[70vw] bg-indigo-600/30 blur-[120px] rounded-full mix-blend-screen" style={{ animation: 'blob-1 20s ease-in-out infinite alternate' }}></div>
+         <div className="absolute bottom-[-20%] right-[-10%] w-[60vw] h-[60vw] bg-purple-600/20 blur-[120px] rounded-full mix-blend-screen" style={{ animation: 'blob-2 25s ease-in-out infinite alternate' }}></div>
+         <div className="absolute top-[20%] left-[40%] w-[50vw] h-[50vw] bg-pink-600/20 blur-[120px] rounded-full mix-blend-screen" style={{ animation: 'blob-3 18s ease-in-out infinite alternate' }}></div>
+         <div className="absolute bottom-[10%] left-[-10%] w-[40vw] h-[40vw] bg-emerald-600/10 blur-[120px] rounded-full mix-blend-screen" style={{ animation: 'blob-1 22s ease-in-out infinite alternate-reverse' }}></div>
+         
+         {/* Static overlay to ensure text contrast isn't lost over bright spots */}
+         <div className="absolute inset-0 bg-[#0a0a0c]/60 z-10 pointer-events-none"></div>
       </div>
 
       {/* --- NAVBAR --- */}
@@ -311,7 +321,7 @@ export default function LandingPage() {
               <div className="md:col-span-1 bg-[#0a0a0c] rounded-[32px] border border-white/5 overflow-hidden relative group p-8 flex flex-col justify-between shadow-2xl transition duration-500">
                  {/* Flickering Grid Background */}
                  <div className="absolute inset-0 bg-dot-pattern animate-flicker pointer-events-none"></div>
-                 <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0c] to-transparent"></div>
+                 <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0c] to-transparent z-0"></div>
 
                  <div className="relative z-10">
                     <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-white mb-6 backdrop-blur-md">
