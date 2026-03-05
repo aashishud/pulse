@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
-import { onAuthStateChanged, updateEmail, updatePassword, signOut } from "firebase/auth";
+import { onAuthStateChanged, updateEmail, updatePassword, signOut, deleteUser } from "firebase/auth";
 import { getSteamLoginUrl, verifySteamLogin, verifyDiscordLogin } from "@/app/setup/actions"; 
 import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X, Cpu, Monitor, Keyboard, Mouse, Headphones, Trophy, Gamepad2, Clock, Music, Video, Users, Crown } from "lucide-react";
 import { validateHandle } from "@/lib/validation";
@@ -162,9 +162,11 @@ function DashboardContent() {
   const [editCommAvatar, setEditCommAvatar] = useState("");
   const [editCommBanner, setEditCommBanner] = useState("");
 
-  // Security
+  // Security & Deletion
   const [newEmail, setNewEmail] = useState("");
   const [newPass, setNewPass] = useState("");
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
   // Gradients & Colors
   const gradients = [
@@ -244,7 +246,7 @@ function DashboardContent() {
 
       if (!querySnapshot.empty) {
         const userData = querySnapshot.docs[0].data();
-        const uid = querySnapshot.docs[0].id;
+        const uid = querySnapshot.docs[0].id; // The document ID is their handle
         setUser({ ...userData, id: uid });
         
         setDisplayName(userData.displayName || "");
@@ -361,6 +363,11 @@ function DashboardContent() {
   };
 
   const handleCreateCommunity = async () => {
+    if (myCommunities.length >= 3) {
+      alert("You can only create a maximum of 3 communities per account.");
+      return;
+    }
+
     if (!commName || !commHandle) return;
 
     if (isProfane(commName) || isProfane(commHandle) || isProfane(commDesc)) {
@@ -450,6 +457,35 @@ function DashboardContent() {
      } catch (e) {
          console.error(e);
          alert("Failed to update community details.");
+     } finally {
+         setSaving(false);
+     }
+  };
+
+  const handleDeleteCommunity = async (commHandle: string) => {
+     if (!confirm(`Are you absolutely sure you want to delete the community /c/${commHandle}? This action cannot be undone.`)) return;
+
+     setSaving(true);
+     try {
+         // Delete the community document
+         await deleteDoc(doc(db, "communities", commHandle));
+
+         // Remove it from the local state list immediately
+         setMyCommunities(prev => prev.filter(c => c.handle !== commHandle));
+
+         // If the user had this community set as their primary badge, reset it so it doesn't break their profile
+         if (primaryCommunity === commHandle) {
+             setPrimaryCommunity("");
+             if (user?.id) {
+                 await updateDoc(doc(db, "users", user.id), { primaryCommunity: "" });
+             }
+         }
+
+         alert("Community permanently deleted.");
+         setEditingCommunity(null); // Close the edit modal
+     } catch (e) {
+         console.error(e);
+         alert("Failed to delete community. Please check your connection.");
      } finally {
          setSaving(false);
      }
@@ -602,11 +638,84 @@ function DashboardContent() {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    if (!user || deleteConfirmText !== user.id) return;
+    if (!auth.currentUser) return;
+
+    // PREVENT DELETION IF COMMUNITIES EXIST
+    if (myCommunities.length > 0) {
+        alert(`⚠️ Action Required: You currently own ${myCommunities.length} community(s).\n\nYou must delete them from the "Communities" tab before deleting your account to prevent abandoned data.`);
+        setIsDeletingAccount(false);
+        return;
+    }
+
+    setSaving(true);
+    try {
+      // 1. Delete user document from Firestore (so their URL goes blank)
+      await deleteDoc(doc(db, "users", user.id));
+      
+      // 2. Permanently delete their Firebase Authentication Account
+      await deleteUser(auth.currentUser);
+      
+      alert("Account permanently deleted. We're sorry to see you go!");
+      window.location.href = "/";
+    } catch (e: any) {
+      console.error(e);
+      // Firebase throws this specific error if the session is too old to safely delete an account
+      if (e.code === 'auth/requires-recent-login') {
+        alert("For your security, please log out and log back in before deleting your account.");
+      } else {
+        alert("Failed to delete account: " + e.message);
+      }
+    } finally {
+      setSaving(false);
+      setIsDeletingAccount(false);
+    }
+  };
+
   if (loading) return <div className="min-h-screen bg-[#0a0a0c] flex items-center justify-center text-white"><Sparkles className="w-6 h-6 animate-spin text-indigo-500" /></div>;
 
   return (
     <div className="min-h-screen bg-[#0a0a0c] text-white font-sans selection:bg-indigo-500/30">
       
+      {/* Account Deletion Modal */}
+      {isDeletingAccount && (
+         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-[#121214] border border-red-500/30 rounded-[32px] p-8 w-full max-w-md shadow-2xl shadow-red-500/10">
+               <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-black flex items-center gap-3 text-red-500"><AlertTriangle className="w-6 h-6" /> Delete Account</h2>
+                  <button onClick={() => setIsDeletingAccount(false)} className="p-2 hover:bg-white/5 rounded-full"><X className="w-5 h-5" /></button>
+               </div>
+               <div className="space-y-4">
+                  <p className="text-zinc-400 text-sm leading-relaxed">
+                    This action <strong className="text-white">cannot</strong> be undone. This will permanently delete your profile, unlink all connections, and remove your data from our servers.
+                    <br/><br/>
+                    <strong className="text-red-400">Note: You must delete all your owned communities before proceeding.</strong>
+                  </p>
+                  <div className="mt-4">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-2">
+                      Type <span className="text-white select-none">{user?.id}</span> to confirm
+                    </label>
+                    <input 
+                      type="text" 
+                      value={deleteConfirmText} 
+                      onChange={e => setDeleteConfirmText(e.target.value)} 
+                      className="w-full bg-black/50 border border-white/10 rounded-xl p-3 outline-none focus:border-red-500 transition text-white font-mono" 
+                      placeholder={user?.id} 
+                    />
+                  </div>
+                  <button 
+                    onClick={handleDeleteAccount} 
+                    disabled={saving || deleteConfirmText !== user?.id} 
+                    className="w-full py-4 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl transition shadow-lg shadow-red-500/20 disabled:opacity-50 mt-4"
+                  >
+                    {saving ? "Deleting..." : "Permanently Delete"}
+                  </button>
+               </div>
+            </div>
+         </div>
+      )}
+
       {/* Creation Modal */}
       {isCreatingCommunity && (
          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
@@ -642,12 +751,13 @@ function DashboardContent() {
       {/* Edit Community Modal */}
       {editingCommunity && (
          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-[#121214] border border-white/10 rounded-[32px] p-8 w-full max-w-lg shadow-2xl">
-               <div className="flex justify-between items-center mb-6">
+            <div className="bg-[#121214] border border-white/10 rounded-[32px] p-8 w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]">
+               <div className="flex justify-between items-center mb-6 shrink-0">
                   <h2 className="text-2xl font-black flex items-center gap-3"><Settings className="w-6 h-6 text-indigo-500" /> Edit Community</h2>
                   <button onClick={() => setEditingCommunity(null)} className="p-2 hover:bg-white/5 rounded-full"><X className="w-5 h-5" /></button>
                </div>
-               <div className="space-y-4">
+               
+               <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
                   <div>
                     <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-2">Display Name</label>
                     <input type="text" value={editCommName} onChange={e => setEditCommName(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 outline-none focus:border-indigo-500 transition text-white" />
@@ -664,9 +774,19 @@ function DashboardContent() {
                     <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-2">Banner Image URL</label>
                     <input type="text" value={editCommBanner} onChange={e => setEditCommBanner(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 outline-none focus:border-indigo-500 transition text-white" placeholder="https://..." />
                   </div>
-                  <button onClick={handleUpdateCommunity} disabled={saving || !editCommName} className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl transition shadow-lg shadow-indigo-500/20 disabled:opacity-50">
-                    {saving ? "Saving..." : "Save Changes"}
-                  </button>
+               </div>
+
+               <div className="flex flex-col gap-3 mt-6 shrink-0 border-t border-white/5 pt-6">
+                   <button onClick={handleUpdateCommunity} disabled={saving || !editCommName} className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl transition shadow-lg shadow-indigo-500/20 disabled:opacity-50">
+                      {saving ? "Saving..." : "Save Changes"}
+                   </button>
+                   <button 
+                      onClick={() => handleDeleteCommunity(editingCommunity.handle)} 
+                      disabled={saving} 
+                      className="w-full py-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 font-bold rounded-2xl transition border border-red-500/20 flex items-center justify-center gap-2"
+                   >
+                      <Trash2 className="w-4 h-4" /> Delete Community
+                   </button>
                </div>
             </div>
          </div>
@@ -727,8 +847,12 @@ function DashboardContent() {
                       <h2 className="text-2xl font-black mb-2">Build your group.</h2>
                       <p className="text-indigo-200/60 text-sm max-w-md">Create a shared space for your clan, friend group, or esports team. Display a roster of Pulse profiles on one page.</p>
                    </div>
-                   <button onClick={() => setIsCreatingCommunity(true)} className="relative z-10 px-8 py-4 bg-white text-black font-black rounded-2xl hover:bg-indigo-50 transition flex items-center gap-2 shadow-xl">
-                      <Plus className="w-5 h-5" /> New Community
+                   <button 
+                      onClick={() => setIsCreatingCommunity(true)} 
+                      disabled={myCommunities.length >= 3}
+                      className="relative z-10 px-8 py-4 bg-white disabled:bg-zinc-800 disabled:text-zinc-500 text-black font-black rounded-2xl hover:bg-indigo-50 transition flex items-center gap-2 shadow-xl"
+                   >
+                      {myCommunities.length >= 3 ? "Limit Reached (3/3)" : <><Plus className="w-5 h-5" /> New Community</>}
                    </button>
                 </section>
 
@@ -1228,6 +1352,18 @@ function DashboardContent() {
                   </div>
                   <button onClick={handleUpdateAccount} disabled={saving} className="w-full py-3 bg-zinc-800 text-white font-bold rounded-xl hover:bg-zinc-700 transition disabled:opacity-50">Update Credentials</button>
                 </div>
+              </section>
+
+              {/* DANGER ZONE - Account Deletion */}
+              <section className="bg-red-500/10 border border-red-500/20 rounded-2xl p-6">
+                <h2 className="text-lg font-bold text-red-500 mb-2">Danger Zone</h2>
+                <p className="text-zinc-400 text-sm mb-4">Once you delete your account, there is no going back. Please be certain.</p>
+                <button 
+                  onClick={() => setIsDeletingAccount(true)} 
+                  className="px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl transition shadow-lg shadow-red-500/20"
+                >
+                  Delete Account
+                </button>
               </section>
             </div>
           )}
