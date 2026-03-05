@@ -1,6 +1,6 @@
 import { getSteamProfile, getRecentlyPlayed, getSteamLevel, getOwnedGamesCount, getGameProgress } from '@/lib/steam';
 import { getValorantProfile } from '@/lib/valorant';
-import { Sparkles, Gamepad2, Trophy, Clock, MapPin, Link as LinkIcon, ExternalLink, Ghost, Music, LayoutGrid, Zap, Swords, Youtube, Twitch, Globe, ArrowUpRight, Share2 } from 'lucide-react';
+import { Sparkles, Gamepad2, Trophy, Clock, MapPin, Link as LinkIcon, ExternalLink, Ghost, Music, LayoutGrid, Zap, Swords, Youtube, Twitch, Globe, ArrowUpRight, Share2, Users } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Inter, Space_Grotesk, Press_Start_2P, Cinzel } from 'next/font/google';
@@ -10,7 +10,7 @@ import BadgeRack from '@/components/BadgeRack';
 import AvatarDecoration from '@/components/AvatarDecoration';
 import CursorEffects from '@/components/CursorEffects';
 import ProfileGrid from '@/components/ProfileGrid'; // Client Component
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 export const dynamic = 'force-dynamic';
@@ -49,7 +49,6 @@ async function getFirebaseUser(username: string) {
     
     const isVerified = (field: any) => field?.booleanValue || false;
 
-    // Helper to get array from Firestore map
     const getMapArray = (field: any) => {
         return field?.arrayValue?.values?.map((v: any) => {
             const map = v.mapValue.fields;
@@ -60,7 +59,17 @@ async function getFirebaseUser(username: string) {
         }) || [];
     };
 
-    // Helper for Gear
+    // NEW: Fetch Clips
+    const getClipsArray = (field: any) => {
+        return field?.arrayValue?.values?.map((v: any) => {
+            const map = v.mapValue.fields;
+            return {
+                title: map.title?.stringValue || "",
+                url: map.url?.stringValue || ""
+            }
+        }) || [];
+    };
+
     const getGear = (field: any) => {
         const map = field?.mapValue?.fields;
         if (!map) return {};
@@ -75,7 +84,6 @@ async function getFirebaseUser(username: string) {
         };
     };
 
-    // Default Layout
     const defaultLayout = [
       { mapValue: { fields: { id: { stringValue: "hero" }, enabled: { booleanValue: true }, size: { stringValue: 'full' } } } },
       { mapValue: { fields: { id: { stringValue: "content" }, enabled: { booleanValue: true }, size: { stringValue: 'half' } } } },
@@ -101,7 +109,10 @@ async function getFirebaseUser(username: string) {
       avatarDecoration: fields.theme?.mapValue?.fields?.avatarDecoration?.stringValue || "none",
       cursorTrail: fields.theme?.mapValue?.fields?.cursorTrail?.stringValue || "none",
       bio: fields.bio?.stringValue || "",
+      primaryCommunity: fields.primaryCommunity?.stringValue ?? null,
+      lastfm: fields.lastfm?.stringValue || "", 
       customLinks: getMapArray(fields.customLinks),
+      clips: getClipsArray(fields.clips), 
       layout: fields.layout?.arrayValue?.values || defaultLayout, 
       gear: getGear(fields.gear),
       gaming: {
@@ -161,12 +172,10 @@ export default async function ProfilePage({ params }: Props) {
     );
   }
 
-  // Generate Badges Logic
   const badges = [];
   if (firebaseUser.steamId) badges.push('steam');
   if (firebaseUser.socials.discord_verified) badges.push('discord');
 
-  // Fetch External Data (Steam, Valorant, Spotify)
   let profile = null;
   let recentGames: any[] = [];
   let level = 0;
@@ -174,10 +183,10 @@ export default async function ProfilePage({ params }: Props) {
   let heroGameProgress = null;
   let valorantData = null;
   let spotifyData = null;
+  let community = null;
 
   const promises: Promise<any>[] = [];
 
-  // Steam Promises
   if (firebaseUser.steamId) {
     promises.push(getSteamProfile(firebaseUser.steamId));
     promises.push(getRecentlyPlayed(firebaseUser.steamId));
@@ -187,7 +196,6 @@ export default async function ProfilePage({ params }: Props) {
     promises.push(Promise.resolve(null), Promise.resolve([]), Promise.resolve(0), Promise.resolve(0));
   }
 
-  // Valorant Promises
   if (firebaseUser.gaming.valorant?.name && firebaseUser.gaming.valorant?.tag) {
     promises.push(getValorantProfile(
       firebaseUser.gaming.valorant.name, 
@@ -198,20 +206,54 @@ export default async function ProfilePage({ params }: Props) {
     promises.push(Promise.resolve(null));
   }
 
-  // NEW: Spotify Fetch (Passing username as ID since that's what the API route expects as the doc ID)
   promises.push(
-    fetch(`${protocol}://${domain}/api/spotify/now-playing?uid=${username}`, { cache: 'no-store' })
-      .then(res => res.ok ? res.json() : null)
-      .catch(err => { console.error("Spotify Fetch Error:", err); return null; })
+    firebaseUser.lastfm 
+      ? fetch(`${protocol}://${domain}/api/lastfm/now-playing?user=${firebaseUser.lastfm}`, { cache: 'no-store' })
+          .then(res => res.ok ? res.json() : null)
+          .catch(err => { console.error("Last.fm Fetch Error:", err); return null; })
+      : Promise.resolve(null)
   );
 
+  // Fetch Community Data
+  promises.push(
+    firebaseUser.owner_uid ? (async () => {
+      try {
+        if (firebaseUser.primaryCommunity === "") {
+           return null;
+        }
+
+        if (firebaseUser.primaryCommunity) {
+           const commRef = doc(db, "communities", firebaseUser.primaryCommunity);
+           const commSnap = await getDoc(commRef);
+           
+           if (commSnap.exists() && commSnap.data().members?.includes(firebaseUser.owner_uid)) {
+              return commSnap.data();
+           }
+        }
+        
+        const commQ = query(collection(db, "communities"), where("members", "array-contains", firebaseUser.owner_uid));
+        const commSnap = await getDocs(commQ);
+        if (!commSnap.empty) {
+           return commSnap.docs[0].data();
+        }
+        
+        return null;
+      } catch (e) {
+        console.error("Community Fetch Error:", e);
+        return null;
+      }
+    })() : Promise.resolve(null)
+  );
+
+  // EXACT FIX: Added fetchedCommunity back to the destructuring list
   const [
     steamProfile, 
     steamGames, 
     steamLevel, 
     steamGameCount, 
     valProfile,
-    fetchedSpotifyData
+    fetchedSpotifyData,
+    fetchedCommunity
   ] = await Promise.all(promises);
 
   profile = steamProfile;
@@ -220,13 +262,11 @@ export default async function ProfilePage({ params }: Props) {
   gameCount = steamGameCount || 0;
   valorantData = valProfile;
   spotifyData = fetchedSpotifyData;
+  community = fetchedCommunity;
 
-  // Fetch achievements for the hero game (most recent)
   if (recentGames.length > 0 && firebaseUser.steamId) {
     heroGameProgress = await getGameProgress(firebaseUser.steamId, recentGames[0].appid);
   }
-
-  const joinDate = profile?.timecreated ? new Date(profile.timecreated * 1000) : new Date();
   
   const avatarSource = firebaseUser.avatar || profile?.avatarfull || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png";
   
@@ -239,7 +279,6 @@ export default async function ProfilePage({ params }: Props) {
   if (firebaseUser.font === 'press') fontClass = pressStart.className;
   if (firebaseUser.font === 'cinzel') fontClass = cinzel.className;
 
-  // Name Styles
   let nameClasses = "text-3xl md:text-4xl font-black mb-1 leading-relaxed py-2";
   let nameStyle = {};
 
@@ -256,7 +295,6 @@ export default async function ProfilePage({ params }: Props) {
 
   const displayName = firebaseUser.displayName || profile?.personaname || username;
 
-  // Prepare Steam Data prop for Client Component
   const steamData = {
     profile: steamProfile,
     recentGames: steamGames || [],
@@ -270,17 +308,13 @@ export default async function ProfilePage({ params }: Props) {
     <div className={`min-h-screen bg-[#111214] text-white ${fontClass} overflow-x-hidden`}>
       <CursorEffects type={firebaseUser.cursorTrail} />
       
-      {/* Background */}
       <div className="fixed inset-0 z-0">
-         <div 
-            className="absolute inset-0 bg-cover bg-center" style={backgroundStyle}
-         ></div>
+         <div className="absolute inset-0 bg-cover bg-center" style={backgroundStyle}></div>
          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-[#111214]/90 to-[#111214]"></div>
       </div>
 
       <div className="relative z-10 max-w-[1400px] mx-auto p-4 md:p-8">
         
-        {/* TOP NAV */}
         <div className="flex justify-between items-center mb-8 px-2">
            <Link href="/" className="flex items-center gap-2 font-bold text-xl tracking-tighter hover:opacity-80 transition">
              <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center"><Sparkles className="w-4 h-4 text-white" /></div>Pulse
@@ -295,16 +329,13 @@ export default async function ProfilePage({ params }: Props) {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
-          {/* PASSPORT (Left Column - Back to Sticky) */}
-          <div className="lg:col-span-4 lg:sticky lg:top-8">
+          <div className="lg:col-span-4 lg:sticky lg:top-8 z-20">
             <div className="bg-[#1e1f22]/80 backdrop-blur-md rounded-[32px] overflow-hidden border border-white/5 shadow-2xl relative">
-              {/* Banner */}
               <div className="h-32 bg-zinc-900 relative group">
                 <Image src={firebaseUser.banner} alt="Banner" fill className="object-cover group-hover:scale-105 transition duration-700" unoptimized />
               </div>
               
               <div className="px-6 pb-6 relative">
-                {/* Avatar */}
                 <div className="relative -mt-16 mb-4 w-32 h-32">
                    <AvatarDecoration type={firebaseUser.avatarDecoration}>
                      <div className="w-32 h-32 rounded-full p-1.5 bg-[#1e1f22] relative z-10">
@@ -316,15 +347,35 @@ export default async function ProfilePage({ params }: Props) {
                    )}
                 </div>
 
-                <div className="mb-6">
-                  <h1 className={nameClasses} style={nameStyle}>{displayName}</h1>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-zinc-400 font-medium">@{username}</p>
-                    <BadgeRack badgeList={badges} />
+                <div className="flex justify-between items-start mb-6 gap-4">
+                  <div className="min-w-0 flex-1">
+                    <h1 className={`${nameClasses} truncate`} style={nameStyle}>{displayName}</h1>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-zinc-400 font-medium">@{username}</p>
+                      <BadgeRack badgeList={badges} />
+                    </div>
                   </div>
+
+                  {community && (
+                    <Link href={`/c/${community.handle}`} className="shrink-0 group mt-1">
+                       <div className="flex items-center gap-3 px-3 py-2 bg-[#111214] hover:bg-white/5 border border-white/5 rounded-2xl transition shadow-lg relative overflow-hidden">
+                           <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition duration-500"></div>
+                           <div className="text-right relative z-10 hidden sm:block">
+                              <p className="text-[9px] font-bold text-indigo-400/80 uppercase tracking-widest leading-none mb-1.5">Squad</p>
+                              <p className="text-xs font-black text-white group-hover:text-indigo-400 transition truncate max-w-[120px] leading-none">{community.name}</p>
+                           </div>
+                           <div className="w-10 h-10 rounded-xl bg-zinc-800 overflow-hidden flex items-center justify-center shrink-0 border border-white/10 group-hover:scale-105 transition relative z-10 shadow-md">
+                              {community.avatar ? (
+                                 <img src={community.avatar} alt={community.name} className="w-full h-full object-cover" />
+                              ) : (
+                                 <Users className="w-5 h-5 text-zinc-400" />
+                              )}
+                           </div>
+                       </div>
+                    </Link>
+                  )}
                 </div>
 
-                {/* Steam Playing Now Widget */}
                 {profile?.gameextrainfo && (
                   <div className="mb-4 p-3 bg-[#111214] rounded-xl border border-white/5 flex items-center gap-3">
                       <div className="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400"><Gamepad2 className="w-5 h-5" /></div>
@@ -332,7 +383,6 @@ export default async function ProfilePage({ params }: Props) {
                   </div>
                 )}
 
-                {/* Spotify Playing Now Widget */}
                 {spotifyData?.nowPlaying?.isPlaying && (
                   <div className="mb-6 p-3 bg-[#111214] rounded-xl border border-[#1DB954]/20 flex items-center gap-3 group relative overflow-hidden">
                       <div className="absolute inset-0 bg-gradient-to-r from-[#1DB954]/5 to-transparent opacity-0 group-hover:opacity-100 transition duration-500"></div>
@@ -352,7 +402,6 @@ export default async function ProfilePage({ params }: Props) {
                          </a>
                          <p className="text-xs text-zinc-400 truncate mt-0.5">{spotifyData.nowPlaying.artist}</p>
                       </div>
-                      {/* Animated EQ Bars */}
                       <div className="flex items-end gap-1 h-5 px-1 shrink-0">
                          <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-full"></span>
                          <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-2/3" style={{ animationDelay: '200ms' }}></span>
@@ -376,9 +425,8 @@ export default async function ProfilePage({ params }: Props) {
             </div>
           </div>
 
-          {/* WIDGET BOARD (Right Column) - Handled by Client Component */}
           <div className="lg:col-span-8">
-            {/* @ts-ignore - Temporary ignore until ProfileGrid is updated */}
+            {/* Pass the Last.fm data into the same prop ProfileGrid uses */}
             <ProfileGrid user={firebaseUser} steam={steamData} spotify={spotifyData} />
           </div>
 
