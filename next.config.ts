@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Disables source maps in production to protect your source code (Checklist Item)
+  productionBrowserSourceMaps: false,
+
   // We remove allowedDevOrigins to let Vercel handle the host headers automatically
   images: {
     remotePatterns: [

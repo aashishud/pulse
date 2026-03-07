@@ -7,6 +7,7 @@ import {
   Cpu, Mouse, Keyboard, Monitor, Headphones, Music, ChevronRight, Video
 } from 'lucide-react';
 import Image from 'next/image';
+import ValorantModal from '@/components/ValorantModal';
 
 const VerifiedBadge = () => (
   <span className="inline-flex ml-1.5 text-blue-400 align-middle" title="Verified Link">
@@ -25,7 +26,6 @@ const ensureProtocol = (url: string) => {
 const getEmbedData = (rawUrl: string) => {
   if (!rawUrl) return null;
   try {
-    // 1. Force valid protocol so the URL parser doesn't crash on "youtube.com"
     let safeUrl = rawUrl.trim();
     if (!safeUrl.startsWith("http://") && !safeUrl.startsWith("https://")) {
         safeUrl = "https://" + safeUrl;
@@ -35,7 +35,6 @@ const getEmbedData = (rawUrl: string) => {
     const hostname = parsedUrl.hostname.toLowerCase();
     const pathname = parsedUrl.pathname;
 
-    // YouTube (Standard, Live, & Shorts)
     if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {
       let videoId = '';
       let isVertical = false;
@@ -44,21 +43,19 @@ const getEmbedData = (rawUrl: string) => {
         videoId = pathname.slice(1);
       } else if (pathname.includes('/shorts/')) {
         videoId = pathname.split('/shorts/')[1];
-        isVertical = true; // Snap to 9:16 box
+        isVertical = true;
       } else if (pathname.includes('/live/')) {
          videoId = pathname.split('/live/')[1];
       } else {
         videoId = parsedUrl.searchParams.get('v') || '';
       }
 
-      // 2. Scrub away tracking parameters (e.g., ?feature=share or &si=...)
       if (videoId) {
          videoId = videoId.split('?')[0].split('&')[0];
          return { url: `https://www.youtube.com/embed/${videoId}?autoplay=0`, isVertical };
       }
     }
 
-    // Twitch Clips
     if (hostname.includes('twitch.tv')) {
       let clipId = '';
       if (hostname.includes('clips.twitch.tv')) {
@@ -67,13 +64,12 @@ const getEmbedData = (rawUrl: string) => {
         clipId = pathname.split('/clip/')[1];
       }
       if (clipId) {
-         clipId = clipId.split('?')[0]; // Clean params
+         clipId = clipId.split('?')[0];
          const domain = typeof window !== 'undefined' ? window.location.hostname : 'pulsegg.in';
          return { url: `https://clips.twitch.tv/embed?clip=${clipId}&parent=${domain}&autoplay=false`, isVertical: false };
       }
     }
 
-    // Medal.tv
     if (hostname.includes('medal.tv')) {
       const match = pathname.match(/\/clips\/([a-zA-Z0-9]+)/);
       if (match && match[1]) {
@@ -81,7 +77,7 @@ const getEmbedData = (rawUrl: string) => {
       }
     }
   } catch (e) {
-    return null; // Invalid URL safely caught
+    return null;
   }
   return null;
 };
@@ -98,6 +94,7 @@ export default function ProfileGrid({
   const [activeTab, setActiveTab] = useState("overview");
   const [steam, setSteam] = useState(initialSteam);
   const [loading, setLoading] = useState(false);
+  const [isValorantModalOpen, setIsValorantModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -321,24 +318,47 @@ export default function ProfileGrid({
       case 'valorant':
         if (!valorantData) return null;
         return (
-          <div key={key} style={cardStyle} className={`${colSpanClass} backdrop-blur-md p-5 rounded-2xl border border-white/10 hover:border-white/20 transition h-full flex flex-col justify-between group min-h-[140px] relative overflow-hidden`}>
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-red-500/20 to-transparent blur-3xl rounded-full -mr-10 -mt-10"></div>
-            <div className="flex justify-between items-start relative z-10">
-              <div className={`p-2.5 rounded-xl ${iconBg} ${hoverIconBg} transition ${titleColor} flex items-center gap-2`}>
-                <Swords className="w-4 h-4" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Valorant</span>
+          <div 
+            key={key} 
+            onClick={() => setIsValorantModalOpen(true)}
+            style={cardStyle}
+            className={`${colSpanClass} backdrop-blur-md rounded-2xl p-5 border border-white/10 cursor-pointer hover:border-white/20 transition-all hover:scale-[1.02] shadow-xl relative overflow-hidden group min-h-[140px] flex flex-col justify-between`}
+          >
+            <div>
+              {/* Top Row: Badge & Rank Icon */}
+              <div className="flex justify-between items-start mb-4">
+                <div className={`px-2.5 py-1 rounded-md ${iconBg} ${titleColor} flex items-center gap-1.5 backdrop-blur-sm border border-white/5`}>
+                  <Swords className="w-3.5 h-3.5" />
+                  <span className="text-[10px] font-black tracking-widest uppercase">Valorant</span>
+                </div>
+                <div className="w-10 h-10 relative drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">
+                  {valorantData.images?.small ? (
+                    <img src={valorantData.images.small} alt="Rank" className="w-full h-full object-contain" />
+                  ) : (
+                    <img src="https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/17/largeicon.png" alt="Rank" className="w-full h-full object-contain" />
+                  )}
+                </div>
               </div>
-              {valorantData.images?.small && (
-                <img src={valorantData.images.small} style={{ width: 40, height: 40 }} alt="Rank" className="drop-shadow-lg" />
-              )}
+
+              {/* Name & Tag */}
+              <div className="mb-0.5">
+                <span className={`text-[10px] font-black ${mutedColor} tracking-widest uppercase`}>
+                  {valorantData.name}#{valorantData.tag}
+                </span>
+              </div>
+
+              {/* Rank Title (Pixel/Mono Style) */}
+              <h3 className={`text-2xl font-black ${titleColor} uppercase tracking-wider mb-4 font-mono`}>
+                {valorantData.currenttierpatched}
+              </h3>
             </div>
-            <div className="relative z-10 mt-4">
-              <p className={`text-[10px] font-bold uppercase tracking-widest ${mutedColor} mb-1`}>{valorantData.name}#{valorantData.tag}</p>
-              <p className={`text-xl font-black ${titleColor} mb-2`}>{valorantData.currenttierpatched}</p>
-              <div className="w-full h-1.5 bg-black/20 rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-red-500 to-pink-500" style={{ width: `${valorantData.ranking_in_tier}%` }}></div>
+
+            {/* RR Progress Bar */}
+            <div className="w-full flex items-center gap-3 relative z-10">
+              <div className="flex-1 h-1.5 bg-black/40 rounded-full overflow-hidden">
+                <div className="h-full bg-[#ff4655] rounded-full" style={{ width: `${valorantData.ranking_in_tier}%` }} />
               </div>
-              <p className={`text-[10px] font-mono text-right mt-1 ${subtitleColor}`}>{valorantData.ranking_in_tier} RR</p>
+              <span className={`text-[10px] font-black ${subtitleColor} tracking-wider`}>{valorantData.ranking_in_tier} RR</span>
             </div>
           </div>
         );
@@ -455,7 +475,6 @@ export default function ProfileGrid({
         </div>
       ) : activeTab === "clips" ? (
         
-        /* MASONRY CLIPS GRID: Beautifully stacks standard and vertical clips without gaps! */
         <div className="columns-1 md:columns-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
            {user.clips.map((clip: any, idx: number) => {
               const embedData = getEmbedData(clip.url);
@@ -569,6 +588,15 @@ export default function ProfileGrid({
           )}
         </div>
       )}
+
+      {/* Render the Valorant Modal securely at the bottom */}
+      <ValorantModal 
+        isOpen={isValorantModalOpen} 
+        onClose={() => setIsValorantModalOpen(false)} 
+        valName={user.gaming?.valorant?.name || ''} 
+        valTag={user.gaming?.valorant?.tag || ''} 
+        valRegion={user.gaming?.valorant?.region || 'na'} 
+      />
     </div>
   );
 }

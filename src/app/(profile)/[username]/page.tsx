@@ -1,6 +1,6 @@
 import { getSteamProfile, getRecentlyPlayed, getSteamLevel, getOwnedGamesCount, getGameProgress } from '@/lib/steam';
 import { getValorantProfile } from '@/lib/valorant';
-import { Sparkles, Gamepad2, Trophy, Clock, MapPin, Link as LinkIcon, ExternalLink, Ghost, Music, LayoutGrid, Zap, Swords, Youtube, Twitch, Globe, ArrowUpRight, Share2, Users } from 'lucide-react';
+import { Sparkles, Gamepad2, Trophy, Clock, MapPin, Link as LinkIcon, ExternalLink, Ghost, Music, LayoutGrid, Zap, Swords, Youtube, Twitch, Globe, ArrowUpRight, Share2, Users, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Inter, Space_Grotesk, Press_Start_2P, Cinzel } from 'next/font/google';
@@ -13,7 +13,8 @@ import ProfileGrid from '@/components/ProfileGrid'; // Client Component
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
-export const dynamic = 'force-dynamic';
+// REMOVED 'force-dynamic' so Vercel can cache this page globally
+// export const dynamic = 'force-dynamic';
 
 // Load Fonts
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
@@ -21,7 +22,9 @@ const spaceGrotesk = Space_Grotesk({ subsets: ['latin'], display: 'swap' });
 const pressStart = Press_Start_2P({ weight: '400', subsets: ['latin'], display: 'swap' });
 const cinzel = Cinzel({ subsets: ['latin'], display: 'swap' });
 
-export const revalidate = 0;
+// THE CACHING SHIELD: 3600 seconds (1 hour). 
+// This prevents database melting if a profile goes viral.
+export const revalidate = 3600;
 
 interface Props {
   params: Promise<{ username: string }>;
@@ -187,14 +190,44 @@ export default async function ProfilePage({ params }: Props) {
   
   const dashboardUrl = `${protocol}://${domain}/dashboard`;
   const homeUrl = `${protocol}://${domain}`;
-  const signupUrl = `${protocol}://${domain}/signup?handle=${username}`;
 
+  // Sleek Growth Hacker 404 Page for unclaimed handles
   if (!firebaseUser) {
     return (
-      <div className="min-h-screen bg-[#0a0a0c] text-white flex flex-col items-center justify-center font-sans p-4">
-        <h1 className="text-4xl font-black mb-2 tracking-tight">@{username}</h1>
-        <p className="text-zinc-500 mb-8">This handle is available.</p>
-        <a href={signupUrl} className="bg-white text-black px-8 py-3 rounded-lg font-bold hover:bg-zinc-200 transition">Claim Handle</a>
+      <div className="min-h-screen bg-[#0a0a0c] text-white flex flex-col items-center justify-center p-4 relative overflow-hidden font-sans">
+        {/* Background Ambience */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.05)_0%,transparent_70%)] pointer-events-none" />
+        
+        <div className="relative z-10 text-center max-w-md w-full">
+          <div className="w-20 h-20 bg-white/5 border border-white/10 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-2xl animate-[bounce_3s_ease-in-out_infinite]">
+            <Ghost className="w-10 h-10 text-zinc-500" />
+          </div>
+          
+          <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-3">@{username}</h1>
+          <p className="text-zinc-400 mb-10 text-sm md:text-base leading-relaxed">
+            This handle is completely available. Claim it before someone else does and start building your gaming identity.
+          </p>
+
+          <div className="space-y-4 w-full max-w-xs mx-auto">
+            {/* 21st.dev Magic Button */}
+            <Link 
+              href={`/signup?handle=${username}`}
+              className="relative inline-flex h-14 w-full overflow-hidden rounded-xl p-[1px] focus:outline-none group active:scale-[0.98] transition-transform"
+            >
+              <span className="absolute inset-[-1000%] animate-[spin_3s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,#E2CBFF_0%,#6366f1_50%,#E2CBFF_100%)] opacity-70 group-hover:opacity-100 transition-opacity duration-500" />
+              <span className="inline-flex h-full w-full cursor-pointer items-center justify-center rounded-[11px] bg-zinc-950 px-8 py-1 text-sm font-bold text-white backdrop-blur-3xl gap-2 transition-colors group-hover:bg-zinc-900/90">
+                Claim This Link <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </span>
+            </Link>
+            
+            <Link 
+              href="/" 
+              className="w-full flex items-center justify-center py-4 text-sm font-bold text-zinc-500 hover:text-white transition-colors"
+            >
+              Return to Base
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
