@@ -1,6 +1,8 @@
 import { ImageResponse } from 'next/og';
 
-export const runtime = 'edge';
+// Removed: export const runtime = 'edge'; 
+// This fixes the Vercel build error "Using edge runtime on a page currently disables static generation"
+// Standard Serverless functions support next/og perfectly and won't crash the build.
 
 // Helper to prevent third-party APIs from hanging the image generation
 // Added support for headers (needed for HenrikDev API key)
