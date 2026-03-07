@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSteamProfile, getRecentlyPlayed, getSteamLevel, getOwnedGamesCount, getGameProgress } from '@/lib/steam';
 
+// FIX: Lowered from 3600 (1 hour) to 60 (1 minute). 
+// This keeps the rate-limit shield active, but allows "Playing Now" to update almost instantly!
+export const revalidate = 60;
+
 export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const steamId = searchParams.get('steamId');
@@ -10,7 +14,7 @@ export async function GET(req: NextRequest) {
     }
 
     try {
-        // Fetch all Steam data in parallel
+        // Fetch all Steam data in parallel using your updated lib functions
         const [profile, recentGames, level, gameCount] = await Promise.all([
             getSteamProfile(steamId),
             getRecentlyPlayed(steamId),

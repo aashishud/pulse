@@ -9,12 +9,9 @@ import { Metadata } from 'next';
 import BadgeRack from '@/components/BadgeRack';
 import AvatarDecoration from '@/components/AvatarDecoration';
 import CursorEffects from '@/components/CursorEffects';
-import ProfileGrid from '@/components/ProfileGrid'; // Client Component
+import ProfileGrid from '@/components/ProfileGrid';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-
-// REMOVED 'force-dynamic' so Vercel can cache this page globally
-// export const dynamic = 'force-dynamic';
 
 // Load Fonts
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
@@ -22,9 +19,9 @@ const spaceGrotesk = Space_Grotesk({ subsets: ['latin'], display: 'swap' });
 const pressStart = Press_Start_2P({ weight: '400', subsets: ['latin'], display: 'swap' });
 const cinzel = Cinzel({ subsets: ['latin'], display: 'swap' });
 
-// THE CACHING SHIELD: 3600 seconds (1 hour). 
-// This prevents database melting if a profile goes viral.
-export const revalidate = 3600;
+// THE CACHING SHIELD: 60 seconds (1 minute). 
+// Protects your database but allows Steam/Spotify status to update fast!
+export const revalidate = 60;
 
 interface Props {
   params: Promise<{ username: string }>;
@@ -140,7 +137,7 @@ async function getFirebaseUser(username: string) {
       cursorTrail: fields.theme?.mapValue?.fields?.cursorTrail?.stringValue || "none",
       bio: fields.bio?.stringValue || "",
       primaryCommunity: fields.primaryCommunity?.stringValue ?? null,
-      lastfm: fields.lastfm?.stringValue || "", // <-- ADDED LASTFM BINDING
+      lastfm: fields.lastfm?.stringValue || "",
       customLinks: getMapArray(fields.customLinks),
       clips: getClipsArray(fields.clips),
       layout: fields.layout?.arrayValue?.values || defaultLayout, 
@@ -189,7 +186,6 @@ export default async function ProfilePage({ params }: Props) {
   const domain = isDev ? 'localhost:3000' : (process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'pulsegg.in');
   
   const dashboardUrl = `${protocol}://${domain}/dashboard`;
-  const homeUrl = `${protocol}://${domain}`;
 
   // Sleek Growth Hacker 404 Page for unclaimed handles
   if (!firebaseUser) {

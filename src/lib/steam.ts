@@ -1,6 +1,6 @@
 const STEAM_API_KEY = process.env.STEAM_API_KEY;
 
-// FIX 1: Upgraded to HTTPS. Vercel environments often drop insecure HTTP requests or fail during redirects.
+// Upgraded to HTTPS for Vercel
 const STEAM_BASE_URL = 'https://api.steampowered.com';
 
 export interface SteamProfile {
@@ -23,17 +23,13 @@ export interface SteamGame {
 
 export async function getSteamProfile(rawSteamId: string): Promise<SteamProfile | null> {
   if (!STEAM_API_KEY || !rawSteamId) return null;
-  // FIX 2: Trim the ID to prevent trailing spaces from the database crashing Vercel's URL parser
   const steamId = rawSteamId.trim(); 
   
   try {
-    // FIX 3: Added &_t=${Date.now()} to the URL to aggressively bust any stubborn CDN/Vercel edge caches
+    // FIX: Lowered from 3600 to 60. This was the hidden culprit caching your "Playing Now" for an hour!
     const response = await fetch(
-      `${STEAM_BASE_URL}/ISteamUser/GetPlayerSummaries/v0002/?key=${STEAM_API_KEY}&steamids=${steamId}&_t=${Date.now()}`,
-      { 
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache, no-store' }
-      } 
+      `${STEAM_BASE_URL}/ISteamUser/GetPlayerSummaries/v0002/?key=${STEAM_API_KEY}&steamids=${steamId}`,
+      { next: { revalidate: 60 } } 
     );
     const data = await response.json();
     return data.response.players[0] || null;
@@ -49,11 +45,8 @@ export async function getRecentlyPlayed(rawSteamId: string): Promise<SteamGame[]
   
   try {
     const response = await fetch(
-      `${STEAM_BASE_URL}/IPlayerService/GetRecentlyPlayedGames/v0001/?key=${STEAM_API_KEY}&steamid=${steamId}&count=3&_t=${Date.now()}`,
-      { 
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache, no-store' }
-      } 
+      `${STEAM_BASE_URL}/IPlayerService/GetRecentlyPlayedGames/v0001/?key=${STEAM_API_KEY}&steamid=${steamId}&count=3`,
+      { next: { revalidate: 60 } } 
     );
     const data = await response.json();
     return data.response.games || [];
@@ -69,11 +62,8 @@ export async function getSteamLevel(rawSteamId: string): Promise<number> {
   
   try {
     const response = await fetch(
-      `${STEAM_BASE_URL}/IPlayerService/GetSteamLevel/v1/?key=${STEAM_API_KEY}&steamid=${steamId}&_t=${Date.now()}`,
-      { 
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache, no-store' }
-      } 
+      `${STEAM_BASE_URL}/IPlayerService/GetSteamLevel/v1/?key=${STEAM_API_KEY}&steamid=${steamId}`,
+      { next: { revalidate: 60 } } 
     );
     const data = await response.json();
     return data.response.player_level || 0;
@@ -88,11 +78,8 @@ export async function getOwnedGamesCount(rawSteamId: string): Promise<number> {
   
   try {
     const response = await fetch(
-      `${STEAM_BASE_URL}/IPlayerService/GetOwnedGames/v0001/?key=${STEAM_API_KEY}&steamid=${steamId}&include_appinfo=false&include_played_free_games=true&_t=${Date.now()}`,
-      { 
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache, no-store' }
-      } 
+      `${STEAM_BASE_URL}/IPlayerService/GetOwnedGames/v0001/?key=${STEAM_API_KEY}&steamid=${steamId}&include_appinfo=false&include_played_free_games=true`,
+      { next: { revalidate: 60 } } 
     );
     const data = await response.json();
     return data.response.game_count || 0;
@@ -107,11 +94,8 @@ export async function getGameProgress(rawSteamId: string, appId: number): Promis
   
   try {
     const response = await fetch(
-      `${STEAM_BASE_URL}/ISteamUserStats/GetPlayerAchievements/v0001/?appid=${appId}&key=${STEAM_API_KEY}&steamid=${steamId}&_t=${Date.now()}`,
-      { 
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache, no-store' }
-      } 
+      `${STEAM_BASE_URL}/ISteamUserStats/GetPlayerAchievements/v0001/?appid=${appId}&key=${STEAM_API_KEY}&steamid=${steamId}`,
+      { next: { revalidate: 60 } } 
     );
 
     if (!response.ok) return null; 
