@@ -29,10 +29,37 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { username } = await params;
+  
+  // Need the full URL for Discord to find the image
+  const isDev = process.env.NODE_ENV === 'development';
+  const protocol = isDev ? 'http' : 'https';
+  const domain = isDev ? 'localhost:3000' : (process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'pulsegg.in');
+  const ogImageUrl = `${protocol}://${domain}/api/og?user=${username}`;
+
   return {
     title: `${username} | Pulse`,
     description: `Check out ${username}'s gaming profile on Pulse.`,
-    metadataBase: new URL('https://pulsegg.in'),
+    metadataBase: new URL(`${protocol}://${domain}`),
+    openGraph: {
+      title: `${username} | Pulse`,
+      description: `Check out ${username}'s gaming profile on Pulse.`,
+      url: `${protocol}://${domain}/${username}`,
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          alt: `${username}'s Pulse Profile`,
+        },
+      ],
+      type: 'profile',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${username} | Pulse`,
+      description: `Check out ${username}'s gaming profile on Pulse.`,
+      images: [ogImageUrl],
+    },
   };
 }
 
