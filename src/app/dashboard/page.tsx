@@ -355,6 +355,18 @@ function DashboardContent() {
         layout,
         gear
       });
+      
+      // NEW: Instantly clear the Vercel cache for this specific profile!
+      try {
+        await fetch('/api/revalidate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: `/${user.id}` })
+        });
+      } catch (cacheError) {
+        console.error("Cache clear failed:", cacheError);
+      }
+
       setTimeout(() => setSaving(false), 1000);
     } catch (e) {
       console.error(e);
@@ -445,6 +457,17 @@ function DashboardContent() {
              avatar: editCommAvatar,
              banner: editCommBanner
          });
+
+         // NEW: Instantly clear the Vercel cache for this community page!
+         try {
+           await fetch('/api/revalidate', {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({ path: `/c/${editingCommunity.handle}` })
+           });
+         } catch (cacheError) {
+           console.error("Cache clear failed:", cacheError);
+         }
 
          alert("Community updated successfully!");
          setEditingCommunity(null);
