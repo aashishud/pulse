@@ -1,6 +1,6 @@
 import { getSteamProfile, getRecentlyPlayed, getSteamLevel, getOwnedGamesCount, getGameProgress } from '@/lib/steam';
 import { getValorantProfile } from '@/lib/valorant';
-import { Sparkles, Gamepad2, Trophy, Clock, MapPin, Link as LinkIcon, ExternalLink, Ghost, Music, LayoutGrid, Zap, Swords, Youtube, Twitch, Globe, ArrowUpRight, Share2, Users, ArrowRight } from 'lucide-react';
+import { Sparkles, Gamepad2, Trophy, Clock, MapPin, Link as LinkIcon, ExternalLink, Ghost, Music, LayoutGrid, Zap, Swords, Youtube, Twitch, Globe, ArrowUpRight, Share2, Users, ArrowRight, Eye } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Inter, Space_Grotesk, Press_Start_2P, Cinzel } from 'next/font/google';
@@ -10,6 +10,7 @@ import BadgeRack from '@/components/BadgeRack';
 import AvatarDecoration from '@/components/AvatarDecoration';
 import CursorEffects from '@/components/CursorEffects';
 import ProfileGrid from '@/components/ProfileGrid';
+import ViewCounter from '@/components/ViewCounter';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -21,7 +22,7 @@ const cinzel = Cinzel({ subsets: ['latin'], display: 'swap' });
 
 // THE CACHING SHIELD: 60 seconds (1 minute). 
 // Protects your database but allows Steam/Spotify status to update fast!
-export const revalidate = 0;
+export const revalidate = 60;
 
 interface Props {
   params: Promise<{ username: string }>;
@@ -138,6 +139,7 @@ async function getFirebaseUser(username: string) {
       customCursor: fields.theme?.mapValue?.fields?.customCursor?.stringValue || "", 
       customCursorHover: fields.theme?.mapValue?.fields?.customCursorHover?.stringValue || "", // FETCHING HOVER CURSOR
       bio: fields.bio?.stringValue || "",
+      views: fields.views?.integerValue || "0", // ADDED: View count
       primaryCommunity: fields.primaryCommunity?.stringValue ?? null,
       lastfm: fields.lastfm?.stringValue || "",
       customLinks: getMapArray(fields.customLinks),
@@ -366,6 +368,9 @@ export default async function ProfilePage({ params }: Props) {
     <div className={`min-h-screen bg-[#111214] text-white ${fontClass} overflow-x-hidden`}>
       <CursorEffects type={firebaseUser.cursorTrail} />
       
+      {/* ADDED: View Counter Trigger */}
+      <ViewCounter username={username} />
+      
       {/* AGGRESSIVE CSS OVERRIDE TO ENSURE CUSTOM CURSOR ALWAYS SHOWS (HOTSPOT 0 0 FIXED) */}
       {(firebaseUser.customCursor || firebaseUser.customCursorHover) && (
         <style dangerouslySetInnerHTML={{ __html: `
@@ -422,6 +427,14 @@ export default async function ProfilePage({ params }: Props) {
                     <h1 className={`${nameClasses} truncate`} style={nameStyle}>{displayName}</h1>
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-zinc-400 font-medium">@{username}</p>
+                      
+                      {/* ADDED: View Counter UI Badge */}
+                      {parseInt(firebaseUser.views || "0") > 0 && (
+                         <div className="flex items-center gap-1.5 text-zinc-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wide ml-1">
+                            <Eye className="w-3 h-3" /> {Number(firebaseUser.views || 0).toLocaleString()}
+                         </div>
+                      )}
+
                       <BadgeRack badgeList={badges} />
                     </div>
                   </div>
