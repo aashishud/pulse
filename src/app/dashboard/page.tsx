@@ -117,6 +117,8 @@ function DashboardContent() {
     avatar: "",
     avatarDecoration: "none",
     cursorTrail: "none",
+    customCursor: "", 
+    customCursorHover: "", 
     nameEffect: "solid",
     nameColor: "white",
     primary: "#1e1f22",
@@ -188,6 +190,24 @@ function DashboardContent() {
     { name: "Red", value: "red-500", hex: "#ef4444" },
   ];
 
+  // UPGRADED TO .PNG FOR BROWSER COMPATIBILITY
+  const cursorPresets = [
+    { name: "Default", url: "", hoverUrl: "" },
+    { name: "Among Us", url: "/cursors/amogus/Arrow.png", hoverUrl: "/cursors/amogus/Hand.png" },
+    { name: "Banana", url: "/cursors/banana/Arrow.png", hoverUrl: "/cursors/banana/Hand.png" },
+    { name: "Brainrot", url: "/cursors/brainrot/Arrow.png", hoverUrl: "/cursors/brainrot/Hand.png" },
+    { name: "Bugcat", url: "/cursors/bugcat/Arrow.png", hoverUrl: "/cursors/bugcat/Hand.png" },
+    { name: "Cat", url: "/cursors/cat/Arrow.png", hoverUrl: "/cursors/cat/Hand.png" },
+    { name: "Catpaw", url: "/cursors/catpaw/Arrow.png", hoverUrl: "/cursors/catpaw/Hand.png" },
+    { name: "Hello Kitty", url: "/cursors/hellokitty/Arrow.png", hoverUrl: "/cursors/hellokitty/Hand.png" },
+    { name: "Minecraft", url: "/cursors/minecraft/Arrow.png", hoverUrl: "/cursors/minecraft/Hand.png" },
+    { name: "Mochi", url: "/cursors/mochi/Arrow.png", hoverUrl: "/cursors/mochi/Hand.png" },
+    { name: "Pokemon", url: "/cursors/pokemon/Arrow.png", hoverUrl: "/cursors/pokemon/Hand.png" },
+    { name: "SpongeBob", url: "/cursors/spongebob/Arrow.png", hoverUrl: "/cursors/spongebob/Hand.png" },
+    { name: "Sus Luffy", url: "/cursors/susluffy/Arrow.png", hoverUrl: "/cursors/susluffy/Hand.png" },
+    { name: "Sus Pochi", url: "/cursors/suspochi/Arrow.png", hoverUrl: "/cursors/suspochi/Hand.png" },
+  ];
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -202,14 +222,11 @@ function DashboardContent() {
         return;
       }
 
-      // Handle Authentication Callbacks (Steam, Discord)
       const openidMode = searchParams.get('openid.mode');
       const discordCode = searchParams.get('discord_code');
 
       if (openidMode || discordCode) {
         setLoading(true);
-        
-        // 1. Steam
         if (openidMode) {
           const result = await verifySteamLogin(searchParams.toString());
           if (result.success && result.steamId) {
@@ -220,8 +237,6 @@ function DashboardContent() {
             }
           }
         }
-
-        // 2. Discord
         if (discordCode) {
            const result = await verifyDiscordLogin(discordCode, window.location.origin);
            if (result.success && result.username) {
@@ -235,25 +250,22 @@ function DashboardContent() {
               }
            }
         }
-
         router.replace('/dashboard');
         return;
       }
 
-      // Fetch User Data
       const q = query(collection(db, "users"), where("owner_uid", "==", currentUser.uid));
       const querySnapshot = await getDocs(q);
 
       if (!querySnapshot.empty) {
         const userData = querySnapshot.docs[0].data();
-        const uid = querySnapshot.docs[0].id; // The document ID is their handle
+        const uid = querySnapshot.docs[0].id;
         setUser({ ...userData, id: uid });
         
         setDisplayName(userData.displayName || "");
         setNewUsername(userData.username || uid); 
         setBio(userData.bio || "");
         
-        // Merge Theme defaults
         setTheme({ 
             color: userData.theme?.color || "indigo",
             mode: userData.theme?.mode || "dark",
@@ -262,6 +274,8 @@ function DashboardContent() {
             avatar: userData.theme?.avatar || "",
             avatarDecoration: userData.theme?.avatarDecoration || "none",
             cursorTrail: userData.theme?.cursorTrail || "none",
+            customCursor: userData.theme?.customCursor || "",
+            customCursorHover: userData.theme?.customCursorHover || "",
             nameEffect: userData.theme?.nameEffect || "solid",
             nameColor: userData.theme?.nameColor || "white",
             primary: userData.theme?.primary || "#1e1f22",
@@ -276,7 +290,6 @@ function DashboardContent() {
         setLastfm(userData.lastfm || "");
         setGear(userData.gear || { cpu: "", gpu: "", ram: "", mouse: "", keyboard: "", headset: "", monitor: "" });
 
-        // Ensure Layout has all widgets
         const defaultWidgets = [
             { id: 'hero', label: 'Recent Activity', enabled: true, size: 'full' },
             { id: 'content', label: 'Creator Stack', enabled: true, size: 'half' },
@@ -287,23 +300,20 @@ function DashboardContent() {
         ];
 
         let currentLayout = userData.layout || defaultWidgets;
-        
         const existingIds = new Set(currentLayout.map((w: any) => w.id));
         defaultWidgets.forEach(dw => {
             if (!existingIds.has(dw.id)) {
                 currentLayout.push(dw);
             }
         });
-
         setLayout(currentLayout);
 
-        // SAFELY FETCH COMMUNITIES
         try {
             const commQ = query(collection(db, "communities"), where("owner_uid", "==", currentUser.uid));
             const commSnap = await getDocs(commQ);
             setMyCommunities(commSnap.docs.map(d => ({ id: d.id, ...d.data() })));
         } catch (err) {
-            console.warn("Could not fetch communities. You need to update Firebase Security Rules:", err);
+            console.warn("Could not fetch communities.", err);
             setMyCommunities([]);
         }
 
@@ -316,12 +326,9 @@ function DashboardContent() {
     return () => unsubscribe();
   }, [router, searchParams]);
 
-  // --- ACTIONS ---
-
   const handleSave = async () => {
     if (!user) return;
 
-    // --- PROFANITY CHECK ---
     const hasProfanity = 
       isProfane(displayName) ||
       isProfane(bio) ||
@@ -331,6 +338,8 @@ function DashboardContent() {
       isProfane(gaming.epic) ||
       isProfane(gaming.valorant?.name) ||
       isProfane(gaming.valorant?.tag) ||
+      isProfane(theme.customCursor) ||
+      isProfane(theme.customCursorHover) || 
       customLinks.some(link => isProfane(link.label)) ||
       clips.some(clip => isProfane(clip.title));
 
@@ -356,7 +365,6 @@ function DashboardContent() {
         gear
       });
       
-      // NEW: Instantly clear the Vercel cache for this specific profile!
       try {
         await fetch('/api/revalidate', {
           method: 'POST',
@@ -379,14 +387,11 @@ function DashboardContent() {
       alert("You can only create a maximum of 3 communities per account.");
       return;
     }
-
     if (!commName || !commHandle) return;
-
     if (isProfane(commName) || isProfane(commHandle) || isProfane(commDesc)) {
         alert("⚠️ We detected inappropriate language in your community details.");
         return;
     }
-
     setSaving(true);
     try {
         const cleanHandle = commHandle.toLowerCase().replace(/[^a-z0-9-]/g, '');
@@ -397,7 +402,6 @@ function DashboardContent() {
            setSaving(false); 
            return; 
         }
-
         await setDoc(docRef, {
             name: commName,
             handle: cleanHandle,
@@ -409,7 +413,6 @@ function DashboardContent() {
             banner: "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2600&auto=format&fit=crop",
             avatar: ""
         });
-
         alert("Community Launch Successful!");
         setIsCreatingCommunity(false);
         setCommName(""); setCommHandle(""); setCommDesc("");
@@ -442,12 +445,10 @@ function DashboardContent() {
   const handleUpdateCommunity = async () => {
      if (!editingCommunity) return;
      if (!editCommName) { alert("Community name cannot be empty."); return; }
-
      if (isProfane(editCommName) || isProfane(editCommDesc)) {
          alert("⚠️ We detected inappropriate language in your community details.");
          return;
      }
-
      setSaving(true);
      try {
          const commRef = doc(db, "communities", editingCommunity.handle);
@@ -457,8 +458,6 @@ function DashboardContent() {
              avatar: editCommAvatar,
              banner: editCommBanner
          });
-
-         // NEW: Instantly clear the Vercel cache for this community page!
          try {
            await fetch('/api/revalidate', {
              method: 'POST',
@@ -468,10 +467,8 @@ function DashboardContent() {
          } catch (cacheError) {
            console.error("Cache clear failed:", cacheError);
          }
-
          alert("Community updated successfully!");
          setEditingCommunity(null);
-         
          if (auth.currentUser) {
              const commQ = query(collection(db, "communities"), where("owner_uid", "==", auth.currentUser.uid));
              const commSnap = await getDocs(commQ);
@@ -487,25 +484,18 @@ function DashboardContent() {
 
   const handleDeleteCommunity = async (commHandle: string) => {
      if (!confirm(`Are you absolutely sure you want to delete the community /c/${commHandle}? This action cannot be undone.`)) return;
-
      setSaving(true);
      try {
-         // Delete the community document
          await deleteDoc(doc(db, "communities", commHandle));
-
-         // Remove it from the local state list immediately
          setMyCommunities(prev => prev.filter(c => c.handle !== commHandle));
-
-         // If the user had this community set as their primary badge, reset it so it doesn't break their profile
          if (primaryCommunity === commHandle) {
              setPrimaryCommunity("");
              if (user?.id) {
                  await updateDoc(doc(db, "users", user.id), { primaryCommunity: "" });
              }
          }
-
          alert("Community permanently deleted.");
-         setEditingCommunity(null); // Close the edit modal
+         setEditingCommunity(null); 
      } catch (e) {
          console.error(e);
          alert("Failed to delete community. Please check your connection.");
@@ -564,7 +554,6 @@ function DashboardContent() {
   const handleDisconnect = async (platform: string) => {
     if (!confirm(`Disconnect ${platform}?`)) return;
     if (!user) return;
-    
     setSaving(true);
     try {
         const userRef = doc(db, "users", user.id);
@@ -589,17 +578,13 @@ function DashboardContent() {
 
   const handleChangeUsername = async () => {
     if (!newUsername || newUsername === user.username) return;
-
     if (isOnCooldown) {
       alert(`You can only change your username once every 12 hours. Please try again in ${hoursLeft} hours.`);
       return;
     }
-
     if (!confirm(`Change handle to @${newUsername}? This will change your profile URL and delete old ones.`)) return;
-
     const validationError = validateHandle(newUsername.toLowerCase());
     if (validationError) { alert(validationError); return; }
-
     if (isProfane(newUsername)) {
         alert("⚠️ This handle contains inappropriate language.");
         return;
@@ -609,13 +594,11 @@ function DashboardContent() {
     try {
       const newRef = doc(db, "users", newUsername.toLowerCase());
       const snap = await getDoc(newRef);
-      
       if (snap.exists() && snap.data().owner_uid !== auth.currentUser?.uid) {
         alert("Username is already taken.");
         setSaving(false);
         return;
       }
-
       const userDataToSave = { ...user };
       userDataToSave.username = newUsername.toLowerCase();
       userDataToSave.lastUsernameChange = Date.now();
@@ -631,7 +614,6 @@ function DashboardContent() {
         .map(docSnap => deleteDoc(doc(db, "users", docSnap.id)));
 
       await Promise.all(cleanupPromises);
-
       alert("Username changed! Reloading...");
       window.location.href = `/dashboard`;
     } catch (e: any) {
@@ -664,27 +646,19 @@ function DashboardContent() {
   const handleDeleteAccount = async () => {
     if (!user || deleteConfirmText !== user.id) return;
     if (!auth.currentUser) return;
-
-    // PREVENT DELETION IF COMMUNITIES EXIST
     if (myCommunities.length > 0) {
         alert(`⚠️ Action Required: You currently own ${myCommunities.length} community(s).\n\nYou must delete them from the "Communities" tab before deleting your account to prevent abandoned data.`);
         setIsDeletingAccount(false);
         return;
     }
-
     setSaving(true);
     try {
-      // 1. Delete user document from Firestore (so their URL goes blank)
       await deleteDoc(doc(db, "users", user.id));
-      
-      // 2. Permanently delete their Firebase Authentication Account
       await deleteUser(auth.currentUser);
-      
       alert("Account permanently deleted. We're sorry to see you go!");
       window.location.href = "/";
     } catch (e: any) {
       console.error(e);
-      // Firebase throws this specific error if the session is too old to safely delete an account
       if (e.code === 'auth/requires-recent-login') {
         alert("For your security, please log out and log back in before deleting your account.");
       } else {
@@ -701,6 +675,18 @@ function DashboardContent() {
   return (
     <div className="min-h-screen bg-[#0a0a0c] text-white font-sans selection:bg-indigo-500/30">
       
+      {/* LIVE CURSOR PREVIEW FOR DASHBOARD (ULTRA-SAFE PNG SYNC) */}
+      {(theme.customCursor || theme.customCursorHover) && (
+        <style dangerouslySetInnerHTML={{ __html: `
+          html, body, *, .min-h-screen { 
+            cursor: url('${theme.customCursor}') 0 0, auto !important; 
+          }
+          a, button, [role="button"], [class*="hover:"], .cursor-pointer, input, textarea { 
+            cursor: url('${theme.customCursorHover || theme.customCursor}') 0 0, pointer !important; 
+          }
+        `}} />
+      )}
+
       {/* Account Deletion Modal */}
       {isDeletingAccount && (
          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
@@ -1277,10 +1263,10 @@ function DashboardContent() {
                    <div className="h-px bg-white/5 my-8"></div>
 
                    {/* Cosmetics */}
-                   <div className="grid grid-cols-2 gap-4 mb-8">
+                   <div className="grid grid-cols-2 gap-4 mb-6">
                        <div>
                           <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Avatar Frame</label>
-                          <select value={theme.avatarDecoration} onChange={e => setTheme({...theme, avatarDecoration: e.target.value})} className="w-full bg-[#0a0a0c] border border-white/10 rounded-xl p-3 text-white text-sm">
+                          <select value={theme.avatarDecoration} onChange={e => setTheme({...theme, avatarDecoration: e.target.value})} className="w-full bg-[#0a0a0c] border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-indigo-500">
                              <optgroup label="Standard">
                                <option value="none">None</option>
                                <option value="gold">Golden Ring</option>
@@ -1299,8 +1285,8 @@ function DashboardContent() {
                        </div>
                        
                        <div>
-                          <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Cursor</label>
-                          <select value={theme.cursorTrail} onChange={e => setTheme({...theme, cursorTrail: e.target.value})} className="w-full bg-[#0a0a0c] border border-white/10 rounded-xl p-3 text-white text-sm">
+                          <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Cursor Trail (Effects)</label>
+                          <select value={theme.cursorTrail} onChange={e => setTheme({...theme, cursorTrail: e.target.value})} className="w-full bg-[#0a0a0c] border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-indigo-500">
                              <option value="none">Default</option>
                              <option value="ghost">Ghost Trail</option>
                              <option value="sparkle">Sparkles</option>
@@ -1308,6 +1294,57 @@ function DashboardContent() {
                              <option value="coins">Coins</option>
                           </select>
                        </div>
+                   </div>
+
+                   {/* DYNAMIC CUSTOM CURSORS (TWO URLS) */}
+                   <div className="bg-black/30 p-5 rounded-2xl border border-zinc-700/50 mb-8">
+                      <div className="flex items-center gap-2 mb-2">
+                        <MousePointer2 className="w-4 h-4 text-indigo-400" />
+                        <label className="block text-sm font-bold text-white">Custom Cursor</label>
+                      </div>
+                      <p className="text-xs text-zinc-500 mb-5">Click a preset or paste direct links to your own .png files. (Ensure filenames match your folder!)</p>
+
+                      {/* Preset Grid */}
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
+                         {cursorPresets.map(preset => (
+                            <button
+                               key={preset.name}
+                               onClick={() => setTheme({ ...theme, customCursor: preset.url, customCursorHover: preset.hoverUrl || preset.url })}
+                               className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-3 transition hover:bg-white/5 ${theme.customCursor === preset.url ? 'border-indigo-500 bg-indigo-500/10 shadow-[0_0_15px_rgba(99,102,241,0.2)]' : 'border-white/10 bg-[#0a0a0c]'}`}
+                            >
+                               {preset.url ? (
+                                  <img src={preset.url} alt={preset.name} className="w-8 h-8 object-contain" />
+                               ) : (
+                                  <MousePointer2 className="w-8 h-8 text-zinc-400" />
+                               )}
+                               <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{preset.name}</span>
+                            </button>
+                         ))}
+                      </div>
+
+                      {/* Double URL Input */}
+                      <div className="flex flex-col md:flex-row gap-4 mt-4">
+                         <div className="flex-1">
+                            <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Idle Cursor (.png)</label>
+                            <input
+                               type="text"
+                               value={theme.customCursor}
+                               onChange={e => setTheme({ ...theme, customCursor: e.target.value })}
+                               placeholder="https://example.com/idle.png"
+                               className="w-full bg-[#0a0a0c] border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-indigo-500 transition font-mono"
+                            />
+                         </div>
+                         <div className="flex-1">
+                            <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Hover / Link Cursor (.png)</label>
+                            <input
+                               type="text"
+                               value={theme.customCursorHover}
+                               onChange={e => setTheme({ ...theme, customCursorHover: e.target.value })}
+                               placeholder="https://example.com/hover.png"
+                               className="w-full bg-[#0a0a0c] border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-indigo-500 transition font-mono"
+                            />
+                         </div>
+                      </div>
                    </div>
 
                    <div className="flex justify-between items-center mb-4">

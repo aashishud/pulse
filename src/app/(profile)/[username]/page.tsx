@@ -21,7 +21,7 @@ const cinzel = Cinzel({ subsets: ['latin'], display: 'swap' });
 
 // THE CACHING SHIELD: 60 seconds (1 minute). 
 // Protects your database but allows Steam/Spotify status to update fast!
-export const revalidate = 60;
+export const revalidate = 0;
 
 interface Props {
   params: Promise<{ username: string }>;
@@ -135,6 +135,8 @@ async function getFirebaseUser(username: string) {
       primary: fields.theme?.mapValue?.fields?.primary?.stringValue || "#1e1f22", 
       avatarDecoration: fields.theme?.mapValue?.fields?.avatarDecoration?.stringValue || "none",
       cursorTrail: fields.theme?.mapValue?.fields?.cursorTrail?.stringValue || "none",
+      customCursor: fields.theme?.mapValue?.fields?.customCursor?.stringValue || "", 
+      customCursorHover: fields.theme?.mapValue?.fields?.customCursorHover?.stringValue || "", // FETCHING HOVER CURSOR
       bio: fields.bio?.stringValue || "",
       primaryCommunity: fields.primaryCommunity?.stringValue ?? null,
       lastfm: fields.lastfm?.stringValue || "",
@@ -205,7 +207,6 @@ export default async function ProfilePage({ params }: Props) {
           </p>
 
           <div className="space-y-4 w-full max-w-xs mx-auto">
-            {/* 21st.dev Magic Button */}
             <Link 
               href={`/signup?handle=${username}`}
               className="relative inline-flex h-14 w-full overflow-hidden rounded-xl p-[1px] focus:outline-none group active:scale-[0.98] transition-transform"
@@ -262,16 +263,17 @@ export default async function ProfilePage({ params }: Props) {
     promises.push(Promise.resolve(null));
   }
 
-  // --- NEW LASTFM FETCH (Replaces Spotify) ---
   promises.push(
     firebaseUser.lastfm 
-      ? fetch(`${protocol}://${domain}/api/lastfm/now-playing?user=${firebaseUser.lastfm}`, { cache: 'no-store' })
+      ? fetch(`${protocol}://${domain}/api/lastfm/now-playing?user=${firebaseUser.lastfm}`, { 
+          cache: 'no-store',
+          signal: AbortSignal.timeout(4000) 
+        })
           .then(res => res.ok ? res.json() : null)
           .catch(err => { console.error("Last.fm Fetch Error:", err); return null; })
       : Promise.resolve(null)
   );
 
-  // Fetch Community Data
   promises.push(
     firebaseUser.owner_uid ? (async () => {
       try {
@@ -364,6 +366,18 @@ export default async function ProfilePage({ params }: Props) {
     <div className={`min-h-screen bg-[#111214] text-white ${fontClass} overflow-x-hidden`}>
       <CursorEffects type={firebaseUser.cursorTrail} />
       
+      {/* AGGRESSIVE CSS OVERRIDE TO ENSURE CUSTOM CURSOR ALWAYS SHOWS (HOTSPOT 0 0 FIXED) */}
+      {(firebaseUser.customCursor || firebaseUser.customCursorHover) && (
+        <style dangerouslySetInnerHTML={{ __html: `
+          html, body, *, .min-h-screen { 
+            cursor: url("${firebaseUser.customCursor}") 0 0, auto !important; 
+          }
+          a, button, [role="button"], [class*="hover:"], .cursor-pointer, input, textarea { 
+            cursor: url("${firebaseUser.customCursorHover || firebaseUser.customCursor}") 0 0, pointer !important; 
+          }
+        `}} />
+      )}
+
       <div className="fixed inset-0 z-0">
          <div className="absolute inset-0 bg-cover bg-center" style={backgroundStyle}></div>
          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-[#111214]/90 to-[#111214]"></div>
@@ -439,7 +453,6 @@ export default async function ProfilePage({ params }: Props) {
                   </div>
                 )}
 
-                {/* UPDATE: Displaying Last.fm data (Still styled like Spotify) */}
                 {musicData?.nowPlaying?.isPlaying && (
                   <div className="mb-6 p-3 bg-[#111214] rounded-xl border border-[#1DB954]/20 flex items-center gap-3 group relative overflow-hidden">
                       <div className="absolute inset-0 bg-gradient-to-r from-[#1DB954]/5 to-transparent opacity-0 group-hover:opacity-100 transition duration-500"></div>
@@ -483,7 +496,6 @@ export default async function ProfilePage({ params }: Props) {
           </div>
 
           <div className="lg:col-span-8">
-            {/* Pass the Last.fm data into the same prop ProfileGrid uses */}
             <ProfileGrid user={firebaseUser} steam={steamData} spotify={musicData} />
           </div>
 

@@ -1,8 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-// Force Next.js to NEVER cache this API route
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+// Cache this API route for 60 seconds to prevent rate limiting
+export const revalidate = 60;
 
 const LASTFM_API_KEY = "f67e37a93f1ef058ee954ae0517e6e8c";
 const DEFAULT_STAR_IMAGE = "2a96cbd8b46e442fc41c2b86b821562f";
@@ -31,6 +30,8 @@ async function getSpotifyAppToken() {
       },
       body: "grant_type=client_credentials",
       cache: "no-store",
+      // HARDENING: 2.5 second timeout for Spotify Auth
+      signal: AbortSignal.timeout(2500)
     });
 
     if (res.ok) {
@@ -41,7 +42,7 @@ async function getSpotifyAppToken() {
       return cachedSpotifyToken;
     }
   } catch (e) {
-    console.error("Failed to fetch Spotify App Token", e);
+    console.error("Failed to fetch Spotify App Token (Timeout/Network)");
   }
   return null;
 }
@@ -59,6 +60,8 @@ async function fetchSpotifyArt(artist: string, track: string) {
     const res = await fetch(`https://api.spotify.com/v1/search?q=${query}&type=track&limit=1`, {
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
+      // HARDENING: 2.5 second timeout for Spotify Search
+      signal: AbortSignal.timeout(2500)
     });
 
     if (res.ok) {
@@ -69,7 +72,7 @@ async function fetchSpotifyArt(artist: string, track: string) {
       }
     }
   } catch (e) {
-    console.error("Spotify Search Error:", e);
+    console.error("Spotify Search Error (Timeout/Network)");
   }
   return "";
 }
@@ -86,7 +89,7 @@ function getValidLastFmImage(images: any[] = []) {
 }
 
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const user = searchParams.get("user");
 
@@ -94,9 +97,10 @@ export async function GET(request: Request) {
 
   try {
     // 1. Fetch the Currently Playing (or most recent) track
+    // HARDENING: 3.5s timeout so it fails fast instead of hanging
     const recentRes = await fetch(
       `https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=${encodeURIComponent(user)}&api_key=${LASTFM_API_KEY}&format=json&limit=2&_t=${Date.now()}`,
-      { cache: "no-store", headers: { "Cache-Control": "no-cache" } }
+      { cache: "no-store", headers: { "Cache-Control": "no-cache" }, signal: AbortSignal.timeout(3500) }
     );
     
     let nowPlaying = { isPlaying: false, title: "", artist: "", albumArt: "", url: "" };
@@ -116,7 +120,7 @@ export async function GET(request: Request) {
         // 🌟 MAGIC: Attempt to fetch pristine Spotify art first!
         let bestImage = await fetchSpotifyArt(artistName, trackName);
         
-        // Fallback to Last.fm if Spotify fails to find it
+        // Fallback to Last.fm if Spotify fails to find it or times out
         if (!bestImage) {
             bestImage = getValidLastFmImage(track.image);
         }
@@ -134,7 +138,7 @@ export async function GET(request: Request) {
     // 2. Fetch Top 3 Tracks (Short Term = 1 month)
     const topRes = await fetch(
       `https://ws.audioscrobbler.com/2.0/?method=user.gettoptracks&user=${encodeURIComponent(user)}&api_key=${LASTFM_API_KEY}&format=json&limit=3&period=1month&_t=${Date.now()}`,
-      { cache: "no-store", headers: { "Cache-Control": "no-cache" } }
+      { cache: "no-store", headers: { "Cache-Control": "no-cache" }, signal: AbortSignal.timeout(3500) }
     );
 
     let topTracks: any[] = [];
@@ -176,7 +180,8 @@ export async function GET(request: Request) {
     });
 
   } catch (error: any) {
-    console.error("Last.fm + Spotify API Error:", error);
+    console.error("Last.fm + Spotify API Error (Timeout or API down):", error.message || error);
+    // Graceful exit: return empty track array instead of a 500 server crash
     return NextResponse.json({ 
         nowPlaying: { isPlaying: false }, 
         topTracks: [] 
