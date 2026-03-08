@@ -428,8 +428,7 @@ export default async function ProfilePage({ params }: Props) {
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-zinc-400 font-medium">@{username}</p>
                       
-                      {/* ADDED: View Counter UI Badge */}
-                      {parseInt(firebaseUser.views || "0") > 0 && (
+                      {parseInt(firebaseUser.views || "0") >= 0 && (
                          <div className="flex items-center gap-1.5 text-zinc-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wide ml-1">
                             <Eye className="w-3 h-3" /> {Number(firebaseUser.views || 0).toLocaleString()}
                          </div>
@@ -497,12 +496,99 @@ export default async function ProfilePage({ params }: Props) {
                 
                 <div className="space-y-4">
                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Connections</h3>
-                   {firebaseUser.steamId && <div className="flex items-center justify-between group"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-[#171a21] rounded flex items-center justify-center"><svg className="w-5 h-5 fill-white" viewBox="0 0 24 24"><path d="M11.979 0C5.352 0 .002 5.35.002 11.95c0 5.63 3.863 10.33 9.056 11.59-.115-.815-.04-1.637.28-2.392l.84-2.81c-.244-.765-.333-1.683-.153-2.61.547-2.66 3.102-4.32 5.714-3.715 2.613.604 4.234 3.25 3.687 5.91-.4 1.94-2.022 3.355-3.86 3.593l-.865 2.92c4.467-1.35 7.9-5.26 8.3-9.98.028-.27.042-.54.042-.814C23.956 5.35 18.605 0 11.98 0zm6.54 12.35c.78.18 1.265.98 1.085 1.776-.18.797-.97.94-1.75.76-.78-.18-1.264-.98-1.085-1.776.18-.798.97-.94 1.75-.76zm-5.46 3.7c-.035 1.54 1.06 2.87 2.53 3.11l.245-.82c-.815-.224-1.423-1.04-1.396-1.99.027-.95.7-1.706 1.543-1.83l.255-.86c-1.472.03-2.65 1.13-3.176 2.39zm-3.045 2.5c-.755.12-1.395-.385-1.43-1.127-.035-.742.53-1.413 1.285-1.532.755-.12 1.394.385 1.43 1.127.034.74-.53 1.41-1.285 1.53z"/></svg></div><div><p className="text-sm font-bold">Steam</p><p className="text-[10px] md:text-xs text-zinc-500">{level > 0 ? `Level ${level}` : 'Connected'}</p></div></div><VerifiedBadge /></div>}
-                   {firebaseUser.socials.discord && <div className="flex items-center justify-between group"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-[#5865F2] rounded flex items-center justify-center text-white"><svg className="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg></div><div><p className="text-sm font-bold">Discord</p><p className="text-[10px] md:text-xs text-zinc-500">{firebaseUser.socials.discord}</p></div></div>{firebaseUser.socials.discord_verified && <VerifiedBadge />}</div>}
-                   {firebaseUser.gaming.xbox && <div className="flex items-center justify-between group"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-[#107C10] rounded flex items-center justify-center font-bold text-xs">X</div><div><p className="text-sm font-bold">Xbox</p><p className="text-xs text-zinc-500">{firebaseUser.gaming.xbox}</p></div></div></div>}
-                   {firebaseUser.gaming.epic && <div className="flex items-center justify-between group"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-[#313131] rounded flex items-center justify-center font-bold text-xs">E</div><div><p className="text-sm font-bold">Epic Games</p><p className="text-xs text-zinc-500">{firebaseUser.gaming.epic}</p></div></div></div>}
-                   {firebaseUser.socials.twitter && <div className="flex items-center justify-between group"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-zinc-800 rounded flex items-center justify-center"><svg className="w-3 h-3 fill-white" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></div><div><p className="text-sm font-bold">Twitter</p><p className="text-xs text-zinc-500">{firebaseUser.socials.twitter}</p></div></div></div>}
-                   {firebaseUser.socials.instagram && <div className="flex items-center justify-between group"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-zinc-800 rounded flex items-center justify-center"><svg className="w-3 h-3 fill-white" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg></div><div><p className="text-sm font-bold">Instagram</p><p className="text-xs text-zinc-500">{firebaseUser.socials.instagram}</p></div></div></div>}
+                   
+                   {/* OFFICIAL STEAM ICON */}
+                   {firebaseUser.steamId && (
+                     <div className="flex items-center justify-between group">
+                       <div className="flex items-center gap-3">
+                         <div className="w-8 h-8 bg-[#171a21] rounded flex items-center justify-center">
+                           <svg className="w-4 h-4 fill-white" viewBox="0 0 496 512"><path d="M496 256c0 137-111.2 248-248.4 248-113.8 0-209.6-76.3-239-180.4l95.2 39.3c6.4 32.1 34.9 56.4 68.9 56.4 39.2 0 71.9-32.4 70.2-73.5l84.5-60.2c52.1 1.3 95.8-40.9 95.8-93.5 0-51.6-42-93.5-93.7-93.5s-93.7 42-93.7 93.5v1.2L176.6 279c-15.5-.9-30.7 3.4-43.5 12.1L0 236.1C10.2 108.4 117.1 8 247.6 8 384.8 8 496 119.3 496 256zM155.7 384.3l-30.5-12.6a52.79 52.79 0 0 0 27.2 25.8c26.9 11.2 57.8-1.6 69-28.4 5.4-13 5.5-27.3.1-40.3-5.4-13-15.5-23.2-28.5-28.6-12.9-5.4-26.7-5.2-38.9-.6l31.5 13c19.8 8.2 29.2 30.9 20.9 50.7-8.3 19.9-31 29.2-50.8 21zM277.5 344.1c-8.7-1.4-16.7-6.2-22.3-13.3-5.6-7.1-8.5-16.1-8.2-25.2.3-9.1 3.8-17.8 9.9-24.6 6.1-6.8 14.4-11.1 23.3-12.1 8.9-1 17.8 1.4 25 6.4 7.2 5 12.3 12.4 14.1 21.1 1.8 8.7-.3 17.8-5.8 24.8-5.5 7-13.4 11.6-22 13.1-8.6 1.5-17.6-.2-24-4.2zm24.6-67.6c-16.1 0-29.2 13.1-29.2 29.2s13.1 29.2 29.2 29.2 29.2-13.1 29.2-29.2-13.1-29.2-29.2-29.2z"/></svg>
+                         </div>
+                         <div>
+                           <p className="text-sm font-bold">Steam</p>
+                           <p className="text-[10px] md:text-xs text-zinc-500">{level > 0 ? `Level ${level}` : 'Connected'}</p>
+                         </div>
+                       </div>
+                       <VerifiedBadge />
+                     </div>
+                   )}
+
+                   {/* OFFICIAL DISCORD ICON */}
+                   {firebaseUser.socials.discord && (
+                     <div className="flex items-center justify-between group">
+                       <div className="flex items-center gap-3">
+                         <div className="w-8 h-8 bg-[#5865F2] rounded flex items-center justify-center text-white">
+                           <svg className="w-4 h-4 fill-white" viewBox="0 0 640 512"><path d="M524.5 69.8a1.5 1.5 0 0 0 -.8-.7A485.1 485.1 0 0 0 404.1 32a1.8 1.8 0 0 0 -1.9 .9 337.5 337.5 0 0 0 -14.9 30.6 447.8 447.8 0 0 0 -134.4 0 309.5 309.5 0 0 0 -15.1-30.6 1.9 1.9 0 0 0 -1.9-.9A483.7 483.7 0 0 0 116.1 69.1a1.7 1.7 0 0 0 -.8 .7C39.1 183.7 18.2 294.7 28.4 404.4a2 2 0 0 0 .8 1.4A487.7 487.7 0 0 0 176 479.9a1.9 1.9 0 0 0 2.1-.7A348.2 348.2 0 0 0 208.1 430.4a1.9 1.9 0 0 0 -1-2.6 321.2 321.2 0 0 1 -45.9-21.9 1.9 1.9 0 0 1 -.2-3.1c3.1-2.3 6.2-4.7 9.1-7.1a1.8 1.8 0 0 1 1.9-.3c96.2 43.9 200.4 43.9 295.5 0a1.8 1.8 0 0 1 1.9 .2c2.9 2.4 6 4.9 9.1 7.2a1.9 1.9 0 0 1 -.2 3.1 301.4 301.4 0 0 1 -45.9 21.8 1.9 1.9 0 0 0 -1 2.6 391.1 391.1 0 0 0 30 48.8 1.9 1.9 0 0 0 2.1 .7A486 486 0 0 0 611.6 405.7a1.9 1.9 0 0 0 .8-1.4C623.2 277.6 590.9 167.5 524.5 69.8zM222.5 337.6c-29 0-52.8-26.6-52.8-59.2S193.1 219.1 222.5 219.1c29.7 0 53.3 26.8 52.8 59.2C275.3 311 251.9 337.6 222.5 337.6zm195.4 0c-29 0-52.8-26.6-52.8-59.2S388.4 219.1 417.9 219.1c29.7 0 53.3 26.8 52.8 59.2C470.7 311 447.5 337.6 417.9 337.6z"/></svg>
+                         </div>
+                         <div>
+                           <p className="text-sm font-bold">Discord</p>
+                           <p className="text-[10px] md:text-xs text-zinc-500">{firebaseUser.socials.discord}</p>
+                         </div>
+                       </div>
+                       {firebaseUser.socials.discord_verified && <VerifiedBadge />}
+                     </div>
+                   )}
+
+                   {/* OFFICIAL XBOX ICON */}
+                   {firebaseUser.gaming.xbox && (
+                     <div className="flex items-center justify-between group">
+                       <div className="flex items-center gap-3">
+                         <div className="w-8 h-8 bg-[#107C10] rounded flex items-center justify-center">
+                           <svg className="w-4 h-4 fill-white" viewBox="0 0 512 512"><path d="M256 0A256 256 0 1 0 256 512A256 256 0 1 0 256 0zM144.1 88.5c19.3-5.2 41.5-7.7 65.5-5.9C168 116.3 125 155.6 91.8 206.4c1.8-49 24.3-94.8 52.3-117.9zm13 325c-43.2-30.3-69.5-80.1-70-134.4C108.5 315.6 128.5 352.5 157 386c-5.1-4.7-9.5-9.3-12.9-12.5zm195.6-325c28 23.1 50.5 69 52.3 117.9-33.2-50.8-76.3-90.1-117.8-123.8 24-1.8 46.2 .7 65.5 5.9zm-13.6 337.4C307.7 400.6 281.8 409 256 409s-51.7-8.4-83.1-16.9C211.7 353.4 256 295.3 256 295.3s44.3 58.1 83.1 96.8zM355 386c28.5-33.5 48.5-70.4 69.9-106.9-.5 54.3-26.8 104.1-70 134.4-3.4 3.2-7.8 7.8-12.9 12.5z"/></svg>
+                         </div>
+                         <div>
+                           <p className="text-sm font-bold">Xbox</p>
+                           <p className="text-xs text-zinc-500">{firebaseUser.gaming.xbox}</p>
+                         </div>
+                       </div>
+                     </div>
+                   )}
+
+                   {/* OFFICIAL EPIC GAMES ICON */}
+                   {firebaseUser.gaming.epic && (
+                     <div className="flex items-center justify-between group">
+                       <div className="flex items-center gap-3">
+                         <div className="w-8 h-8 bg-[#313131] rounded flex items-center justify-center">
+                           <svg className="w-3.5 h-3.5 fill-white" viewBox="0 0 24 24"><path d="M20.67 4.195l-7.234-4.004c-1.304-.72-2.825-.664-4.09.117L2.942 4.195c-1.28.788-2.072 2.148-2.072 3.655v8.113c0 1.507.792 2.867 2.072 3.655l6.404 3.948a4.238 4.238 0 004.144 0l6.404-3.948c1.28-.788 2.072-2.148 2.072-3.655V7.85c0-1.507-.792-2.867-2.072-3.655H20.67zm-7.618 11.23h-2.46v-1.57h2.46v-2.116h-2.46v-1.544h2.92v-2.19h-5.182v9.61h5.263v-2.19h-1.996l1.455.001z"/></svg>
+                         </div>
+                         <div>
+                           <p className="text-sm font-bold">Epic Games</p>
+                           <p className="text-xs text-zinc-500">{firebaseUser.gaming.epic}</p>
+                         </div>
+                       </div>
+                     </div>
+                   )}
+
+                   {/* OFFICIAL TWITTER (X) ICON */}
+                   {firebaseUser.socials.twitter && (
+                     <div className="flex items-center justify-between group">
+                       <div className="flex items-center gap-3">
+                         <div className="w-8 h-8 bg-zinc-800 rounded flex items-center justify-center">
+                           <svg className="w-3.5 h-3.5 fill-white" viewBox="0 0 512 512"><path d="M389.2 48h70.6L305.6 224.2 487 464H345L233.7 318.6 106.5 464H35.8L200.7 275.5 26.8 48H172.4L272.9 180.9 389.2 48zM364.4 421.8h39.1L151.1 88h-42L364.4 421.8z"/></svg>
+                         </div>
+                         <div>
+                           <p className="text-sm font-bold">Twitter</p>
+                           <p className="text-xs text-zinc-500">{firebaseUser.socials.twitter}</p>
+                         </div>
+                       </div>
+                     </div>
+                   )}
+
+                   {/* OFFICIAL INSTAGRAM ICON */}
+                   {firebaseUser.socials.instagram && (
+                     <div className="flex items-center justify-between group">
+                       <div className="flex items-center gap-3">
+                         <div className="w-8 h-8 bg-zinc-800 rounded flex items-center justify-center">
+                           <svg className="w-4 h-4 fill-white" viewBox="0 0 448 512"><path d="M224.1 141c-63.6 0-114.9 51.3-114.9 114.9s51.3 114.9 114.9 114.9S339 319.5 339 255.9 287.7 141 224.1 141zm0 189.6c-41.1 0-74.7-33.5-74.7-74.7s33.5-74.7 74.7-74.7 74.7 33.5 74.7 74.7-33.6 74.7-74.7 74.7zm146.4-194.3c0 14.9-12 26.8-26.8 26.8-14.9 0-26.8-12-26.8-26.8s12-26.8 26.8-26.8 26.8 12 26.8 26.8zm76.1 27.2c-1.7-35.9-9.9-67.7-36.2-93.9-26.2-26.2-58-34.4-93.9-36.2-37-2.1-147.9-2.1-184.9 0-35.8 1.7-67.6 9.9-93.9 36.1s-34.4 58-36.2 93.9c-2.1 37-2.1 147.9 0 184.9 1.7 35.9 9.9 67.7 36.2 93.9s58 34.4 93.9 36.2c37 2.1 147.9 2.1 184.9 0 35.9-1.7 67.7-9.9 93.9-36.2 26.2-26.2 34.4-58 36.2-93.9 2.1-37 2.1-147.8 0-184.8zM398.8 388c-7.8 19.6-22.9 34.7-42.6 42.6-29.5 11.7-99.5 9-132.1 9s-102.7 2.6-132.1-9c-19.6-7.8-34.7-22.9-42.6-42.6-11.7-29.5-9-99.5-9-132.1s-2.6-102.7 9-132.1c7.8-19.6 22.9-34.7 42.6-42.6 29.5-11.7 99.5-9 132.1-9s102.7-2.6 132.1 9c19.6 7.8 34.7 22.9 42.6 42.6 11.7 29.5 9 99.5 9 132.1s2.7 102.7-9 132.1z"/></svg>
+                         </div>
+                         <div>
+                           <p className="text-sm font-bold">Instagram</p>
+                           <p className="text-xs text-zinc-500">{firebaseUser.socials.instagram}</p>
+                         </div>
+                       </div>
+                     </div>
+                   )}
+
                 </div>
               </div>
             </div>

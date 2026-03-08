@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import {
-  Trophy, Gamepad2, Link as LinkIcon, ExternalLink, LayoutGrid,
-  Youtube, Twitch, Swords, Globe, ArrowUpRight, Clock, Award, Loader2,
+  Trophy, Link as LinkIcon, ExternalLink, LayoutGrid,
+  Globe, ArrowUpRight, Clock, Award, Loader2,
   Cpu, Mouse, Keyboard, Monitor, Headphones, Music, ChevronRight, Video
 } from 'lucide-react';
 import Image from 'next/image';
@@ -271,7 +271,9 @@ export default function ProfileGrid({
                 className="flex-1 bg-gradient-to-r from-[#FF0000]/20 to-[#FF0000]/5 hover:from-[#FF0000]/40 hover:to-[#FF0000]/20 border border-[#FF0000]/30 rounded-xl p-3 flex items-center justify-between group transition-all"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-white text-[#FF0000] flex items-center justify-center shadow-lg group-hover:scale-110 transition"><Youtube className="w-4 h-4 fill-current" /></div>
+                  <div className="w-8 h-8 rounded-full bg-white text-[#FF0000] flex items-center justify-center shadow-lg group-hover:scale-110 transition">
+                    <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 576 512"><path d="M549.655 124.083c-6.281-23.65-24.787-42.276-48.284-48.597C458.781 64 288 64 288 64S117.22 64 74.629 75.486c-23.497 6.322-42.003 24.947-48.284 48.597-11.412 42.867-11.412 132.305-11.412 132.305s0 89.438 11.412 132.305c6.281 23.65 24.787 41.5 48.284 47.821C117.22 448 288 448 288 448s170.781 0 213.371-11.486c23.497-6.321 42.003-24.171 48.284-47.821 11.412-42.867 11.412-132.305 11.412-132.305s0-89.438-11.412-132.305zm-317.51 213.508V175.185l142.739 81.205-142.739 81.201z"/></svg>
+                  </div>
                   <div>
                     <p className="text-[10px] font-bold text-[#FF0000] uppercase tracking-wider">Subscribe</p>
                     <p className={`text-xs font-bold ${titleColor} truncate max-w-[100px]`}>YouTube</p>
@@ -287,7 +289,9 @@ export default function ProfileGrid({
                 className="flex-1 bg-gradient-to-r from-[#9146FF]/20 to-[#9146FF]/5 hover:from-[#9146FF]/40 hover:to-[#9146FF]/20 border border-[#9146FF]/30 rounded-xl p-3 flex items-center justify-between group transition-all"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-white text-[#9146FF] flex items-center justify-center shadow-lg group-hover:scale-110 transition"><Twitch className="w-4 h-4 fill-current" /></div>
+                  <div className="w-8 h-8 rounded-full bg-white text-[#9146FF] flex items-center justify-center shadow-lg group-hover:scale-110 transition">
+                    <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 512 512"><path d="M391.17,103.47H352.54v109.7h38.63ZM285,103H246.37V213.17H285ZM120.83,0,24.31,91.42V420.58H140.14V512l96.53-91.42h77.25L487.69,256V0ZM449.07,237.75l-77.22,73.12H294.61l-67.6,64v-64H140.14V36.58H449.07Z"/></svg>
+                  </div>
                   <div>
                     <p className="text-[10px] font-bold text-[#9146FF] uppercase tracking-wider">Watch Live</p>
                     <p className={`text-xs font-bold ${titleColor} truncate max-w-[100px]`}>Twitch</p>
@@ -303,7 +307,9 @@ export default function ProfileGrid({
                 className="flex-1 bg-gradient-to-r from-[#66c0f4]/20 to-[#66c0f4]/5 hover:from-[#66c0f4]/40 hover:to-[#66c0f4]/20 border border-[#66c0f4]/30 rounded-xl p-3 flex items-center justify-between group transition-all"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-white text-[#66c0f4] flex items-center justify-center shadow-lg group-hover:scale-110 transition"><Gamepad2 className="w-4 h-4 fill-current" /></div>
+                  <div className="w-8 h-8 rounded-full bg-white text-[#66c0f4] flex items-center justify-center shadow-lg group-hover:scale-110 transition">
+                    <svg className="w-4 h-4 fill-current" viewBox="0 0 496 512"><path d="M496 256c0 137-111.2 248-248.4 248-113.8 0-209.6-76.3-239-180.4l95.2 39.3c6.4 32.1 34.9 56.4 68.9 56.4 39.2 0 71.9-32.4 70.2-73.5l84.5-60.2c52.1 1.3 95.8-40.9 95.8-93.5 0-51.6-42-93.5-93.7-93.5s-93.7 42-93.7 93.5v1.2L176.6 279c-15.5-.9-30.7 3.4-43.5 12.1L0 236.1C10.2 108.4 117.1 8 247.6 8 384.8 8 496 119.3 496 256zM155.7 384.3l-30.5-12.6a52.79 52.79 0 0 0 27.2 25.8c26.9 11.2 57.8-1.6 69-28.4 5.4-13 5.5-27.3.1-40.3-5.4-13-15.5-23.2-28.5-28.6-12.9-5.4-26.7-5.2-38.9-.6l31.5 13c19.8 8.2 29.2 30.9 20.9 50.7-8.3 19.9-31 29.2-50.8 21zM277.5 344.1c-8.7-1.4-16.7-6.2-22.3-13.3-5.6-7.1-8.5-16.1-8.2-25.2.3-9.1 3.8-17.8 9.9-24.6 6.1-6.8 14.4-11.1 23.3-12.1 8.9-1 17.8 1.4 25 6.4 7.2 5 12.3 12.4 14.1 21.1 1.8 8.7-.3 17.8-5.8 24.8-5.5 7-13.4 11.6-22 13.1-8.6 1.5-17.6-.2-24-4.2zm24.6-67.6c-16.1 0-29.2 13.1-29.2 29.2s13.1 29.2 29.2 29.2 29.2-13.1 29.2-29.2-13.1-29.2-29.2-29.2z"/></svg>
+                  </div>
                   <div>
                     <p className="text-[10px] font-bold text-[#66c0f4] uppercase tracking-wider">View Profile</p>
                     <p className={`text-xs font-bold ${titleColor} truncate max-w-[100px]`}>Steam</p>
@@ -328,7 +334,7 @@ export default function ProfileGrid({
               {/* Top Row: Badge & Rank Icon */}
               <div className="flex justify-between items-start mb-4">
                 <div className={`px-2.5 py-1 rounded-md ${iconBg} ${titleColor} flex items-center gap-1.5 backdrop-blur-sm border border-white/5`}>
-                  <Swords className="w-3.5 h-3.5" />
+                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M17.42 2.656L23.596 12 17.42 21.343H21.5L23.596 12 21.5 2.656h-4.08zM15.42 2.656H2.5L13.596 12 2.5 21.343h12.92L21.596 12 15.42 2.656z"/></svg>
                   <span className="text-[10px] font-black tracking-widest uppercase">Valorant</span>
                 </div>
                 <div className="w-10 h-10 relative drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">
@@ -376,7 +382,7 @@ export default function ProfileGrid({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <Gamepad2 className={`w-3 h-3 ${mutedColor}`} />
+                  <svg className={`w-3 h-3 fill-current ${mutedColor}`} viewBox="0 0 496 512"><path d="M496 256c0 137-111.2 248-248.4 248-113.8 0-209.6-76.3-239-180.4l95.2 39.3c6.4 32.1 34.9 56.4 68.9 56.4 39.2 0 71.9-32.4 70.2-73.5l84.5-60.2c52.1 1.3 95.8-40.9 95.8-93.5 0-51.6-42-93.5-93.7-93.5s-93.7 42-93.7 93.5v1.2L176.6 279c-15.5-.9-30.7 3.4-43.5 12.1L0 236.1C10.2 108.4 117.1 8 247.6 8 384.8 8 496 119.3 496 256zM155.7 384.3l-30.5-12.6a52.79 52.79 0 0 0 27.2 25.8c26.9 11.2 57.8-1.6 69-28.4 5.4-13 5.5-27.3.1-40.3-5.4-13-15.5-23.2-28.5-28.6-12.9-5.4-26.7-5.2-38.9-.6l31.5 13c19.8 8.2 29.2 30.9 20.9 50.7-8.3 19.9-31 29.2-50.8 21zM277.5 344.1c-8.7-1.4-16.7-6.2-22.3-13.3-5.6-7.1-8.5-16.1-8.2-25.2.3-9.1 3.8-17.8 9.9-24.6 6.1-6.8 14.4-11.1 23.3-12.1 8.9-1 17.8 1.4 25 6.4 7.2 5 12.3 12.4 14.1 21.1 1.8 8.7-.3 17.8-5.8 24.8-5.5 7-13.4 11.6-22 13.1-8.6 1.5-17.6-.2-24-4.2zm24.6-67.6c-16.1 0-29.2 13.1-29.2 29.2s13.1 29.2 29.2 29.2 29.2-13.1 29.2-29.2-13.1-29.2-29.2-29.2z"/></svg>
                   <span className={`text-[10px] font-bold uppercase tracking-widest ${mutedColor}`}>Owned</span>
                 </div>
                 <p className={`text-xl font-bold ${titleColor}`}>{gameCount}</p>
