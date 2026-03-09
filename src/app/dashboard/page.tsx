@@ -1302,7 +1302,7 @@ function DashboardContent() {
                         <MousePointer2 className="w-4 h-4 text-indigo-400" />
                         <label className="block text-sm font-bold text-white">Custom Cursor</label>
                       </div>
-                      <p className="text-xs text-zinc-500 mb-5">Click a preset or paste direct links to your own .png files. (Ensure filenames match your folder!)</p>
+                      <p className="text-xs text-zinc-500 mb-5">Click a preset or paste direct links to your own .png files. (Ensure png resolution is 32x32!)</p>
 
                       {/* Preset Grid - MODIFIED TO LOAD HIGH-RES .CUR PREVIEWS & HOVER STATES */}
                       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
