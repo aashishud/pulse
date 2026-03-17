@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Responsible Citizenship - Audio Study Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        
+        /* Interactive Chunk Styling */
+        .speech-chunk {
+            cursor: pointer;
+            border-radius: 4px;
+            padding: 4px 6px;
+            margin: 2px -6px;
+            transition: background-color 0.2s, border-left 0.2s;
+            display: block;
+            border-left: 4px solid transparent;
+        }
+        .speech-chunk:hover {
+            background-color: #e0e7ff; /* indigo-100 */
+        }
+        
+        /* Regular playing highlights */
+        .chunk-playing {
+            background-color: #e0e7ff; 
+            border-left: 4px solid #4f46e5; /* indigo-600 */
+            transform: scale(1.005);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .chunk-paused {
+            background-color: #f3f4f6; 
+            border-left: 4px dashed #9ca3af; 
+        }
+
+        /* Out of Syllabus (Grey Tab) Highlights */
+        .oos-card .speech-chunk:hover { background-color: #e5e7eb; }
+        .oos-card .chunk-playing {
+            background-color: #e5e7eb; /* gray-200 */
+            border-left: 4px solid #4b5563; /* gray-600 */
+        }
+
+        /* General styling for strong/em tags parsed from markdown */
+        .speech-chunk strong { font-weight: 700; color: #1e1b4b; }
+        .speech-chunk em { font-style: italic; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 pb-20">
+
+    <!-- Header -->
+    <header class="bg-indigo-600 text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-4xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-bold"><i class="fas fa-headphones-alt mr-2"></i> CC Audio Guide</h1>
+                <p class="text-sm text-indigo-100">Unit 1 & Unit 2 + Previous Year Paper</p>
+            </div>
+            
+            <!-- Global Controls -->
+            <div class="flex items-center gap-4 bg-indigo-700 p-2 rounded-lg">
+                <div class="flex items-center gap-2">
+                    <label for="speed" class="text-sm font-medium">Speed:</label>
+                    <select id="speed" class="text-black text-sm rounded px-1 py-1 outline-none font-semibold">
+                        <option value="0.5">0.5x</option>
+                        <option value="0.75">0.75x</option>
+                        <option value="1" selected>1.0x (Normal)</option>
+                        <option value="1.25">1.25x</option>
+                        <option value="1.5">1.5x</option>
+                        <option value="1.75">1.75x</option>
+                        <option value="2.0">2.0x</option>
+                        <option value="2.5">2.5x</option>
+                    </select>
+                </div>
+                <button id="stop-all" class="bg-red-500 hover:bg-red-600 text-white px-4 py-1.5 rounded text-sm font-bold transition shadow-sm">
+                    <i class="fas fa-stop mr-1"></i> Stop
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto px-4 py-8" id="content-container">
+        <!-- Instructions Banner -->
+        <div class="mb-8 bg-indigo-50 border-l-4 border-indigo-500 p-4 rounded-r-lg flex items-start gap-4">
+            <i class="fas fa-info-circle text-indigo-500 text-xl mt-0.5"></i>
+            <div>
+                <h3 class="font-bold text-indigo-800">How to use Interactive Reading:</h3>
+                <ul class="text-sm text-indigo-700 mt-1 list-disc list-inside">
+                    <li>Click the <strong>Play</strong> button on any card to read from the beginning.</li>
+                    <li><strong>Click on ANY specific sentence</strong> to instantly start reading from that exact spot.</li>
+                    <li>Audio chunks will highlight as they are read aloud to help you follow along.</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Dynamic content injected here -->
+    </main>
+
+    <script>
+        // --- COMPLETE STUDY DATA ---
+        const studyData = [
+            {
+                section: "UNIT 1: CONCEPT OF CITIZENSHIP",
+                items: [
+                    {
+                        q: "Q1. Explain the citizenship and trace its historical origin.",
+                        outOfSyllabus: false,
+                        a: `**Understanding the Concept of Citizenship:**
+Citizenship represents a formal, legally recognized relationship between an individual and a state. It is not merely a legal status, but a mutual and dynamic partnership grounded in reciprocal duties and entitlements. While a citizen is expected to obey the laws, pay taxes, respect the rights of others, and defend the nation, the state in return is obligated to safeguard their fundamental rights, ensure justice, and provide national security. Ultimately, citizenship allows individuals to lead dignified lives under the full protection of the law and fosters a profound emotional sense of belonging and national identity.
+
+**Tracing the Historical Origin:**
+The concept of citizenship has deep historical roots that have evolved significantly over centuries:
+1. **Ancient Civilizations (Greece and Rome):** The concept traces its absolute origins back to ancient Greece, where philosophers like Aristotle viewed humans as "political animals." In the Greek *polis* (city-state), citizenship symbolized active and direct participation in public and political life. Similarly, in the Ancient Roman Empire, citizenship was a highly coveted status where citizens were expected to participate in public affairs, obey laws, and vigorously defend the State militarily. 
+2. **The Medieval Period:** Following the fall of Rome, the democratic concept of citizenship largely faded. During the Medieval era, societies were rigidly organized around feudalism, land ownership, and hierarchy. Individuals were not "citizens" but "subjects" who owed strict loyalty and duties primarily to a Feudal Lord or King, rather than holding reciprocal democratic rights.
+3. **Modern Era and Social Contract Theory:** The modern understanding of citizenship evolved profoundly during the Enlightenment through Social Contract theorists like Thomas Hobbes, John Locke, and Jean-Jacques Rousseau. They argued that society is based on an unwritten contract: citizens surrender certain absolute freedoms in exchange for the State's protection of their life, liberty, and property. This shifted the dynamic from forced obedience to a system of mutual rights and civic responsibilities.
+4. **Indian Tradition:** In ancient Indian tradition, the concept of civic duty was deeply rooted in the idea of *Dharma*. Ancient texts like the Dharmashastras heavily emphasized an individual's moral responsibilities towards their family, society, and the natural environment. While these were moral rather than legally enforceable duties, they shaped the responsible behavior of the community for centuries.`
+                    },
+                    {
+                        q: "Q2. Discuss the constitutional provisions regarding citizenship - Article 5-11.",
+                        outOfSyllabus: false,
+                        a: `**Constitutional Framework of Indian Citizenship:**
+Part II of the Indian Constitution, comprising Articles 5 through 11, strictly deals with citizenship at the exact commencement of the Constitution on January 26, 1950. The Constitution does not provide a permanent, comprehensive law for citizenship; instead, it laid down the initial framework and empowered Parliament to regulate it further.
+
+**Detailed Breakdown of Articles 5 to 11:**
+* **Article 5 (Citizenship at the commencement of the Constitution):** This article granted citizenship to individuals based on domicile (permanent home) in India. A person became a citizen if they had an Indian domicile AND fulfilled one of three conditions: they were born in India, either of their parents was born in India, or they had been ordinarily resident in India for at least five years immediately preceding the Constitution's commencement.
+* **Article 6 (Rights of certain persons who have migrated to India from Pakistan):** This facilitated citizenship for people who migrated from Pakistan due to partition. Those who migrated before July 19, 1948, automatically became citizens if they or their parents/grandparents were born in undivided India. Those migrating on or after this date had to formally register as citizens after residing in India for at least six months.
+* **Article 7 (Rights of migrants to Pakistan):** This article supersedes Articles 5 and 6. It states that anyone who migrated to Pakistan after March 1, 1947, ceased to be an Indian citizen. However, if they returned to India under a strict "permit for resettlement or permanent return," they could register as citizens, effectively being treated like those who migrated after July 19, 1948.
+* **Article 8 (Rights of citizenship of certain persons of Indian origin residing outside India):** This provision allowed persons of Indian origin residing abroad (whose parents or grandparents were born in undivided India) to acquire Indian citizenship by registering with the diplomatic or consular representative of India in the country where they were residing.
+* **Article 9 (Persons voluntarily acquiring citizenship of a foreign State not to be citizens):** India strictly follows the principle of single citizenship. This article explicitly prohibits dual citizenship. If an individual voluntarily acquires the citizenship of any foreign nation, their Indian citizenship is immediately and automatically terminated.
+* **Article 10 (Continuance of the rights of citizenship):** This guarantees that any person considered a citizen under the preceding provisions shall continue to be a citizen, subject only to any laws subsequently made by the Parliament. It acts as a safeguard against arbitrary deprivation of citizenship.
+* **Article 11 (Parliament to regulate the right of citizenship by law):** Because the Constitution only addressed the immediate post-partition scenario, this highly crucial article granted supreme and absolute power to the Indian Parliament to make comprehensive laws regarding the future acquisition and termination of citizenship. Exercising this power, Parliament enacted the Citizenship Act of 1955.`
+                    },
+                    {
+                        q: "Q3. Explain the modes of acquisition of citizenship in India.",
+                        outOfSyllabus: false,
+                        a: `**Acquisition of Citizenship in India:**
+As empowered by Article 11 of the Constitution, the Parliament enacted the Citizenship Act of 1955, which provides a comprehensive legal framework for acquiring Indian citizenship. Citizens are generally classified into natural citizens (by birth) and naturalized citizens (by adoption). The Act outlines five specific modes of acquisition:
+
+1. **By Birth (Jus Soli - Right of the Soil):**
+This principle grants citizenship based on being born within the territory of India. However, the rules have become stricter over time. Initially, anyone born in India between Jan 26, 1950, and July 1, 1987, was a citizen regardless of parental nationality. Following amendments, a person born in India is considered a citizen only if at least one parent is an Indian citizen, and crucially, the other parent is not an illegal migrant at the time of their birth.
+
+2. **By Descent (Jus Sanguinis - Right of Blood):**
+This method allows individuals born outside India to acquire Indian citizenship based on the nationality of their parents. A person born abroad after Jan 26, 1950, is an Indian citizen by descent if either the father (initially) or either parent (after 1992 amendments) was an Indian citizen at the time of their birth. Currently, their birth must be formally registered at an Indian consulate within one year to claim this right.
+
+3. **By Registration:**
+This is a structured pathway for specific categories of people who have strong ties to India but are not citizens by birth or descent. The Central Government may register individuals as citizens if they meet specific criteria, such as: Persons of Indian Origin (PIO) who have been ordinarily resident in India for 7 years; persons married to Indian citizens who have resided in India for 7 years; and minor children of Indian citizens. The applicant must take an oath of allegiance to the Indian Constitution.
+
+4. **By Naturalization:**
+This process allows a completely foreign national, who does not qualify under birth, descent, or registration, to become a citizen. It is a highly rigorous process. The applicant must fulfill strict qualifications, including: not being a subject of a country that denies naturalization to Indians; renouncing their previous citizenship; possessing a good moral character; having adequate knowledge of a language specified in the Eighth Schedule of the Constitution; and having resided in India (or been in government service) for a cumulative period of at least 12 years (11 years out of the last 14, plus 1 continuous year immediately preceding the application).
+
+5. **By Incorporation of Territory:**
+If a new foreign territory becomes a part of India, the Central Government has the authority to specify, by an official notification, which residents of that newly acquired territory shall become citizens of India. For example, when the territories of Pondicherry, Goa, Daman and Diu, and Sikkim were integrated into the Indian Union, the government issued specific citizenship orders granting Indian citizenship to their inhabitants.`
+                    },
+                    {
+                        q: "Q4. Explain the situation where person can lose their citizenship.",
+                        outOfSyllabus: false,
+                        a: `**Loss of Indian Citizenship:**
+Just as the Citizenship Act of 1955 details the methods for acquiring citizenship, it comprehensively outlines the exact situations under which an individual can lose their Indian citizenship. Loss of citizenship can occur voluntarily by the individual's choice or involuntarily through government action. The Act specifies three distinct methods: Renunciation, Termination, and Deprivation.
+
+1. **By Renunciation (Voluntary Loss):**
+Renunciation is a fully voluntary act where an Indian citizen formally declares their intention to give up their citizenship. Any citizen of full age and capacity can make a formal declaration renouncing their Indian citizenship. Upon the registration of this declaration by the government, that person ceases to be an Indian citizen. 
+However, if such a declaration is made during a war in which India is actively engaged, the registration may be withheld by the Central Government. Furthermore, when a person renounces their citizenship, every minor child of that person simultaneously loses their Indian citizenship, though the child may apply to resume it upon turning eighteen.
+
+2. **By Termination (Automatic Loss):**
+India strictly follows a single citizenship policy and does not recognize dual nationality. Therefore, termination occurs automatically and by operation of law. If an Indian citizen voluntarily acquires the citizenship or passport of another foreign country, their Indian citizenship is instantly and automatically terminated from that exact date. Similar to renunciation, this provision does not apply if the citizen acquires a foreign citizenship during a period of war involving India.
+
+3. **By Deprivation (Compulsory Loss):**
+Deprivation is an involuntary, compulsory termination of citizenship executed directly by the Central Government. This strict measure applies primarily to individuals who acquired their citizenship through Registration or Naturalization (it generally does not apply to natural citizens by birth or descent). The government can legally deprive a person of their citizenship for several grave reasons:
+* **Fraud or Misrepresentation:** If the citizenship was obtained by means of fraud, false representation, or the deliberate concealment of any material fact.
+* **Disloyalty:** If the citizen has shown explicit disloyalty or disaffection towards the Constitution of India.
+* **Treason during War:** If the citizen has unlawfully traded or communicated with an enemy during a war in which India is engaged.
+* **Imprisonment:** If the naturalized citizen has been sentenced to imprisonment in any country for two or more years within five years of acquiring Indian citizenship.
+* **Continuous Absence:** If the citizen has been ordinarily resident outside India for a continuous period of seven years without registering their intention to retain their Indian citizenship annually at an Indian consulate.`
+                    },
+                    {
+                        q: "Q5. Discuss the recent development and amendment to the citizenship act.",
+                        outOfSyllabus: false,
+                        a: `**The Citizenship (Amendment) Act (CAA) of 2019:**
+The most significant and deeply debated recent development regarding Indian citizenship is the passage of the Citizenship (Amendment) Act (CAA) in 2019. This act introduced a major paradigm shift in the Citizenship Act of 1955 by adding a religious dimension to the naturalization process for the very first time in independent India's history.
+
+**Key Provisions and Beneficiaries:**
+The primary objective of the CAA is to provide an accelerated pathway to Indian citizenship for specific persecuted religious minorities fleeing from three designated neighboring Islamic-majority countries. The amendment explicitly fast-tracks naturalization for migrants belonging to six minority communities: Hindus, Sikhs, Buddhists, Jains, Parsis, and Christians. 
+To be eligible, these migrants must have fled from Afghanistan, Bangladesh, or Pakistan due to religious persecution, and must have entered India on or before the strict cut-off date of December 31, 2014. For these specific groups, the CAA relaxes the strict residency requirement for naturalization, reducing it from the standard 11 years to just 5 years. Furthermore, it protects these groups from deportation or imprisonment under the Foreigners Act by ceasing to treat them as "illegal migrants."
+
+**Exemptions:**
+The CAA does not apply to the entire country. To protect the cultural and demographic identities of indigenous populations, the Act explicitly exempts areas protected by the Inner Line Permit (ILP) regime, as well as the tribal areas of Assam, Meghalaya, Mizoram, and Tripura designated under the Sixth Schedule of the Constitution.
+
+**National Debate and Controversy:**
+The enactment of the CAA sparked massive, widespread protests and intense national debate. 
+The core of the controversy lies in its explicit exclusion of Muslims (such as persecuted Ahmadiyyas or Rohingyas) from this fast-tracked naturalization process. Critics argue that linking citizenship directly to religion violates the secular fabric of the Indian Constitution and directly contravenes Article 14, which explicitly guarantees equality before the law to all persons within India's territory. Conversely, the government strongly defended the amendment, arguing that the three specified countries possess a state religion (Islam), and therefore, Muslims cannot be logically classified as persecuted religious minorities in those specific nations. They maintain that the act is a humanitarian effort to provide refuge to historically marginalized religious minorities in the subcontinent.`
+                    },
+                    {
+                        q: "Q6. Discuss the advantages of citizenship.",
+                        outOfSyllabus: false,
+                        a: `**The Advantages and Importance of Citizenship:**
+Citizenship is the foundational link between an individual and the State. It extends far beyond mere legal recognition; it empowers individuals, sustains democratic governance, and unites the nation through a shared sense of identity and mutual trust. The advantages of citizenship can be categorized into legal, political, economic, and social spheres:
+
+1. **Protection of Rights and Freedoms:**
+The most fundamental advantage is constitutional protection. Citizenship ensures that individuals enjoy robust constitutional safeguards and access to justice. It gives people the confidence to exercise their fundamental civil rights freely, such as equality before the law, freedom of speech and expression, freedom of religion, and the right to peaceful assembly. While some rights apply to all persons, crucial freedoms under Article 19 are reserved exclusively for citizens.
+
+2. **Access to Political Representation:**
+Only citizens possess the political rights necessary to participate in the democratic process. This includes the absolute right to vote, the right to contest in local and national elections, and the right to hold high public and constitutional offices (such as the President, Prime Minister, or Judges of the Supreme Court). This ensures that the government is formed by and remains accountable to its own nationals.
+
+3. **Economic Empowerment and Employment:**
+Being a citizen opens direct access to extensive economic opportunities. In India, Article 16 guarantees citizens equal opportunity in matters of public employment, reserving government jobs and civil services exclusively for them. Citizens also benefit from access to government contracts, welfare schemes, public healthcare, heavily subsidized education, and social security programs that are often completely unavailable to foreigners or illegal migrants.
+
+4. **Legal and Diplomatic Protection:**
+Citizenship guarantees that individuals enjoy the absolute protection of the State. This applies domestically through the police and legal systems, but also internationally. When traveling or residing abroad, citizens receive vital diplomatic and consular assistance. For example, during geopolitical crises in countries like Ukraine or Sudan, the Indian government actively deployed massive rescue missions specifically to evacuate and protect Indian citizens.
+
+5. **Social Cohesion and Cultural Identity:**
+Beyond legalities, citizenship fosters a profound emotional sense of belonging, loyalty, and national unity. It binds diverse populations—despite vast differences in religion, language, or region—under a common national identity. This shared identity encourages citizens to actively participate in nation-building, community service, and environmental preservation, ultimately strengthening the social fabric of the country.`
+                    },
+                    {
+                        q: "Q7. Discuss the types of citizenship.",
+                        outOfSyllabus: false,
+                        a: `**Types and Classifications of Citizenship:**
+Different countries adopt varying legal principles and philosophies for granting citizenship. While citizens are generally classified as either "natural" (by birth) or "naturalized" (by adoption), the specific types and pathways to acquire citizenship globally include:
+
+1. **Citizenship by Birth (Jus Soli - Right of the Soil):**
+Under this principle, an individual automatically becomes a citizen of a state simply by being born within its territorial borders, regardless of the nationality or citizenship status of their parents. Countries like the United States rely heavily on *jus soli*. A child born to foreign tourists in the US, for example, is instantly a US citizen.
+
+2. **Citizenship by Descent (Jus Sanguinis - Right of Blood):**
+This method grants citizenship based purely on the bloodline or citizenship of the parents, regardless of the geographic location of the child's birth. If a child is born in a foreign country, but their parents are citizens of a country following *jus sanguinis*, the child inherits their parents' citizenship.
+
+3. **Citizenship by Naturalization:**
+This is an administrative and legal process where a completely foreign national is formally adopted as a citizen after actively fulfilling strict conditions set by the host country. These conditions typically include a prolonged period of continuous residency (often 5 to 12 years), demonstrating good moral character, proving financial stability, passing language tests, and subscribing to a solemn oath of allegiance to the new nation.
+
+4. **Citizenship by Marriage (Jus Matrimonii):**
+Many countries offer a highly expedited pathway to citizenship for foreign nationals who legally marry an existing citizen. While it requires proving the marriage is genuine (to avoid sham marriages for visas), the required residency period is usually significantly shorter than standard naturalization.
+
+5. **Dual Citizenship (or Multiple Citizenship):**
+This is a highly advantageous legal status where an individual is simultaneously recognized as a lawful citizen by two or more countries. They hold passports for both nations and enjoy the rights, privileges, and obligations (like taxes or military service) of both. It is important to note that India strictly prohibits dual citizenship.
+
+6. **Citizenship by Investment (Economic Citizenship):**
+A modern and increasingly popular pathway where wealthy individuals obtain immediate citizenship or permanent residency by making a massive, direct economic contribution to the host country. This usually involves non-refundable contributions to a national development fund, heavy real estate purchases, or significant job-creating business investments.
+
+7. **Honorary Citizenship:**
+Unlike the other legal categories, this is a purely symbolic status. It is awarded by a government to exceptional individuals—often foreigners—who have rendered extraordinary service to humanity, global peace, scientific advancement, or the host country itself. While it signifies immense respect, it rarely confers practical voting or residency rights. Mother Teresa being granted honorary citizenship by India is a prime example.`
+                    },
+                    {
+                        q: "Short Notes 1: Citizenship by marriage",
+                        outOfSyllabus: false,
+                        a: `**Citizenship by Marriage (Jus Matrimonii):**
+Many countries worldwide allow citizenship to be acquired through legal marriage to an existing citizen. In this specific method, a foreign national becomes eligible to apply for citizenship or permanent residency after marrying a person who already legally holds the citizenship of that host country. This pathway is designed to promote family unity and stable social integration for transnational families.
+
+However, the process is incredibly strict and is never automatic upon saying wedding vows. To aggressively combat the phenomenon of "sham marriages"—where people marry purely to bypass immigration laws—governments impose rigorous checks. The couple must provide extensive documentation to legally prove they maintain a valid, genuine, and cohabiting marriage for a specific number of years. Furthermore, the foreign spouse may still need to reside in the country for a certain continuous period, demonstrate good moral conduct, and pass basic language or civic tests before the naturalization is finally approved.`
+                    },
+                    {
+                        q: "Short Notes 2: Citizenship by investment",
+                        outOfSyllabus: false,
+                        a: `**Citizenship by Investment (Economic Citizenship):**
+This is a highly lucrative and structured legal pathway offered by several nations, allowing wealthy global individuals to obtain full citizenship by making a massive, direct economic contribution to the host country. The required investment typically involves purchasing government-approved luxury real estate, making non-refundable donations to national development funds, or actively starting local businesses that guarantee job creation for residents.
+
+Caribbean nations like St. Kitts and Nevis, as well as European nations like Malta, are world-renowned for these "Golden Passport" programs. These schemes are crucial for smaller nations, as they help them attract massive foreign capital, stabilize their economies, and rapidly fund infrastructure. In return for their capital, the wealthy investor gains tremendous lifestyle benefits, such as a powerful passport offering visa-free international mobility, expanded global business opportunities, favorable tax regimes, and permanent residence rights in a politically stable environment.`
+                    },
+                    {
+                        q: "Short Notes 3: Citizenship by benefit (Dual Citizenship)",
+                        outOfSyllabus: false,
+                        a: `**Dual Citizenship (Multiple Nationality):**
+Dual citizenship refers to the highly advantageous legal status in which an individual is formally and simultaneously recognized as a lawful citizen by two distinct countries. There is no universal international law governing this; every sovereign state sets its own rules regarding whether to recognize or strictly deny multiple citizenships.
+
+The benefits of holding dual citizenship are immense. It grants enhanced global mobility, allowing the individual to carry two passports and enjoy visa-free travel across wider regions. It drastically improves personal freedom and quality of life by guaranteeing legal access to highly subsidized healthcare, free education, employment markets, and unrestricted property ownership rights in both nations. However, it also comes with dual obligations, as the individual may be subject to global taxation laws from both countries and mandatory military service requirements. It is highly important to note that the Indian Constitution (under Article 9) strictly prohibits dual citizenship, terminating Indian nationality the moment a foreign one is voluntarily acquired.`
+                    },
+                    {
+                        q: "Short Notes 4: Honorary citizenship",
+                        outOfSyllabus: false,
+                        a: `**Honorary Citizenship:**
+Honorary citizenship is a deeply unique, highly prestigious, and primarily symbolic status granted by a sovereign nation. Some countries grant this honor exclusively to individuals who have rendered exceptional, lifetime service or made profound, global contributions to society, humanitarian work, international peace, culture, or unprecedented scientific advancement. 
+
+Unlike naturalization or citizenship by birth, honorary citizenship is fundamentally a gesture of immense national respect rather than a legal immigration process. Therefore, it is almost entirely symbolic; while it may grant the recipient a ceremonial passport or a key to a city, it rarely includes practical legal rights such as the right to vote, the right to hold public office, or guaranteed permanent residency. A historic and notable example is Mother Teresa, who, despite being born in North Macedonia, was granted honorary citizenship by India as a profound recognition of her extraordinary, lifelong humanitarian commitment to serving the poorest of the poor in Kolkata.`
+                    }
+                ]
+            },
+            {
+                section: "UNIT 2: RESPONSIBLE CITIZENSHIP",
+                items: [
+                    {
+                        q: "Q1. Explain the characteristics of Responsible citizenship.",
+                        outOfSyllabus: false,
+                        a: `**Characteristics of a Responsible Citizen:**
+The progress and stability of any democratic nation depend entirely on the quality and active engagement of its people. Responsible citizenship means being an active member of society who perfectly balances their constitutional rights with their civic duties. A responsible citizen understands that true freedom comes with a heavy responsibility toward the collective welfare of society. 
+
+The core characteristics of responsible citizenship include:
+1. **Following Laws and Regulations:** They uphold the rule of law implicitly. They pay their taxes honestly and on time, follow traffic rules whether observed or not, and respect legal norms to maintain order and create a safe, harmonious society.
+2. **Being Respectful and Tolerant:** In a diverse country like India, they treat everyone with absolute dignity and courtesy regardless of caste, religion, or economic status. They actively respect diverse cultures and differing political opinions, practicing deep tolerance rather than forcing others to agree with them.
+3. **Being Honest and Ethical:** They practice high transparency and integrity in all aspects of personal and financial life. This honesty prevents conflicts, eliminates corruption, and creates the necessary trust required for a healthy democratic society.
+4. **Community Involvement:** They do not live in isolation. They are actively involved by participating in local elections, exercising their right to vote without fail, volunteering for NGO initiatives, and helping fellow human beings in distress. Their core motto is always "Nation First."
+5. **Environmental Consciousness:** They recognize that their daily choices directly impact the planet. They act as stewards of nature by following highly sustainable practices—reducing energy consumption, minimizing waste, avoiding single-use plastics, and actively participating in conservation to protect resources for future generations.
+6. **Awareness and Critical Thinking:** They stay constantly informed about current affairs, government policies, and global issues. This deep awareness allows them to make thoughtful decisions, reject harmful propaganda, avoid blind obedience, and hold public officials accountable for their actions.`
+                    },
+                    {
+                        q: "Q2. Explain the civic duties of citizens.",
+                        outOfSyllabus: false,
+                        a: `**Understanding Civic Duties:**
+Civic duties refer to the essential responsibilities and tasks that individuals are strictly expected to carry out as active members of a community or democratic society. Unlike absolute fundamental rights which empower the individual, civic duties arise naturally from ethical expectations, social norms, and the fundamental need for organized, collective living. Society operates on a social contract: citizens receive protection and rights from the State, and in return, they owe duties to ensure the common good.
+
+**Nature and Types of Civic Duties:**
+Civic duties are not a monolithic concept; they can be broadly categorized into three distinct types based on their enforceability and nature:
+
+1. **Legal Duties (Enforceable):** These are strict obligations that are heavily enforced by the state's legal system. They are not optional, and every single citizen is bound by them regardless of their social class. If a citizen fails to perform these duties, they can face severe legal penalties, fines, or imprisonment. 
+* *Examples:* Paying income and property taxes honestly, obeying criminal and civil laws, following traffic regulations, and serving on a jury if summoned.
+
+2. **Moral Duties (Ethical):** These duties arise purely from a person's inner conscience, cultural values, and ethical beliefs. They are deeply rooted in traditions (like the Indian concept of *Dharma*). While they are absolutely not enforced by the police or courts, they are the vital glue that creates a civilized, empathetic society.
+* *Examples:* Showing deep respect to elders and women, helping victims during road accidents or natural emergencies, being honest in daily dealings, and exhibiting kindness to animals.
+
+3. **Positive Duties (Active Contribution):** Unlike negative duties (which dictate what *not* to do, like "do not steal"), positive duties require active physical or mental participation to strengthen the democratic fabric of society.
+* *Examples:* Actively taking the time to vote in local and national elections, participating truthfully in the national census, and actively contributing time or money to local community welfare and public hygiene programs.`
+                    },
+                    {
+                        q: "Q3. What are the DO's and DON’TS of positive duties as per civic sense.",
+                        outOfSyllabus: false,
+                        a: `**Civic Sense: The Do's and Don'ts of Positive Duties:**
+Civic sense represents the unspoken ethical code and practical guidelines that ensure a society functions smoothly, peacefully, and cleanly. As responsible citizens, adhering to specific Do's and Don'ts is crucial for maintaining public order and mutual respect.
+
+**The Important DO's (Actions to actively perform):**
+* **Obey Laws and Pay Taxes:** Strictly follow all local, state, and national laws. Fulfill all tax obligations honestly to heavily support public services like infrastructure and healthcare.
+* **Stay Informed and Vote:** Keep completely up-to-date with current events and community issues. Most importantly, actively participate in the democratic process by voting intelligently in every election.
+* **Respect Diversity and Promote Harmony:** Appreciate and treat everyone with absolute dignity, regardless of their race, religion, gender, or background. Foster a peaceful environment through open dialogue and deep mutual respect.
+* **Protect the Environment:** Take immediate, daily actions to protect the planet. This includes planting trees, recycling, conserving water, and consciously switching off electrical appliances when not in use to save energy.
+* **Volunteer and Help:** Donate your time to social causes, participate actively in NGO activities, and never hesitate to help fellow human beings in times of sudden difficulty or disaster.
+* **Respect Public Property and Elders:** Treat elders with profound respect. Actively care for public infrastructure, keeping public spaces, parks, and trains clean and in pristine condition.
+
+**The Important DON'TS (Actions to strictly avoid):**
+* **Do Not Vandalize:** Never damage, deface, or spit on public property or historical monuments.
+* **Do Not Break Traffic Rules:** Never ignore traffic signals or jump lanes, regardless of whether a traffic police officer or camera is actively observing you.
+* **Do Not Be Swayed by Propaganda:** Avoid blind obedience. Do not be swayed by passionate prejudices, fake news, or communal hatred that disrupts the peaceful fabric of society.`
+                    },
+                    {
+                        q: "Q4. Explain fundamental duties of Indians as per article 51 A of Indian const.",
+                        outOfSyllabus: false,
+                        a: `**The Fundamental Duties under Article 51A:**
+Initially, the Indian Constitution guaranteed rights but did not contain any explicit Fundamental Duties. Realizing that rights without responsibilities lead to social imbalance, the government formed the Swaran Singh Committee. Based on their critical recommendations, the **42nd Constitutional Amendment Act of 1976** added Part IV-A to the Constitution, containing a single article: Article 51A. 
+
+Article 51A establishes a comprehensive moral and civic code consisting of specific duties applicable to all Indian citizens. Originally there were 10 duties, but the 86th Amendment in 2002 added an 11th.
+
+**The Eleven Fundamental Duties of Indian Citizens are:**
+1. **Abide by the Constitution:** To respect its noble ideals and institutions, the National Flag, and the National Anthem.
+2. **Cherish Noble Ideals:** To follow the high ideals that heavily inspired India's national struggle for freedom.
+3. **Uphold Sovereignty:** To actively uphold and fiercely protect the absolute sovereignty, unity, and territorial integrity of India.
+4. **Defend the Country:** To defend the nation and cheerfully render national service whenever called upon to do so.
+5. **Promote Harmony:** To promote total harmony and the spirit of common brotherhood among all Indians, transcending religious, linguistic, and regional diversities; and explicitly to renounce practices derogatory to the dignity of women.
+6. **Preserve Cultural Heritage:** To deeply value and preserve the rich heritage of our incredibly composite culture.
+7. **Protect the Natural Environment:** To actively protect and improve forests, lakes, rivers, and wildlife, and to show deep compassion for all living creatures.
+8. **Develop Scientific Temper:** To develop a scientific temper, humanism, and the spirit of critical inquiry and social reform, rejecting blind superstitions.
+9. **Safeguard Public Property:** To rigorously safeguard public property and totally abjure (reject) all forms of violence.
+10. **Strive for Excellence:** To continuously strive towards excellence in all spheres of individual and collective activity, so the nation constantly rises to higher levels of endeavor and achievement.
+11. **Educational Duty (Added in 2002):** For every parent or guardian to provide mandatory opportunities for education to their child or ward between the ages of 6 and 14 years.`
+                    },
+                    {
+                        q: "Q5. Difference between fundamental rights and duties.",
+                        outOfSyllabus: false,
+                        a: `**Differentiating Fundamental Rights and Fundamental Duties:**
+While both are incredibly essential pillars of the Indian Constitution, they serve fundamentally different purposes in balancing individual liberty with national responsibility. 
+
+**1. Meaning and Core Concept:**
+* **Fundamental Rights** are basic, essential human freedoms guaranteed directly to the citizens to ensure their ultimate dignity, equality, and personal liberty against state oppression. 
+* **Fundamental Duties**, conversely, are the moral, ethical, and civic obligations that citizens are naturally expected to perform as responsible members of the nation in return for those rights.
+
+**2. Constitutional Source and Location:**
+* **Rights** form the bedrock of the original document, heavily enshrined in **Part III** (Articles 12 to 35) of the Indian Constitution from the very beginning (1950).
+* **Duties** were an afterthought to cure a declining public morality. They were added decades later via the 42nd Amendment (1976) and are exclusively listed in **Part IV-A** (Article 51A).
+
+**3. Nature of Enforceability (Justiciability):**
+* **Rights are strictly Justiciable.** If the State violates a citizen's right to free speech or equality, the citizen can directly approach the High Courts or Supreme Court (under Article 32) to legally enforce them and seek immediate remedy.
+* **Duties are totally Non-Justiciable.** A citizen cannot be dragged to court or jailed merely for failing to exhibit a "scientific temper" or for not cherishing "noble ideals." They cannot be directly enforced by judicial writs.
+
+**4. Primary Purpose and Beneficiaries:**
+* The core purpose of **Rights** is to protect the *individual citizen* from the arbitrary, tyrannical actions of the State. They guarantee personal freedom.
+* The core purpose of **Duties** is to heavily promote discipline, unity, and harmony for the immense welfare of *society and the nation as a whole*.
+
+**5. Clear Examples:**
+* *Rights Examples:* The Right to Equality (Art 14), Right to Freedom of Speech (Art 19), and Right to Life (Art 21).
+* *Duties Examples:* The duty to respect the National Flag, the duty to protect the natural environment, and the duty to explicitly renounce practices derogatory to women.`
+                    },
+                    {
+                        q: "Q5.5 Key features of Fundamental rights and duties",
+                        outOfSyllabus: false,
+                        a: `**Key Features of Fundamental Duties (Article 51A):**
+1. **Moral and Civic Code:** They serve as a profound ethical compass, guiding citizens beyond the selfish pursuit of personal rights toward responsibilities that actively strengthen democracy, promote environmental sustainability, and ensure inclusive development.
+2. **Exclusive to Citizens:** Unlike some Fundamental Rights (like the Right to Life) which apply to all humans including foreigners, Fundamental Duties are strictly applicable *only* to Indian citizens. Foreign tourists are not constitutionally expected to cherish India's freedom struggle ideals.
+3. **Non-Justiciable but Legally Backed:** While courts cannot directly punish you for ignoring a constitutional duty, the Parliament has the absolute power to make strict laws to give them teeth. For example, the duty to respect national symbols is severely enforced by the *Prevention of Insults to National Honour Act, 1971*, which prescribes strict jail time for burning the flag.
+4. **Tool for Judicial Interpretation:** The Supreme Court heavily relies on these duties to interpret complex policies. For instance, when ruling on massive industrial pollution cases, the judiciary frequently invokes the citizen's duty to "protect the natural environment" to aggressively enforce strict environmental protection laws.
+
+**Key Features of Fundamental Rights (Part III):**
+1. **Magnacarta of India:** They are the cornerstone of Indian democracy, ensuring universal constitutional freedoms like absolute equality, freedom of religion, and protection against severe exploitation.
+2. **Negative Injunctions on the State:** They heavily empower the individual by acting as legally enforceable, negative constraints on state overreach—meaning they dictate what the government *cannot* do to a person.
+3. **Not Absolute:** Rights come with "reasonable restrictions." The state can legally limit your freedom of speech if it threatens national security, public order, or foreign relations.`
+                    },
+                    {
+                        q: "Q6. Explain the role of state in promoting responsible citizenship.",
+                        outOfSyllabus: false,
+                        a: `**The Reciprocal Partnership Between State and Citizen:**
+Responsible citizenship lies at the very heart of every thriving democratic society. However, it is fundamentally not a one-sided obligation. It is a highly dynamic, reciprocal partnership between the citizen and the State. A democracy flourishes beautifully only when citizens exercise their rights with deep integrity and the State, in turn, actively protects those rights while creating the optimal conditions for the common good.
+
+**The Role of the State in this Partnership:**
+1. **Upholding the Rule of Law:** A citizen's obedience to the law finds real meaning only when the State enacts and enforces those laws justly. While citizens maintain order by not breaking laws, the State must guarantee that these legal norms are totally fair, completely impartial, and deeply protective of human rights without police brutality or corruption.
+2. **Ensuring Participation and Transparency:** Voting is the citizen's voice, but the State must provide the platform. The State's absolute role is to conduct genuinely free, fair, and timely elections, maintain high government transparency, and prevent the criminalization of politics, allowing citizens to engage constructively.
+3. **Promoting Social Justice:** While citizens have a moral duty to respect diversity, the State must legally guarantee equal opportunity, forcefully oppose systemic discrimination, and heavily protect marginalized communities through affirmative action to build an inclusive society.
+4. **Providing Economic and Social Welfare:** Citizens contribute their hard-earned money through honest taxation and daily labor. The State's role is to meticulously invest those resources directly back into public welfare—building world-class infrastructure, ensuring quality public healthcare, providing accessible education, and maintaining social safety nets. 
+
+Ultimately, the State must actively educate, economically empower, and physically protect its people. When the State governs ethically, it nurtures a vibrant civic culture where the citizen's responsibility and the State's freedom reinforce each other in perfect harmony.`
+                    },
+                    {
+                        q: "Q7. Features of Indian citizenship.",
+                        outOfSyllabus: false,
+                        a: `**Core Features of Indian Citizenship:**
+Indian citizenship forms the foundational constitutional link between an individual and the Republic. It has several highly distinct and unique features that set it apart from other global democratic models:
+
+1. **Principle of Single Citizenship:** Despite having a vast federal structure with multiple states and union territories, the Indian Constitution uniquely provides for only a "Single Citizenship." Every Indian is exclusively a citizen of India, irrespective of the specific state (like Maharashtra or Tamil Nadu) they are born or reside in. This is fundamentally different from the United States, where a person holds dual citizenship—one for the nation and one for their specific state.
+2. **No Dual International Nationality:** Under Article 9, India strictly prohibits holding dual passports. If an Indian citizen voluntarily acquires the citizenship of any other foreign country (like Canada or the UK), their Indian citizenship is instantly and automatically terminated.
+3. **Exclusive Fundamental Rights:** Indian citizenship confers a highly privileged set of rights that are completely denied to friendly aliens or foreigners. For instance, the absolute equality of opportunity in public employment (Article 16) and protection against discrimination purely on grounds of religion, race, or caste (Article 15) apply exclusively to citizens. Furthermore, the powerful "Six Freedoms" under Article 19—such as freedom of speech, expression, movement, and peaceful assembly—are reserved solely for Indian nationals.
+4. **Exclusive Political Rights:** Vital political rights necessary to run the democracy are locked to citizens. Only a citizen has the right to vote in parliamentary and state elections. Furthermore, only Indian citizens are legally eligible to hold high constitutional offices, including the President, Vice-President, Governors, and Judges of the Supreme Court and High Courts.`
+                    },
+                    {
+                        q: "Q8. OCI and its key features.",
+                        outOfSyllabus: false,
+                        a: `**Understanding the Overseas Citizen of India (OCI) Scheme:**
+To meet the long-standing demands of the massive Indian diaspora for dual citizenship, which the Constitution strictly prohibits, the government introduced the Overseas Citizen of India (OCI) scheme. Introduced by amending the Citizenship Act, it grants a specialized form of long-term residency and sweeping privileges to foreign nationals of Indian origin. However, it is crucially important to understand that OCI is *not* actual dual citizenship, nor does it grant an Indian passport.
+
+**Key Features and Immense Benefits:**
+1. **Lifelong Visa:** It provides the cardholder with a highly coveted multiple-entry, multi-purpose, life-long visa to visit India for any duration and for any purpose (tourism, business, family visits).
+2. **Exemption from Police Reporting:** OCI cardholders are permanently exempt from the tedious requirement of registering with the Foreigners Regional Registration Officer (FRRO) or local police, regardless of the length of their continuous stay in India.
+3. **Economic and Educational Parity:** They enjoy strict parity with Non-Resident Indians (NRIs) in almost all economic, financial, and educational fields. This means they can seamlessly invest in Indian businesses, open bank accounts, and their children can study in Indian educational institutions under the NRI quota.
+
+**Strict Limitations of OCI:**
+Because it is not a true citizenship, OCI holders face several hard restrictions to protect national interests:
+* They are legally barred from purchasing agricultural land or plantation properties (though they can inherit them).
+* They absolutely do not possess the right to vote in any Indian elections.
+* They cannot run for any public office or contest elections.
+* They are strictly ineligible to hold high constitutional posts such as the President, Prime Minister, or a Judge of the Supreme Court.`
+                    },
+                    {
+                        q: "Q9. Roman empire citizenship / Medieval citizenship.",
+                        outOfSyllabus: false,
+                        a: `**Citizenship in the Ancient Roman Empire:**
+In Ancient Rome, the concept of citizenship was a highly sophisticated, coveted, and vital political status. It was the absolute foundation of their immense state power. Roman citizens enjoyed significant legal protections, the right to a fair trial, and the right to own property and make legal contracts. Crucially, they were actively expected to participate in the Republic's survival. They were obligated to obey strict laws, pay taxes to fund the empire's expansion, actively participate in public assemblies and voting, and most importantly, they were required to vigorously defend the State militarily. Serving in the Roman legions was deeply intertwined with the civic duty of a citizen.
+
+**Citizenship in the Medieval Period:**
+Following the collapse of the Roman Empire, the democratic and participatory concept of citizenship faded completely into obscurity for centuries. During the Medieval period across Europe, societies abandoned democratic participation and rigidly reorganized around the feudal system. 
+In this era, the concept of a "citizen" was replaced by that of a "subject." People lived under a strict hierarchy of land ownership and power. Their civic duties were no longer owed to an abstract State or Constitution, but rather directly to a personal Feudal Lord or a Monarch. The relationship was defined by personal loyalty, agricultural labor, and forced military service, offering no reciprocal democratic rights, political representation, or equal legal protection to the common people.`
+                    }
+                ]
+            },
+            {
+                section: "PREVIOUS YEAR PAPER (30 MARKS)",
+                items: [
+                    {
+                        q: "1. A) Describe the rights and duties of a citizen. Give suitable examples. (7.5 Marks)",
+                        outOfSyllabus: false,
+                        a: `**Understanding the Balance:**
+Citizenship reflects a mutual relationship between an individual and the State, grounded in reciprocal entitlements (rights) and obligations (duties). A democracy functions on a delicate balance: the freedom of the citizen heavily depends on the fairness of the State in granting rights, and the strength of the State heavily depends on the responsibility of its citizens in fulfilling their duties.
+
+**Rights of a Citizen:**
+Rights are the essential legal, political, and social entitlements guaranteed by the State that allow an individual to live with ultimate dignity and freedom. They are broadly classified into:
+* **Civil Rights:** These protect individual freedom and ensure equality. For example, the Right to Equality (Article 14) ensures all citizens are treated equally before the law. The freedom of speech and expression (Article 19) allows citizens to voice their opinions freely.
+* **Political Rights:** These empower citizens to actively participate in the democratic governance of the country. A prime example is the right to vote in local and national elections, and the exclusive right of a citizen to contest those elections or hold high public offices.
+* **Social and Economic Rights:** These ensure access to essential welfare services. An example is the Right to Education (Article 21A), ensuring basic educational access, or equality of opportunity in public employment (Article 16).
+
+**Duties of a Citizen:**
+Duties represent the civic and moral obligations that individuals are strictly expected to carry out to maintain social harmony and support the State.
+* **Legal Duties:** These are strictly enforceable by law. A key example is the absolute duty to pay income and property taxes honestly, which funds public welfare, or the duty to obey traffic laws.
+* **Moral and Positive Duties:** These arise from ethical conscience. For example, showing deep respect to fellow human beings regardless of their caste or religion. Positive duties involve active participation, such as taking the time to cast a vote during elections.
+* **Fundamental Duties (Article 51A):** The Constitution explicitly lists eleven duties. Notable examples include the duty to respect the National Flag, the duty to promote harmony and renounce practices derogatory to women, and the vital duty to protect and improve the natural environment.`
+                    },
+                    {
+                        q: "1. B) What is global citizenship? How is it different from national citizenship? (7.5 Marks)",
+                        outOfSyllabus: false,
+                        a: `**Understanding Global Citizenship:**
+Global citizenship is a modern, philosophical concept recognizing that in our highly interconnected world, an individual's identity and responsibilities completely transcend geographical borders and traditional political boundaries. A global citizen identifies first and foremost as a member of the broader human race. They understand that critical modern challenges—such as aggressive climate change, international terrorism, economic inequality, and human rights violations—cannot be solved by one country alone. Therefore, global citizenship involves taking active social, environmental, and ethical responsibility on a planetary scale.
+
+**Understanding National Citizenship:**
+National citizenship, on the other hand, is a strict, formal, and legally recognized relationship between an individual and a specific sovereign state (like India or the USA). It binds the individual to a specific constitution. It involves highly concrete legal rights (like holding a national passport) and strictly enforceable legal obligations (like paying domestic taxes or serving in the military).
+
+**Key Differences Between Global and National Citizenship:**
+1. **Legal Status vs. Moral Framework:** National citizenship is a hard, legal status heavily documented by passports, birth certificates, and constitutional law. In stark contrast, global citizenship is not a legal status at all; there is no "global passport" or "global government." It is purely a moral, ethical, and cultural framework.
+2. **Scope of Rights and Duties:** A national citizen enjoys specific constitutional rights (like voting in local elections) and owes specific legal duties (like obeying the penal code of that country). A global citizen focuses on universal human rights and broad transnational duties, such as advocating for environmental sustainability or supporting global disaster relief, none of which are enforced by a global police force.
+3. **Identity and Loyalty:** National citizenship fosters deep patriotism, national pride, and loyalty to a specific flag and heritage. Global citizenship fosters a universal loyalty to humanity, recognizing that the actions of one nation heavily impact the survival of others across the globe.`
+                    },
+                    {
+                        q: "1. C) Explain the role of citizens in promoting social harmony and public welfare. (7.5 Marks)",
+                        outOfSyllabus: false,
+                        a: `**The Foundation of a Stable Society:**
+A vibrant democracy and a prosperous nation cannot be built by the government alone; it requires the active, daily participation of its people. The fundamental role of a citizen extends far beyond merely paying taxes and obeying the law; it involves actively promoting social harmony and continuously contributing to public welfare. 
+
+**Role in Promoting Social Harmony:**
+Social harmony is incredibly crucial in a highly diverse country like India, which is home to multitude of religions, languages, and cultures. 
+* **Practicing Tolerance:** Citizens must actively respect diverse opinions, cultures, and beliefs. Instead of forcing others to agree or engaging in communal disputes, responsible citizens practice deep tolerance and empathy.
+* **Fulfilling Article 51A:** The Constitution specifically mandates it as a Fundamental Duty to "promote harmony and the spirit of common brotherhood among all the people of India transcending religious, linguistic and regional or sectional diversities." 
+* **Rejecting Propaganda:** Citizens play a critical role by staying well-informed and actively rejecting harmful traits such as blind obedience to fake news, hate speech, or political propaganda that seeks to divide the community.
+
+**Role in Promoting Public Welfare:**
+Public welfare refers to the collective well-being, health, and prosperity of the community.
+* **Civic Participation:** Citizens actively contribute to public welfare by volunteering their time for local causes, participating in NGO activities, and supporting local community services.
+* **Environmental Stewardship:** A major aspect of modern welfare is protecting the environment. Citizens promote welfare by adopting sustainable, eco-friendly practices, planting trees, and conserving water to ensure the planet remains habitable for future generations.
+* **Financial Honesty:** By strictly upholding the law and paying their taxes honestly, citizens directly empower the State with the necessary financial resources to invest in crucial infrastructure, public healthcare, and educational institutions that benefit the poorest and most marginalized sections of society.`
+                    },
+                    {
+                        q: "1. D) How does participation in democratic processes reflect responsible citizenship? (7.5 Marks)",
+                        outOfSyllabus: false,
+                        a: `**The Essence of Democratic Participation:**
+Democracy fundamentally implies the total sovereignty of the people. However, a democratic system is merely a framework; it requires the active, continuous lifeblood of citizen participation to function properly. When citizens actively engage in democratic processes, it serves as the ultimate reflection of responsible citizenship, transforming governance from "authority over the people" to true "governance by the people."
+
+**Reflecting Responsibility Through Voting:**
+The most direct democratic process is the electoral system. A responsible citizen understands that the right to vote is not merely a privilege, but a profound positive civic duty. By actively researching candidates, understanding political manifestos, and showing up to cast an informed vote, citizens ensure that the government genuinely reflects the will of the people. High voter turnout completely legitimizes the democratic process and prevents a small, organized minority from controlling the nation's destiny.
+
+**Accountability and Public Discourse:**
+Participation extends far beyond election day. Responsible citizens stay constantly informed about current affairs, complex economic policies, and pressing social issues. By legally participating in peaceful assemblies, writing to their elected representatives, or engaging in highly constructive public debates, they hold the government accountable for its actions. This prevents the abuse of power, ensures absolute transparency, and forces the State to prioritize the common good over narrow, selfish political interests.
+
+**Shaping an Inclusive Future:**
+Democratic participation requires deep tolerance and respect for minority opinions. When citizens participate ethically—rejecting violence, avoiding voter bribery, and fighting against systemic discrimination—they directly build a highly inclusive society. Ultimately, active democratic engagement proves that citizens are not passive "subjects" waiting to be ruled, but are active co-creators of a just, sustainable, and harmonious national future.`
+                    },
+                    {
+                        q: "2. 1. Responsible use of social media by citizens. (5 Marks)",
+                        outOfSyllabus: false,
+                        a: `**The Power and Peril of Social Media:**
+In the modern digital era, social media platforms have incredibly amplified the voice of the common citizen, allowing instant global communication and rapid mass mobilization. However, this immense power comes with an equally massive civic responsibility. Because information spreads virally in seconds, irresponsible use can instantly trigger communal violence, ruin reputations, and severely destabilize public order.
+
+**Practicing Responsible Digital Citizenship:**
+A responsible citizen uses social media highly ethically. They practice critical thinking by rigorously fact-checking information before sharing it, thereby stopping the dangerous spread of fake news, deepfakes, and malicious political propaganda. They strictly avoid engaging in cyberbullying, hate speech, or religious trolling, ensuring they promote social harmony and mutual respect online just as they would in the physical world. Furthermore, they use these powerful platforms constructively—to raise awareness about environmental issues, organize local community help drives, and peacefully hold public officials accountable.`
+                    },
+                    {
+                        q: "2. 2. Importance of equality and justice in citizenship. (5 Marks)",
+                        outOfSyllabus: false,
+                        a: `**The Bedrock of Democracy:**
+Equality and justice are the absolute twin pillars upon which the entire concept of democratic citizenship rests. Without them, citizenship loses its protective power, and the society inevitably devolves into an oppressive hierarchy. The Indian Constitution aggressively prioritizes these values in its Preamble, aiming to secure social, economic, and political justice, alongside equality of status and opportunity for all its nationals.
+
+**Ensuring an Inclusive Society:**
+Equality guarantees that every citizen, regardless of their gender, religion, caste, or wealth, receives the exact same legal rights and protections (as mandated by Articles 14 and 15). It entirely eliminates historic barriers and discrimination. Justice ensures that when these rights are violated, the legal system provides a fair, impartial, and immediate remedy. Together, they heavily empower marginalized communities, ensure that no citizen is treated as a second-class resident, and foster the deep mutual trust required for diverse populations to live together in total harmony.`
+                    },
+                    {
+                        q: "2. 3. Citizenship and participation in elections. (5 Marks)",
+                        outOfSyllabus: false,
+                        a: `**The Ultimate Political Right:**
+The absolute most defining feature that separates a legal citizen from a foreign resident or an alien is the exclusive political right to heavily participate in the nation's electoral process. In India, Universal Adult Franchise guarantees that every citizen above the age of 18 possesses the right to cast a vote, ensuring that the supreme power of the State remains firmly in the hands of the general public.
+
+**A Crucial Positive Duty:**
+However, participating in elections is not merely a legal right; it is arguably the most important positive civic duty. A democracy only thrives when its citizens actively show up to the polling booths. By voting intelligently, citizens directly choose their leaders, influence massive economic policies, and peacefully hold the incumbent government accountable for its past actions. High electoral participation ensures that the resulting government is truly legitimate and accurately reflects the diverse will of the entire nation, rather than just a vocal minority.`
+                    },
+                    {
+                        q: "2. 4. Civil and social rights. (5 Marks)",
+                        outOfSyllabus: false,
+                        a: `**Understanding Civil Rights:**
+Civil rights are the fundamental, foundational liberties guaranteed by the State that protect an individual's physical freedom and ensure their absolute equality before the law. These rights aggressively protect the citizen from arbitrary, tyrannical government actions. In India, crucial civil rights include the Right to Equality (preventing discrimination), the Right to Life and Personal Liberty (Article 21), and the powerful freedoms of speech, expression, and peaceful movement granted exclusively to citizens under Article 19.
+
+**Understanding Social Rights:**
+While civil rights provide freedom, social rights provide the necessary foundation for a citizen to live a life of basic human dignity. Social rights ensure that citizens have legal access to the essential welfare services heavily required for their daily survival and upward mobility. This includes the legal right to basic healthcare, the Right to Education (guaranteed for children aged 6-14 under Article 21A), and access to vital social security programs, ensuring that no citizen is left completely behind due to extreme poverty.`
+                    },
+                    {
+                        q: "2. 5. Citizenship and environmental protection. (5 Marks)",
+                        outOfSyllabus: false,
+                        a: `**A Shared Civic Responsibility:**
+Historically, citizenship was deeply focused on political rights and obedience to the law. However, in the face of massive modern crises like rapid climate change and severe resource depletion, environmental stewardship has become an absolutely critical, defining characteristic of responsible citizenship. Recognizing this, the Indian Constitution specifically incorporated Article 51A(g), making it a strict Fundamental Duty for every citizen "to protect and improve the natural environment including forests, lakes, rivers and wildlife."
+
+**Acting for Intergenerational Equity:**
+Responsible citizens recognize that they are merely temporary stewards of the Earth. They actively adopt highly sustainable daily practices, such as minimizing plastic waste, strictly conserving water and electricity, and heavily utilizing eco-friendly public transport. By actively participating in local conservation efforts and forcefully holding polluting corporations accountable, citizens ensure intergenerational equity—guaranteeing that they leave behind a safe, healthy, and habitable planet for future generations of citizens to enjoy.`
+                    }
+                ]
+            }
+        ];
+
+        // --- AUDIO ENGINE ---
+        const contentContainer = document.getElementById('content-container');
+        const synth = window.speechSynthesis;
+        
+        let activeCardId = null;
+        let isPaused = false;
+        let isManualStop = false;
+        let currentChunkIndex = 0;
+        let currentCardChunks = []; 
+        let currentUtterance = null;
+        
+        // iOS Fix: flag to track if audio has been triggered by user interaction
+        let isAudioUnlocked = false;
+
+        // Formats Markdown bold and italic syntax to HTML tags
+        function renderMarkdown(text) {
+            return text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>');
+        }
+
+        // Cleans up special characters so the TTS engine reads smoothly
+        function cleanForSpeech(text) {
+            return text.replace(/[*_#\[\]]/g, '').replace(/cite:\s*\d+/g, '').trim();
+        }
+
+        // Must be called directly on user click to unlock iOS Safari audio engine
+        function unlockAudioEngine() {
+            if (!isAudioUnlocked) {
+                const silentUtterance = new SpeechSynthesisUtterance('');
+                silentUtterance.volume = 0;
+                synth.speak(silentUtterance);
+                isAudioUnlocked = true;
+            }
+        }
+
+        // Injects the study material directly into the DOM
+        function renderStudyMaterial() {
+            studyData.forEach((section, secIndex) => {
+                const sectionEl = document.createElement('div');
+                sectionEl.className = 'mb-12';
+                sectionEl.innerHTML = `<h2 class="text-2xl font-black text-indigo-900 border-b-4 border-indigo-200 pb-2 mb-6 uppercase tracking-wider">${section.section}</h2>`;
+                
+                section.items.forEach((item, itemIndex) => {
+                    const cardId = `card-${secIndex}-${itemIndex}`;
+                    
+                    const isOOS = item.outOfSyllabus === true;
+                    const cardBaseClass = isOOS 
+                        ? 'oos-card bg-gray-100 rounded-xl shadow-inner border-2 border-gray-300 p-6 mb-6 transition-all duration-200 opacity-95' 
+                        : 'bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-6 transition-all duration-200';
+                    
+                    const badgeHtml = isOOS 
+                        ? `<div class="mb-4"><span class="inline-block bg-gray-600 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm"><i class="fas fa-exclamation-circle mr-1"></i> Optional (Out of Syllabus / Case Study)</span></div>`
+                        : '';
+
+                    const btnColors = isOOS 
+                        ? 'bg-gray-200 hover:bg-gray-300 text-gray-700' 
+                        : 'bg-indigo-100 hover:bg-indigo-200 text-indigo-700';
+
+                    const card = document.createElement('div');
+                    card.className = cardBaseClass;
+                    card.id = cardId;
+                    
+                    const qHeader = document.createElement('div');
+                    qHeader.className = 'flex justify-between items-start gap-4 mb-4 border-b border-gray-200 pb-4';
+                    
+                    qHeader.innerHTML = `
+                        <div class="flex-1">
+                            ${badgeHtml}
+                            <h3 class="font-bold text-xl text-gray-900 leading-tight speech-chunk" data-index="0" data-text="${cleanForSpeech(item.q)}">
+                                ${renderMarkdown(item.q)}
+                            </h3>
+                        </div>
+                        <button class="play-btn ${btnColors} p-3 rounded-full flex-shrink-0 transition focus:outline-none shadow-sm" title="Play from beginning">
+                            <i class="fas fa-play"></i>
+                        </button>
+                    `;
+                    
+                    const answerContainer = document.createElement('div');
+                    answerContainer.className = 'text-gray-700 text-base leading-relaxed';
+                    
+                    // Split content by line breaks to create chunks
+                    const paragraphs = item.a.split('\n').filter(p => p.trim() !== '');
+                    paragraphs.forEach((para, pIndex) => {
+                        const chunkEl = document.createElement('span');
+                        chunkEl.className = 'speech-chunk';
+                        chunkEl.dataset.index = pIndex + 1; 
+                        chunkEl.dataset.text = cleanForSpeech(para);
+                        chunkEl.innerHTML = renderMarkdown(para);
+                        answerContainer.appendChild(chunkEl);
+                    });
+
+                    card.appendChild(qHeader);
+                    card.appendChild(answerContainer);
+                    sectionEl.appendChild(card);
+
+                    // Add button listener
+                    const playBtn = card.querySelector('.play-btn');
+                    playBtn.addEventListener('click', () => {
+                        unlockAudioEngine();
+                        toggleCardPlayback(cardId, isOOS);
+                    });
+
+                    // Add text click listener for jumping to specific paragraphs
+                    const chunks = card.querySelectorAll('.speech-chunk');
+                    chunks.forEach(chunk => {
+                        chunk.addEventListener('click', () => {
+                            unlockAudioEngine();
+                            playFromChunk(cardId, parseInt(chunk.dataset.index), isOOS);
+                        });
+                    });
+                });
+
+                contentContainer.appendChild(sectionEl);
+            });
+        }
+
+        // --- AUDIO CONTROLLER ---
+        function toggleCardPlayback(cardId, isOOS) {
+            if (activeCardId === cardId) {
+                if (isPaused) {
+                    isPaused = false;
+                    synth.resume();
+                    updateCardUI(cardId, 'playing', isOOS);
+                } else if (synth.speaking) {
+                    isPaused = true;
+                    synth.pause();
+                    updateCardUI(cardId, 'paused', isOOS);
+                } else {
+                    playFromChunk(cardId, 0, isOOS);
+                }
+            } else {
+                playFromChunk(cardId, 0, isOOS);
+            }
+        }
+
+        function playFromChunk(cardId, startIndex, isOOS) {
+            isManualStop = true; 
+            synth.cancel(); 
+            
+            setTimeout(() => {
+                activeCardId = cardId;
+                isPaused = false;
+                currentChunkIndex = startIndex;
+                
+                const cardEl = document.getElementById(cardId);
+                currentCardChunks = Array.from(cardEl.querySelectorAll('.speech-chunk'));
+                
+                resetAllUI(); 
+                updateCardUI(cardId, 'playing', isOOS);
+                
+                playCurrentChunk(isOOS);
+            }, 50);
+        }
+
+        function playCurrentChunk(isOOS) {
+            if (currentChunkIndex >= currentCardChunks.length) {
+                resetAllUI();
+                activeCardId = null;
+                return;
+            }
+
+            isManualStop = false; 
+            currentCardChunks.forEach(c => c.classList.remove('chunk-playing', 'chunk-paused'));
+            
+            const chunkEl = currentCardChunks[currentChunkIndex];
+            chunkEl.classList.add('chunk-playing');
+            chunkEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            const text = chunkEl.dataset.text;
+            currentUtterance = new SpeechSynthesisUtterance(text);
+            currentUtterance.rate = parseFloat(document.getElementById('speed').value);
+            
+            // Try to find a high quality English voice 
+            const voices = synth.getVoices();
+            const preferredVoice = voices.find(v => v.lang.includes('en-') && (v.name.includes('Google') || v.name.includes('Natural')));
+            if(preferredVoice) currentUtterance.voice = preferredVoice;
+
+            currentUtterance.onend = () => {
+                if (isManualStop) return; 
+                currentChunkIndex++;
+                playCurrentChunk(isOOS);
+            };
+
+            currentUtterance.onerror = (e) => {
+                if (e.error === 'interrupted' || e.error === 'canceled' || isManualStop) return;
+                currentChunkIndex++;
+                playCurrentChunk(isOOS);
+            };
+
+            synth.speak(currentUtterance);
+        }
+
+        // Handle speed changes mid-playback
+        document.getElementById('speed').addEventListener('change', () => {
+            if (activeCardId && !isPaused) {
+                isManualStop = true;
+                synth.cancel();
+                const cardEl = document.getElementById(activeCardId);
+                const isOOS = cardEl.classList.contains('oos-card');
+                setTimeout(() => playCurrentChunk(isOOS), 50);
+            }
+        });
+
+        // Global Stop Button
+        document.getElementById('stop-all').addEventListener('click', () => {
+            isManualStop = true;
+            synth.cancel();
+            resetAllUI();
+            activeCardId = null;
+            isPaused = false;
+        });
+
+        function updateCardUI(cardId, state, isOOS) {
+            const cardEl = document.getElementById(cardId);
+            const btn = cardEl.querySelector('.play-btn');
+            
+            const activeColor = isOOS ? 'bg-gray-600' : 'bg-indigo-600';
+            const idleBg = isOOS ? 'bg-gray-200' : 'bg-indigo-100';
+            const idleText = isOOS ? 'text-gray-700' : 'text-indigo-700';
+
+            if (state === 'playing') {
+                btn.innerHTML = '<i class="fas fa-pause"></i>';
+                btn.classList.remove(idleBg, idleText);
+                btn.classList.add(activeColor, 'text-white');
+                if(currentCardChunks[currentChunkIndex]) {
+                    currentCardChunks[currentChunkIndex].classList.add('chunk-playing');
+                    currentCardChunks[currentChunkIndex].classList.remove('chunk-paused');
+                }
+            } else if (state === 'paused') {
+                btn.innerHTML = '<i class="fas fa-play"></i>';
+                btn.classList.remove(activeColor, 'text-white');
+                btn.classList.add(idleBg, idleText);
+                if(currentCardChunks[currentChunkIndex]) {
+                    currentCardChunks[currentChunkIndex].classList.remove('chunk-playing');
+                    currentCardChunks[currentChunkIndex].classList.add('chunk-paused');
+                }
+            }
+        }
+
+        function resetAllUI() {
+            document.querySelectorAll('.chunk-playing, .chunk-paused').forEach(el => {
+                el.classList.remove('chunk-playing', 'chunk-paused');
+            });
+            document.querySelectorAll('.play-btn').forEach(btn => {
+                btn.innerHTML = '<i class="fas fa-play"></i>';
+                if (btn.closest('.oos-card')) {
+                    btn.className = 'play-btn bg-gray-200 hover:bg-gray-300 text-gray-700 p-3 rounded-full flex-shrink-0 transition focus:outline-none shadow-sm';
+                } else {
+                    btn.className = 'play-btn bg-indigo-100 hover:bg-indigo-200 text-indigo-700 p-3 rounded-full flex-shrink-0 transition focus:outline-none shadow-sm';
+                }
+            });
+        }
+
+        window.speechSynthesis.onvoiceschanged = () => {};
+        renderStudyMaterial();
+
+        window.addEventListener('beforeunload', () => {
+            synth.cancel();
+        });
+    </script>
+</body>
+</html>
