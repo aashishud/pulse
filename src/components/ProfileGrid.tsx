@@ -2,11 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import {
-  Trophy, Link as LinkIcon, ExternalLink, LayoutGrid,
-  Globe, ArrowUpRight, Clock, Award, Loader2,
-  Cpu, Mouse, Keyboard, Monitor, Headphones, Music, ChevronRight, Video
+  Trophy, Gamepad2, Link as LinkIcon, ExternalLink, 
+  Swords, ArrowUpRight, Clock, Award, Music, ChevronRight, Video
 } from 'lucide-react';
-import Image from 'next/image';
 import ValorantModal from '@/components/ValorantModal';
 
 const VerifiedBadge = () => (
@@ -22,7 +20,6 @@ const ensureProtocol = (url: string) => {
   return `https://${url}`;
 };
 
-// BULLETPROOF AUTO-EMBEDDER LOGIC
 const getEmbedData = (rawUrl: string) => {
   if (!rawUrl) return null;
   try {
@@ -93,7 +90,9 @@ export default function ProfileGrid({
 }) {
   const [activeTab, setActiveTab] = useState("overview");
   const [steam, setSteam] = useState(initialSteam);
+  const [fullValorantData, setFullValorantData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [hasFetched, setHasFetched] = useState(false);
   const [isValorantModalOpen, setIsValorantModalOpen] = useState(false);
 
   useEffect(() => {
@@ -114,7 +113,10 @@ export default function ProfileGrid({
           promises.push(
             fetch(`/api/valorant?name=${encodeURIComponent(user.gaming.valorant.name)}&tag=${encodeURIComponent(user.gaming.valorant.tag)}&region=${user.gaming.valorant.region || 'na'}`)
               .then(res => res.json())
-              .then(data => setSteam((prev: any) => ({ ...prev, valorantData: data.profile })))
+              .then(data => {
+                  setSteam((prev: any) => ({ ...prev, valorantData: data.profile || data }));
+                  setFullValorantData(data);
+              })
           );
         }
 
@@ -126,25 +128,41 @@ export default function ProfileGrid({
       }
     };
 
-    if (!steam.profile && (user.steamId || user.gaming?.valorant)) {
+    if (!hasFetched && (!steam.profile && (user.steamId || user.gaming?.valorant))) {
+        setHasFetched(true);
         fetchData();
     }
-  }, [user.steamId, user.gaming?.valorant, steam.profile]);
+  }, [user.steamId, user.gaming?.valorant, steam.profile, hasFetched]);
 
-  const {
-    profile,
-    recentGames,
-    level,
-    gameCount,
-    heroGameProgress,
-    valorantData
-  } = steam;
-
+  const { profile, recentGames, level, gameCount, heroGameProgress, valorantData } = steam;
   const heroGame = recentGames?.[0];
-  const otherGames = recentGames?.slice(1) || [];
-
   const isLightCard = user.primary?.toLowerCase() === '#ffffff' || user.primary?.toLowerCase() === 'white';
-  const cardStyle = { backgroundColor: `${user.primary}E6` };
+  
+  // Force rigorous number parsing so sliders bind correctly 
+  const opacity = user.cardOpacity !== undefined ? Number(user.cardOpacity) : 0.8;
+  const blur = user.cardBlur !== undefined ? Number(user.cardBlur) : 10;
+  
+  function hexToRgba(hex: string, alpha: number) {
+    if (!hex) return `rgba(30, 31, 34, ${alpha})`;
+    hex = hex.replace('#', '');
+    let r = 30, g = 31, b = 34;
+    if (hex.length === 3) {
+        r = parseInt(hex[0]+hex[0], 16);
+        g = parseInt(hex[1]+hex[1], 16);
+        b = parseInt(hex[2]+hex[2], 16);
+    } else if (hex.length === 6) {
+        r = parseInt(hex.slice(0, 2), 16);
+        g = parseInt(hex.slice(2, 4), 16);
+        b = parseInt(hex.slice(4, 6), 16);
+    }
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+
+  const cardStyle = { 
+    backgroundColor: hexToRgba(user.primary || '#1e1f22', opacity),
+    backdropFilter: `blur(${blur}px)`,
+    WebkitBackdropFilter: `blur(${blur}px)`
+  };
 
   let titleColor = "text-white";
   let subtitleColor = "text-zinc-300";
@@ -176,7 +194,7 @@ export default function ProfileGrid({
       case 'hero':
         if (!heroGame) return null;
         return (
-          <div key={key} className={`${colSpanClass} relative h-[260px] rounded-2xl overflow-hidden group border border-white/10 bg-zinc-900 shadow-xl`}>
+          <div key={key} className={`${colSpanClass} relative h-[240px] rounded-2xl overflow-hidden group shadow-xl`} style={{ border: '1px solid rgba(255,255,255,0.05)', ...cardStyle }}>
             <img
               src={`https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${heroGame.appid}/library_hero.jpg`}
               alt={heroGame.name}
@@ -185,7 +203,7 @@ export default function ProfileGrid({
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#111] via-black/40 to-transparent"></div>
 
-            <div className="absolute bottom-0 left-0 w-full p-6">
+            <div className="absolute bottom-0 left-0 w-full p-5">
               <div className="flex justify-between items-end mb-2">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
@@ -208,7 +226,7 @@ export default function ProfileGrid({
                     <span>Game Completion</span>
                     <span className="text-white">{heroGameProgress}%</span>
                   </div>
-                  <div className="h-2 w-full bg-black/50 rounded-full overflow-hidden border border-white/5">
+                  <div className="h-1.5 w-full bg-black/50 rounded-full overflow-hidden border border-white/5">
                     <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-1000" style={{ width: `${heroGameProgress}%` }}></div>
                   </div>
                 </div>
@@ -219,26 +237,19 @@ export default function ProfileGrid({
 
       case 'spotify':
         if (!spotify) return null;
-        
         return (
-          <div key={key} style={cardStyle} className={`${colSpanClass} backdrop-blur-md p-5 rounded-2xl border border-white/10 hover:border-white/20 transition h-full flex flex-col group min-h-[160px]`}>
-            <div className="flex justify-between items-center mb-4">
-              <div className={`p-2.5 rounded-xl bg-[#1DB954]/10 text-[#1DB954] transition`}>
-                <Music className="w-4 h-4" />
-              </div>
+          <div key={key} style={cardStyle} className={`${colSpanClass} p-4 rounded-2xl border border-white/10 hover:border-white/20 transition h-full flex flex-col group min-h-[140px]`}>
+            <div className="flex justify-between items-center mb-3">
+              <div className={`p-2 rounded-xl bg-[#1DB954]/10 text-[#1DB954] transition`}><Music className="w-4 h-4" /></div>
               <p className={`text-[10px] font-bold uppercase tracking-widest ${mutedColor}`}>Monthly Top Tracks</p>
             </div>
             
-            <div className="space-y-3 flex-1">
+            <div className="space-y-2.5 flex-1 min-h-0 overflow-x-hidden">
               {spotify.topTracks && spotify.topTracks.length > 0 ? (
-                spotify.topTracks.map((track: any, i: number) => (
-                  <a key={track.id} href={track.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 group/track hover:bg-white/5 p-1 -m-1 rounded-lg transition-all">
+                spotify.topTracks.map((track: any) => (
+                  <a key={track.id} href={track.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 group/track hover:bg-white/5 p-1.5 -m-1.5 rounded-lg transition-all">
                     <div className="relative w-10 h-10 rounded-md overflow-hidden bg-zinc-800 shrink-0 shadow-sm flex items-center justify-center">
-                      {track.albumArt ? (
-                         <img src={track.albumArt} alt={track.title} className="w-full h-full object-cover" />
-                      ) : (
-                         <Music className={`w-4 h-4 ${mutedColor}`} />
-                      )}
+                      {track.albumArt ? <img src={track.albumArt} alt={track.title} className="w-full h-full object-cover" /> : <Music className={`w-4 h-4 ${mutedColor}`} />}
                       <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover/track:opacity-100 transition">
                         <ExternalLink className="w-3 h-3 text-white" />
                       </div>
@@ -251,9 +262,8 @@ export default function ProfileGrid({
                   </a>
                 ))
               ) : (
-                <div className="flex flex-col items-center justify-center h-full text-center py-4">
+                <div className="flex flex-col items-center justify-center h-full text-center py-2">
                    <p className={`text-xs font-bold ${mutedColor}`}>No history found yet</p>
-                   <p className="text-[10px] text-zinc-500 mt-1 px-4">Listen to more music to populate your Top Tracks!</p>
                 </div>
               )}
             </div>
@@ -261,40 +271,40 @@ export default function ProfileGrid({
         );
 
       case 'content':
-        if (!user.socials.youtube && !user.socials.twitch && !user.steamId) return null;
+        if (!user.socials?.youtube && !user.socials?.twitch && !user.steamId) return null;
         return (
-          <div key={key} style={cardStyle} className={`${colSpanClass} backdrop-blur-md rounded-2xl border border-white/10 overflow-hidden flex flex-col justify-center min-h-[140px] p-2 gap-2`}>
-            {user.socials.youtube && (
+          <div key={key} style={cardStyle} className={`${colSpanClass} rounded-2xl border border-white/10 overflow-hidden flex flex-col justify-center min-h-[140px] p-2.5 gap-2.5`}>
+            {user.socials?.youtube && (
               <a
                 href={user.socials.youtube.startsWith('http') ? user.socials.youtube : `https://youtube.com/${user.socials.youtube}`}
                 target="_blank"
                 className="flex-1 bg-gradient-to-r from-[#FF0000]/20 to-[#FF0000]/5 hover:from-[#FF0000]/40 hover:to-[#FF0000]/20 border border-[#FF0000]/30 rounded-xl p-3 flex items-center justify-between group transition-all"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-white text-[#FF0000] flex items-center justify-center shadow-lg group-hover:scale-110 transition">
-                    <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 576 512"><path d="M549.655 124.083c-6.281-23.65-24.787-42.276-48.284-48.597C458.781 64 288 64 288 64S117.22 64 74.629 75.486c-23.497 6.322-42.003 24.947-48.284 48.597-11.412 42.867-11.412 132.305-11.412 132.305s0 89.438 11.412 132.305c6.281 23.65 24.787 41.5 48.284 47.821C117.22 448 288 448 288 448s170.781 0 213.371-11.486c23.497-6.321 42.003-24.171 48.284-47.821 11.412-42.867 11.412-132.305 11.412-132.305s0-89.438-11.412-132.305zm-317.51 213.508V175.185l142.739 81.205-142.739 81.201z"/></svg>
+                  <div className="w-10 h-10 rounded-xl bg-[#0a0a0c] border border-white/5 flex items-center justify-center shadow-lg group-hover:scale-110 transition shrink-0">
+                     <img src="https://cdn.simpleicons.org/youtube/FF0000" alt="YouTube" className="w-5 h-5 object-contain" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-[#FF0000] uppercase tracking-wider">Subscribe</p>
-                    <p className={`text-xs font-bold ${titleColor} truncate max-w-[100px]`}>YouTube</p>
+                    <p className="text-[10px] font-bold text-[#FF0000] uppercase tracking-wider leading-none mb-1">Subscribe</p>
+                    <p className={`text-sm font-bold ${titleColor} truncate max-w-[120px] leading-none`}>YouTube</p>
                   </div>
                 </div>
                 <ExternalLink className={`w-3 h-3 ${mutedColor} group-hover:text-white`} />
               </a>
             )}
-            {user.socials.twitch && (
+            {user.socials?.twitch && (
               <a
                 href={`https://twitch.tv/${user.socials.twitch}`}
                 target="_blank"
                 className="flex-1 bg-gradient-to-r from-[#9146FF]/20 to-[#9146FF]/5 hover:from-[#9146FF]/40 hover:to-[#9146FF]/20 border border-[#9146FF]/30 rounded-xl p-3 flex items-center justify-between group transition-all"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-white text-[#9146FF] flex items-center justify-center shadow-lg group-hover:scale-110 transition">
-                    <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 512 512"><path d="M391.17,103.47H352.54v109.7h38.63ZM285,103H246.37V213.17H285ZM120.83,0,24.31,91.42V420.58H140.14V512l96.53-91.42h77.25L487.69,256V0ZM449.07,237.75l-77.22,73.12H294.61l-67.6,64v-64H140.14V36.58H449.07Z"/></svg>
+                  <div className="w-10 h-10 rounded-xl bg-[#0a0a0c] border border-white/5 flex items-center justify-center shadow-lg group-hover:scale-110 transition shrink-0">
+                     <img src="https://cdn.simpleicons.org/twitch/9146FF" alt="Twitch" className="w-5 h-5 object-contain" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-[#9146FF] uppercase tracking-wider">Watch Live</p>
-                    <p className={`text-xs font-bold ${titleColor} truncate max-w-[100px]`}>Twitch</p>
+                    <p className="text-[10px] font-bold text-[#9146FF] uppercase tracking-wider leading-none mb-1">Watch Live</p>
+                    <p className={`text-sm font-bold ${titleColor} truncate max-w-[120px] leading-none`}>Twitch</p>
                   </div>
                 </div>
                 <ExternalLink className={`w-3 h-3 ${mutedColor} group-hover:text-white`} />
@@ -307,12 +317,12 @@ export default function ProfileGrid({
                 className="flex-1 bg-gradient-to-r from-[#66c0f4]/20 to-[#66c0f4]/5 hover:from-[#66c0f4]/40 hover:to-[#66c0f4]/20 border border-[#66c0f4]/30 rounded-xl p-3 flex items-center justify-between group transition-all"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-white text-[#66c0f4] flex items-center justify-center shadow-lg group-hover:scale-110 transition">
-                    <svg className="w-4 h-4 fill-current" viewBox="0 0 496 512"><path d="M496 256c0 137-111.2 248-248.4 248-113.8 0-209.6-76.3-239-180.4l95.2 39.3c6.4 32.1 34.9 56.4 68.9 56.4 39.2 0 71.9-32.4 70.2-73.5l84.5-60.2c52.1 1.3 95.8-40.9 95.8-93.5 0-51.6-42-93.5-93.7-93.5s-93.7 42-93.7 93.5v1.2L176.6 279c-15.5-.9-30.7 3.4-43.5 12.1L0 236.1C10.2 108.4 117.1 8 247.6 8 384.8 8 496 119.3 496 256zM155.7 384.3l-30.5-12.6a52.79 52.79 0 0 0 27.2 25.8c26.9 11.2 57.8-1.6 69-28.4 5.4-13 5.5-27.3.1-40.3-5.4-13-15.5-23.2-28.5-28.6-12.9-5.4-26.7-5.2-38.9-.6l31.5 13c19.8 8.2 29.2 30.9 20.9 50.7-8.3 19.9-31 29.2-50.8 21zM277.5 344.1c-8.7-1.4-16.7-6.2-22.3-13.3-5.6-7.1-8.5-16.1-8.2-25.2.3-9.1 3.8-17.8 9.9-24.6 6.1-6.8 14.4-11.1 23.3-12.1 8.9-1 17.8 1.4 25 6.4 7.2 5 12.3 12.4 14.1 21.1 1.8 8.7-.3 17.8-5.8 24.8-5.5 7-13.4 11.6-22 13.1-8.6 1.5-17.6-.2-24-4.2zm24.6-67.6c-16.1 0-29.2 13.1-29.2 29.2s13.1 29.2 29.2 29.2 29.2-13.1 29.2-29.2-13.1-29.2-29.2-29.2z"/></svg>
+                  <div className="w-10 h-10 rounded-xl bg-[#0a0a0c] border border-white/5 flex items-center justify-center shadow-lg group-hover:scale-110 transition shrink-0">
+                     <img src="https://cdn.simpleicons.org/steam/66c0f4" alt="Steam" className="w-5 h-5 object-contain" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-[#66c0f4] uppercase tracking-wider">View Profile</p>
-                    <p className={`text-xs font-bold ${titleColor} truncate max-w-[100px]`}>Steam</p>
+                    <p className="text-[10px] font-bold text-[#66c0f4] uppercase tracking-wider leading-none mb-1">View Profile</p>
+                    <p className={`text-sm font-bold ${titleColor} truncate max-w-[100px] leading-none`}>Steam</p>
                   </div>
                 </div>
                 <ExternalLink className={`w-3 h-3 ${mutedColor} group-hover:text-white`} />
@@ -323,57 +333,186 @@ export default function ProfileGrid({
 
       case 'valorant':
         if (!valorantData) return null;
+
+        let winRate = 54;
+        let kd = "1.12";
+        let hsPercent = 24;
+        let topAgentImg = "https://media.valorant-api.com/agents/eb93336a-449b-9c1b-0a54-a891f7921d69/displayicon.png";
+
+        if (fullValorantData && fullValorantData.matches && fullValorantData.matches.length > 0) {
+            let totalKills = 0, totalDeaths = 0, totalWins = 0, totalMatches = 0;
+            let totalHeadshots = 0, totalShots = 0;
+            
+            if (fullValorantData.topAgents && fullValorantData.topAgents.length > 0) {
+               topAgentImg = fullValorantData.topAgents[0].image;
+               fullValorantData.topAgents.forEach((agent: any) => {
+                  totalKills += agent.kills;
+                  totalDeaths += agent.deaths;
+                  totalWins += agent.wins;
+                  totalMatches += agent.count;
+               });
+            }
+
+            fullValorantData.matches.forEach((match: any) => {
+               const player = match.players?.all_players?.find((p: any) => 
+                   p.name.toLowerCase() === user.gaming.valorant.name.toLowerCase() && 
+                   p.tag.toLowerCase() === user.gaming.valorant.tag.toLowerCase()
+               );
+               if (player && player.stats) {
+                   totalHeadshots += player.stats.headshots || 0;
+                   totalShots += (player.stats.headshots || 0) + (player.stats.bodyshots || 0) + (player.stats.legshots || 0);
+               }
+            });
+
+            if (totalMatches > 0) { winRate = Math.round((totalWins / totalMatches) * 100); }
+            if (totalDeaths > 0) { kd = (totalKills / totalDeaths).toFixed(2); }
+            if (totalShots > 0) { hsPercent = Math.round((totalHeadshots / totalShots) * 100); }
+        }
+
         return (
           <div 
             key={key} 
             onClick={() => setIsValorantModalOpen(true)}
             style={cardStyle}
-            className={`${colSpanClass} backdrop-blur-md rounded-2xl p-5 border border-white/10 cursor-pointer hover:border-white/20 transition-all hover:scale-[1.02] shadow-xl relative overflow-hidden group min-h-[140px] flex flex-col justify-between`}
+            className={`${colSpanClass} rounded-2xl p-4 border border-white/10 cursor-pointer hover:border-white/20 transition-all hover:scale-[1.02] shadow-xl relative overflow-hidden group min-h-[140px] flex flex-col justify-between`}
           >
-            <div>
-              {/* Top Row: Badge & Rank Icon */}
-              <div className="flex justify-between items-start mb-4">
-                <div className={`px-2.5 py-1 rounded-md ${iconBg} ${titleColor} flex items-center gap-1.5 backdrop-blur-sm border border-white/5`}>
-                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M17.42 2.656L23.596 12 17.42 21.343H21.5L23.596 12 21.5 2.656h-4.08zM15.42 2.656H2.5L13.596 12 2.5 21.343h12.92L21.596 12 15.42 2.656z"/></svg>
-                  <span className="text-[10px] font-black tracking-widest uppercase">Valorant</span>
+            <div className="flex-1 flex flex-col justify-between min-w-0">
+              <div>
+                <div className="flex justify-between items-start mb-3">
+                  <div className={`px-2.5 py-1 rounded-md ${iconBg} ${titleColor} flex items-center gap-1.5 border border-white/5`}>
+                    <Swords className="w-3 h-3" />
+                    <span className="text-[9px] font-black tracking-widest uppercase">Valorant</span>
+                  </div>
+                  <div className="w-10 h-10 relative drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">
+                    {valorantData.images?.small ? <img src={valorantData.images.small} alt="Rank" className="w-full h-full object-contain" /> : <img src="https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/17/largeicon.png" alt="Rank" className="w-full h-full object-contain" />}
+                  </div>
                 </div>
-                <div className="w-10 h-10 relative drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">
-                  {valorantData.images?.small ? (
-                    <img src={valorantData.images.small} alt="Rank" className="w-full h-full object-contain" />
-                  ) : (
-                    <img src="https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/17/largeicon.png" alt="Rank" className="w-full h-full object-contain" />
-                  )}
+
+                <div className="mb-0.5">
+                  <span className={`text-[10px] font-black ${mutedColor} tracking-widest uppercase truncate block`}>
+                    {valorantData.name}#{valorantData.tag}
+                  </span>
                 </div>
+                <h3 className={`text-2xl font-black ${titleColor} uppercase tracking-wider font-mono leading-none truncate block`}>
+                  {valorantData.currenttierpatched}
+                </h3>
               </div>
 
-              {/* Name & Tag */}
-              <div className="mb-0.5">
-                <span className={`text-[10px] font-black ${mutedColor} tracking-widest uppercase`}>
-                  {valorantData.name}#{valorantData.tag}
-                </span>
+              <div className="flex flex-wrap items-center justify-between gap-4 mt-4 mb-4 bg-black/20 p-3 rounded-xl border border-white/5 w-full">
+                 <div className="flex flex-col items-center">
+                    <img src={topAgentImg} alt="Top Agent" className="w-8 h-8 rounded-lg bg-black/40 border border-white/10 object-cover shadow-sm" title="Top Agent" />
+                 </div>
+                 <div className="text-center">
+                    <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-0.5">Win %</p>
+                    <p className={`text-xs sm:text-sm font-black font-mono ${winRate >= 50 ? 'text-emerald-400' : 'text-red-400'} leading-tight`}>{winRate}%</p>
+                 </div>
+                 <div className="text-center">
+                    <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-0.5">HS %</p>
+                    <p className="text-xs sm:text-sm font-black font-mono text-white leading-tight">{hsPercent}%</p>
+                 </div>
+                 <div className="text-center">
+                    <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-0.5">K/D</p>
+                    <p className="text-xs sm:text-sm font-black font-mono text-white leading-tight">{kd}</p>
+                 </div>
               </div>
-
-              {/* Rank Title (Pixel/Mono Style) */}
-              <h3 className={`text-2xl font-black ${titleColor} uppercase tracking-wider mb-4 font-mono`}>
-                {valorantData.currenttierpatched}
-              </h3>
             </div>
 
-            {/* RR Progress Bar */}
-            <div className="w-full flex items-center gap-3 relative z-10">
+            <div className="w-full flex items-center gap-3 relative z-10 mt-auto pt-2">
               <div className="flex-1 h-1.5 bg-black/40 rounded-full overflow-hidden">
                 <div className="h-full bg-[#ff4655] rounded-full" style={{ width: `${valorantData.ranking_in_tier}%` }} />
               </div>
-              <span className={`text-[10px] font-black ${subtitleColor} tracking-wider`}>{valorantData.ranking_in_tier} RR</span>
+              <span className={`text-[10px] font-black ${subtitleColor} tracking-wider shrink-0`}>{valorantData.ranking_in_tier} RR</span>
             </div>
+          </div>
+        );
+
+      case 'connections':
+      case 'library':
+        const hasConnections = user.steamId || user.socials?.discord || user.gaming?.xbox || user.gaming?.epic || user.socials?.twitter || user.socials?.instagram;
+        if (!hasConnections) return null;
+
+        return (
+          <div key={key} style={cardStyle} className={`${colSpanClass} p-4 rounded-2xl border border-white/10 hover:border-white/20 transition h-full flex flex-col relative overflow-hidden group min-h-[140px]`}>
+             <h3 className={`text-[10px] font-black uppercase tracking-widest mb-3 flex items-center gap-2 ${mutedColor}`}>
+               Connections
+             </h3>
+             <div className="flex flex-col gap-2 flex-1 min-h-0 overflow-x-hidden">
+                 {user.steamId && (
+                   <a href={`https://steamcommunity.com/profiles/${user.steamId}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-2.5 rounded-xl bg-black/20 border border-white/5 hover:bg-white/10 transition group/link shrink-0">
+                     <div className="flex items-center gap-3">
+                       <div className="w-8 h-8 bg-[#171a21] rounded-xl flex items-center justify-center shrink-0 border border-white/5 shadow-sm">
+                         <img src="https://cdn.simpleicons.org/steam/white" alt="Steam" className="w-4 h-4 object-contain" />
+                       </div>
+                       <div className="min-w-0"><p className={`text-xs font-bold ${titleColor} leading-none mb-1`}>Steam</p><p className={`text-[10px] ${mutedColor} truncate leading-none`}>{level > 0 ? `Level ${level}` : 'Connected'}</p></div>
+                     </div>
+                     <ExternalLink className={`w-3 h-3 ${mutedColor} group-hover/link:text-white opacity-0 group-hover/link:opacity-100 transition`} />
+                   </a>
+                 )}
+
+                 {user.socials?.discord && (
+                   <div className="flex items-center justify-between p-2.5 rounded-xl bg-black/20 border border-white/5 hover:bg-white/10 transition group/link shrink-0">
+                     <div className="flex items-center gap-3">
+                       <div className="w-8 h-8 bg-[#5865F2] rounded-xl flex items-center justify-center text-white shrink-0 border border-white/5 shadow-sm">
+                         <img src="https://cdn.simpleicons.org/discord/white" alt="Discord" className="w-4 h-4 object-contain" />
+                       </div>
+                       <div className="min-w-0"><p className={`text-xs font-bold ${titleColor} leading-none mb-1`}>Discord</p><p className={`text-[10px] ${mutedColor} truncate leading-none`}>{user.socials.discord}</p></div>
+                     </div>
+                     {user.socials.discord_verified && <VerifiedBadge />}
+                   </div>
+                 )}
+
+                 {user.gaming?.xbox && (
+                   <div className="flex items-center justify-between p-2.5 rounded-xl bg-black/20 border border-white/5 hover:bg-white/10 transition group/link shrink-0">
+                     <div className="flex items-center gap-3">
+                       <div className="w-8 h-8 bg-[#107C10] rounded-xl flex items-center justify-center text-white shrink-0 border border-white/5 shadow-sm">
+                         <img src="https://api.iconify.design/simple-icons:xbox.svg?color=white" alt="Xbox" className="w-4 h-4 object-contain" />
+                       </div>
+                       <div className="min-w-0"><p className={`text-xs font-bold ${titleColor} leading-none mb-1`}>Xbox</p><p className={`text-[10px] ${mutedColor} truncate leading-none`}>{user.gaming.xbox}</p></div>
+                     </div>
+                   </div>
+                 )}
+
+                 {user.gaming?.epic && (
+                   <div className="flex items-center justify-between p-2.5 rounded-xl bg-black/20 border border-white/5 hover:bg-white/10 transition group/link shrink-0">
+                     <div className="flex items-center gap-3">
+                       <div className="w-8 h-8 bg-[#313131] rounded-xl flex items-center justify-center text-white shrink-0 border border-white/5 shadow-sm">
+                         <img src="https://cdn.simpleicons.org/epicgames/white" alt="Epic Games" className="w-4 h-4 object-contain" />
+                       </div>
+                       <div className="min-w-0"><p className={`text-xs font-bold ${titleColor} leading-none mb-1`}>Epic Games</p><p className={`text-[10px] ${mutedColor} truncate leading-none`}>{user.gaming.epic}</p></div>
+                     </div>
+                   </div>
+                 )}
+
+                 {user.socials?.twitter && (
+                   <div className="flex items-center justify-between p-2.5 rounded-xl bg-black/20 border border-white/5 hover:bg-white/10 transition group/link shrink-0">
+                     <div className="flex items-center gap-3">
+                       <div className="w-8 h-8 bg-zinc-800 rounded-xl flex items-center justify-center shrink-0 border border-white/5 shadow-sm">
+                         <img src="https://cdn.simpleicons.org/x/white" alt="X" className="w-4 h-4 object-contain" />
+                       </div>
+                       <div className="min-w-0"><p className={`text-xs font-bold ${titleColor} leading-none mb-1`}>Twitter</p><p className={`text-[10px] ${mutedColor} truncate leading-none`}>{user.socials.twitter}</p></div>
+                     </div>
+                   </div>
+                 )}
+
+                 {user.socials?.instagram && (
+                   <div className="flex items-center justify-between p-2.5 rounded-xl bg-black/20 border border-white/5 hover:bg-white/10 transition group/link shrink-0">
+                     <div className="flex items-center gap-3">
+                       <div className="w-8 h-8 bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888] rounded-xl flex items-center justify-center shrink-0 border border-white/5 shadow-sm">
+                         <img src="https://cdn.simpleicons.org/instagram/white" alt="Instagram" className="w-4 h-4 object-contain" />
+                       </div>
+                       <div className="min-w-0"><p className={`text-xs font-bold ${titleColor} leading-none mb-1`}>Instagram</p><p className={`text-[10px] ${mutedColor} truncate leading-none`}>{user.socials.instagram}</p></div>
+                     </div>
+                   </div>
+                 )}
+             </div>
           </div>
         );
 
       case 'stats':
         return (
-          <div key={key} style={cardStyle} className={`${colSpanClass} backdrop-blur-md p-5 rounded-2xl border border-white/10 hover:border-white/20 transition h-full flex flex-col justify-between group min-h-[160px]`}>
-            <div className="flex justify-between items-start mb-4">
-              <div className={`p-2.5 rounded-xl ${iconBg} ${hoverIconBg} transition ${titleColor}`}><Trophy className="w-4 h-4" /></div>
+          <div key={key} style={cardStyle} className={`${colSpanClass} p-4 rounded-2xl border border-white/10 hover:border-white/20 transition h-full flex flex-col justify-between group min-h-[140px]`}>
+            <div className="flex justify-between items-start mb-3">
+              <div className={`p-2 rounded-xl ${iconBg} ${hoverIconBg} transition ${titleColor}`}><Trophy className="w-4 h-4" /></div>
               <div className="text-right">
                 <p className={`text-[10px] font-bold uppercase ${mutedColor}`}>Level</p>
                 <p className={`text-2xl font-black ${titleColor}`}>{level}</p>
@@ -381,112 +520,78 @@ export default function ProfileGrid({
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <svg className={`w-3 h-3 fill-current ${mutedColor}`} viewBox="0 0 496 512"><path d="M496 256c0 137-111.2 248-248.4 248-113.8 0-209.6-76.3-239-180.4l95.2 39.3c6.4 32.1 34.9 56.4 68.9 56.4 39.2 0 71.9-32.4 70.2-73.5l84.5-60.2c52.1 1.3 95.8-40.9 95.8-93.5 0-51.6-42-93.5-93.7-93.5s-93.7 42-93.7 93.5v1.2L176.6 279c-15.5-.9-30.7 3.4-43.5 12.1L0 236.1C10.2 108.4 117.1 8 247.6 8 384.8 8 496 119.3 496 256zM155.7 384.3l-30.5-12.6a52.79 52.79 0 0 0 27.2 25.8c26.9 11.2 57.8-1.6 69-28.4 5.4-13 5.5-27.3.1-40.3-5.4-13-15.5-23.2-28.5-28.6-12.9-5.4-26.7-5.2-38.9-.6l31.5 13c19.8 8.2 29.2 30.9 20.9 50.7-8.3 19.9-31 29.2-50.8 21zM277.5 344.1c-8.7-1.4-16.7-6.2-22.3-13.3-5.6-7.1-8.5-16.1-8.2-25.2.3-9.1 3.8-17.8 9.9-24.6 6.1-6.8 14.4-11.1 23.3-12.1 8.9-1 17.8 1.4 25 6.4 7.2 5 12.3 12.4 14.1 21.1 1.8 8.7-.3 17.8-5.8 24.8-5.5 7-13.4 11.6-22 13.1-8.6 1.5-17.6-.2-24-4.2zm24.6-67.6c-16.1 0-29.2 13.1-29.2 29.2s13.1 29.2 29.2 29.2 29.2-13.1 29.2-29.2-13.1-29.2-29.2-29.2z"/></svg>
-                  <span className={`text-[10px] font-bold uppercase tracking-widest ${mutedColor}`}>Owned</span>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Gamepad2 className={`w-3 h-3 ${mutedColor}`} />
+                  <span className={`text-[9px] font-bold uppercase tracking-widest ${mutedColor}`}>Owned</span>
                 </div>
-                <p className={`text-xl font-bold ${titleColor}`}>{gameCount}</p>
+                <p className={`text-lg font-bold ${titleColor}`}>{gameCount}</p>
               </div>
               <div className="text-right">
-                <div className="flex items-center gap-2 mb-1 justify-end">
+                <div className="flex items-center gap-1.5 mb-1 justify-end">
                   <Clock className={`w-3 h-3 ${mutedColor}`} />
-                  <span className={`text-[10px] font-bold uppercase tracking-widest ${mutedColor}`}>Played</span>
+                  <span className={`text-[9px] font-bold uppercase tracking-widest ${mutedColor}`}>Played</span>
                 </div>
-                <p className={`text-xl font-bold ${titleColor}`}>
+                <p className={`text-lg font-bold ${titleColor}`}>
                   {heroGame ? Math.round(heroGame.playtime_forever / 60) : 0}<span className="text-xs font-normal opacity-50 ml-1">h</span>
                 </p>
               </div>
             </div>
-            <div className="mt-4 pt-4 border-t border-white/5">
+            <div className="mt-3 pt-3 border-t border-white/5">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <Award className={`w-3 h-3 ${mutedColor}`} />
-                  <span className={`text-[10px] font-bold uppercase tracking-widest ${mutedColor}`}>Achievements</span>
+                  <span className={`text-[9px] font-bold uppercase tracking-widest ${mutedColor}`}>Achievements</span>
                 </div>
-                <p className={`text-sm font-black ${titleColor}`}>
-                  {steam.totalAchievements || 0} 
-                </p>
+                <p className={`text-xs font-black ${titleColor}`}>{steam.totalAchievements || 0}</p>
               </div>
             </div>
           </div>
         );
-
-      case 'library':
-        return otherGames.length > 0 ? (
-          <div key={key} style={cardStyle} className={`${colSpanClass} backdrop-blur-md rounded-2xl border border-white/10 p-5 h-full overflow-hidden min-h-[140px]`}>
-            <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2 ${mutedColor}`}><LayoutGrid className="w-3 h-3" /> Library</h3>
-            <div className="space-y-3">
-              {otherGames.slice(0, 3).map((game: any) => (
-                <div key={game.appid} className="flex items-center gap-3 group cursor-default">
-                  <div className="relative w-8 h-8 rounded-md overflow-hidden bg-zinc-800 shrink-0">
-                    <img
-                      src={`https://media.steampowered.com/steamcommunity/public/images/apps/${game.appid}/${game.img_icon_url}.jpg`}
-                      alt={game.name}
-                      className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`font-bold text-xs truncate transition ${subtitleColor} group-hover:opacity-100`}>{game.name}</p>
-                    <p className={`text-[10px] font-mono ${mutedColor}`}>{Math.round(game.playtime_forever / 60)}h</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null;
 
       default: return null;
     }
   };
 
   return (
-    <div className="space-y-6" suppressHydrationWarning>
-      <div className="flex items-center gap-6 px-4">
-        <button
-          onClick={() => setActiveTab("overview")}
-          className={`${activeTab === "overview" ? "text-white border-b-2 border-white" : `text-zinc-500 hover:text-white`} font-bold transition pb-1`}
-        >
-          Overview
-        </button>
-        <button
-          onClick={() => setActiveTab("about")}
-          className={`${activeTab === "about" ? "text-white border-b-2 border-white" : `text-zinc-500 hover:text-white`} font-bold transition pb-1`}
-        >
-          About Me
-        </button>
-        {user.clips && user.clips.length > 0 && (
+    <div className="space-y-4" suppressHydrationWarning>
+      
+      {/* Only show tabs if Clips exist */}
+      {user.clips && user.clips.length > 0 && (
+        <div className="flex items-center gap-6 px-2 mb-2 border-b border-white/5 pb-3">
+          <button
+            onClick={() => setActiveTab("overview")}
+            className={`${activeTab === "overview" ? "text-white border-white" : "text-zinc-500 hover:text-white border-transparent"} font-bold transition border-b-2 pb-1`}
+          >
+            Overview
+          </button>
           <button
             onClick={() => setActiveTab("clips")}
-            className={`${activeTab === "clips" ? "text-white border-b-2 border-white" : `text-zinc-500 hover:text-white`} font-bold transition pb-1`}
+            className={`${activeTab === "clips" ? "text-white border-white" : "text-zinc-500 hover:text-white border-transparent"} font-bold transition border-b-2 pb-1`}
           >
             Clips
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {activeTab === "overview" ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 auto-rows-min">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {(user.layout || []).map((widget: any, index: number) => {
             const id = widget.id || widget.mapValue?.fields?.id?.stringValue;
-            const enabled = widget.enabled !== undefined 
-                ? widget.enabled 
-                : widget.mapValue?.fields?.enabled?.booleanValue;
+            const enabled = widget.enabled !== undefined ? widget.enabled : widget.mapValue?.fields?.enabled?.booleanValue;
             const size = widget.size || widget.mapValue?.fields?.size?.stringValue || 'half';
             
-            if (!id) return null;
-            if (id === 'gear') return null;
+            if (!id || id === 'gear') return null;
 
             return enabled ? renderWidget(id, `${id}-${index}`, size) : null;
           })}
         </div>
-      ) : activeTab === "clips" ? (
-        
-        <div className="columns-1 md:columns-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      ) : (
+        <div className="columns-1 md:columns-2 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
            {user.clips.map((clip: any, idx: number) => {
               const embedData = getEmbedData(clip.url);
               
               return (
-                 <div key={idx} style={cardStyle} className="mb-6 backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden flex flex-col break-inside-avoid shadow-lg">
+                 <div key={idx} style={cardStyle} className="mb-4 border border-white/10 rounded-2xl overflow-hidden flex flex-col break-inside-avoid shadow-lg">
                     {embedData ? (
                        <div className={`w-full ${embedData.isVertical ? 'aspect-[9/16]' : 'aspect-video'} bg-black relative`}>
                           <iframe src={embedData.url} className="absolute inset-0 w-full h-full" frameBorder="0" allowFullScreen allow="autoplay; fullscreen" />
@@ -500,102 +605,16 @@ export default function ProfileGrid({
                           </a>
                        </div>
                     )}
-                    <div className="p-4 bg-zinc-900/50 flex items-center justify-between">
+                    <div className="p-4 bg-black/40 flex items-center justify-between">
                        <p className={`font-bold text-sm ${titleColor} truncate`}>{clip.title || `Featured Clip ${idx + 1}`}</p>
-                       <ExternalLink className={`w-3 h-3 ${mutedColor}`} />
+                       <ExternalLink className={`w-4 h-4 ${mutedColor}`} />
                     </div>
                  </div>
               );
            })}
         </div>
-
-      ) : (
-        <div className="space-y-4">
-          <div style={cardStyle} className="backdrop-blur-md p-6 rounded-2xl border border-white/10">
-            <h3 className={`text-sm font-bold uppercase tracking-wider mb-4 ${mutedColor}`}>Biography</h3>
-            <p className={`whitespace-pre-wrap leading-relaxed ${subtitleColor}`}>
-              {user.bio || "No bio yet."}
-            </p>
-          </div>
-
-          {user.customLinks && user.customLinks.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {user.customLinks.map((link: any, idx: number) => (
-                <a
-                  key={idx}
-                  href={ensureProtocol(link.url)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={cardStyle}
-                  className={`flex items-center justify-between p-4 rounded-xl border border-white/10 hover:border-white/30 transition group ${subtitleColor} hover:text-white`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${iconBg} group-hover:bg-white/20 transition`}>
-                      <Globe className="w-4 h-4" />
-                    </div>
-                    <span className="font-bold text-sm">{link.label}</span>
-                  </div>
-                  <ArrowUpRight className="w-4 h-4 opacity-50 group-hover:opacity-100 transition" />
-                </a>
-              ))}
-            </div>
-          )}
-
-          {user.gear && Object.values(user.gear).some((val: any) => val && (val as string).trim() !== "") && (
-             <div style={cardStyle} className="backdrop-blur-md p-6 rounded-2xl border border-white/10 mt-4">
-                <h3 className={`text-sm font-bold uppercase tracking-wider mb-6 ${mutedColor} flex items-center gap-2`}>
-                   <Cpu className="w-4 h-4" /> Setup & Gear
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-4">
-                   {user.gear.cpu && (
-                      <div className="flex items-start gap-3">
-                         <div className={`p-2 rounded-lg ${iconBg} shrink-0`}><Cpu className={`w-4 h-4 ${titleColor}`} /></div>
-                         <div><p className={`text-[10px] font-bold uppercase ${mutedColor}`}>CPU</p><p className={`text-sm font-bold ${titleColor}`}>{user.gear.cpu}</p></div>
-                      </div>
-                   )}
-                   {user.gear.gpu && (
-                      <div className="flex items-start gap-3">
-                         <div className={`p-2 rounded-lg ${iconBg} shrink-0`}><Cpu className={`w-4 h-4 ${titleColor}`} /></div>
-                         <div><p className={`text-[10px] font-bold uppercase ${mutedColor}`}>GPU</p><p className={`text-sm font-bold ${titleColor}`}>{user.gear.gpu}</p></div>
-                      </div>
-                   )}
-                   {user.gear.ram && (
-                      <div className="flex items-start gap-3">
-                         <div className={`p-2 rounded-lg ${iconBg} shrink-0`}><Cpu className={`w-4 h-4 ${titleColor}`} /></div>
-                         <div><p className={`text-[10px] font-bold uppercase ${mutedColor}`}>RAM</p><p className={`text-sm font-bold ${titleColor}`}>{user.gear.ram}</p></div>
-                      </div>
-                   )}
-                   {user.gear.monitor && (
-                      <div className="flex items-start gap-3">
-                         <div className={`p-2 rounded-lg ${iconBg} shrink-0`}><Monitor className={`w-4 h-4 ${titleColor}`} /></div>
-                         <div><p className={`text-[10px] font-bold uppercase ${mutedColor}`}>Monitor</p><p className={`text-sm font-bold ${titleColor}`}>{user.gear.monitor}</p></div>
-                      </div>
-                   )}
-                   {user.gear.mouse && (
-                      <div className="flex items-start gap-3">
-                         <div className={`p-2 rounded-lg ${iconBg} shrink-0`}><Mouse className={`w-4 h-4 ${titleColor}`} /></div>
-                         <div><p className={`text-[10px] font-bold uppercase ${mutedColor}`}>Mouse</p><p className={`text-sm font-bold ${titleColor}`}>{user.gear.mouse}</p></div>
-                      </div>
-                   )}
-                   {user.gear.keyboard && (
-                      <div className="flex items-start gap-3">
-                         <div className={`p-2 rounded-lg ${iconBg} shrink-0`}><Keyboard className={`w-4 h-4 ${titleColor}`} /></div>
-                         <div><p className={`text-[10px] font-bold uppercase ${mutedColor}`}>Keyboard</p><p className={`text-sm font-bold ${titleColor}`}>{user.gear.keyboard}</p></div>
-                      </div>
-                   )}
-                   {user.gear.headset && (
-                      <div className="flex items-start gap-3">
-                         <div className={`p-2 rounded-lg ${iconBg} shrink-0`}><Headphones className={`w-4 h-4 ${titleColor}`} /></div>
-                         <div><p className={`text-[10px] font-bold uppercase ${mutedColor}`}>Headset</p><p className={`text-sm font-bold ${titleColor}`}>{user.gear.headset}</p></div>
-                      </div>
-                   )}
-                </div>
-             </div>
-          )}
-        </div>
       )}
 
-      {/* Render the Valorant Modal securely at the bottom */}
       <ValorantModal 
         isOpen={isValorantModalOpen} 
         onClose={() => setIsValorantModalOpen(false)} 

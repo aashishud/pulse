@@ -55,10 +55,10 @@ function SortableWidget({ widget, onToggleVisibility, onToggleSize }: { widget: 
   const getIcon = (id: string) => {
     switch (id) {
       case 'hero': return <User className="w-4 h-4" />;
-      case 'content': return <Link2 className="w-4 h-4" />;
+      case 'content': return <Video className="w-4 h-4" />;
       case 'spotify': return <Music className="w-4 h-4" />;
       case 'valorant': return <Swords className="w-4 h-4" />;
-      case 'library': return <Gamepad2 className="w-4 h-4" />;
+      case 'connections': return <Link2 className="w-4 h-4" />;
       case 'gear': return <Cpu className="w-4 h-4" />;
       default: return <GripVertical className="w-4 h-4" />;
     }
@@ -103,74 +103,41 @@ function DashboardContent() {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("layout");
 
-  // Form States
   const [displayName, setDisplayName] = useState("");
   const [newUsername, setNewUsername] = useState("");
   const [bio, setBio] = useState("");
   
-  // Theme State
   const [theme, setTheme] = useState({ 
-    color: "indigo", 
-    mode: "dark", 
-    banner: "", 
-    background: "",
-    avatar: "",
-    avatarDecoration: "none",
-    cursorTrail: "none",
-    customCursor: "", 
-    customCursorHover: "", 
-    nameEffect: "solid",
-    nameColor: "white",
-    primary: "#1e1f22",
-    font: "inter"
+    color: "indigo", mode: "dark", banner: "", background: "", avatar: "", avatarDecoration: "none",
+    cursorTrail: "none", customCursor: "", customCursorHover: "", nameEffect: "solid",
+    nameColor: "white", primary: "#1e1f22", font: "inter"
   });
   
-  // Gear State
-  const [gear, setGear] = useState({
-    cpu: "", gpu: "", ram: "", mouse: "", keyboard: "", headset: "", monitor: ""
-  });
-
-  // Socials State
-  const [socials, setSocials] = useState({ 
-    twitter: "", instagram: "", youtube: "", twitch: "", discord: "", discord_verified: false 
-  });
-  
-  // Gaming State
-  const [gaming, setGaming] = useState({ 
-    xbox: "", 
-    epic: "", 
-    valorant: { name: "", tag: "", region: "na" } 
-  });
-  
+  const [gear, setGear] = useState({ cpu: "", gpu: "", ram: "", mouse: "", keyboard: "", headset: "", monitor: "" });
+  const [socials, setSocials] = useState({ twitter: "", instagram: "", youtube: "", twitch: "", discord: "", discord_verified: false });
+  const [gaming, setGaming] = useState({ xbox: "", epic: "", valorant: { name: "", tag: "", region: "na" } });
   const [customLinks, setCustomLinks] = useState<{label: string, url: string}[]>([]);
   const [clips, setClips] = useState<{title: string, url: string}[]>([]); 
   const [layout, setLayout] = useState<any[]>([]);
   const [primaryCommunity, setPrimaryCommunity] = useState("");
   const [lastfm, setLastfm] = useState("");
 
-  // --- COMMUNITY STATES ---
   const [myCommunities, setMyCommunities] = useState<any[]>([]);
-  
-  // Creation
   const [isCreatingCommunity, setIsCreatingCommunity] = useState(false);
   const [commName, setCommName] = useState("");
   const [commHandle, setCommHandle] = useState("");
   const [commDesc, setCommDesc] = useState("");
-
-  // Editing
   const [editingCommunity, setEditingCommunity] = useState<any>(null);
   const [editCommName, setEditCommName] = useState("");
   const [editCommDesc, setEditCommDesc] = useState("");
   const [editCommAvatar, setEditCommAvatar] = useState("");
   const [editCommBanner, setEditCommBanner] = useState("");
 
-  // Security & Deletion
   const [newEmail, setNewEmail] = useState("");
   const [newPass, setNewPass] = useState("");
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
-  // Gradients & Colors
   const gradients = [
     { name: "Sunset", class: "from-orange-400 to-pink-600" },
     { name: "Ocean", class: "from-cyan-400 to-blue-600" },
@@ -190,7 +157,6 @@ function DashboardContent() {
     { name: "Red", value: "red-500", hex: "#ef4444" },
   ];
 
-  // UPGRADED TO .PNG FOR BROWSER COMPATIBILITY
   const cursorPresets = [
     { name: "Default", url: "", hoverUrl: "" },
     { name: "Among Us", url: "/cursors/amogus/Arrow.png", hoverUrl: "/cursors/amogus/Hand.png" },
@@ -210,9 +176,7 @@ function DashboardContent() {
 
   const sensors = useSensors(
     useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
   useEffect(() => {
@@ -295,12 +259,27 @@ function DashboardContent() {
             { id: 'content', label: 'Creator Stack', enabled: true, size: 'half' },
             { id: 'spotify', label: 'Music Overview', enabled: true, size: 'half' },
             { id: 'valorant', label: 'Valorant Rank', enabled: true, size: 'half' },
-            { id: 'library', label: 'Game Library', enabled: true, size: 'half' },
+            { id: 'connections', label: 'Connections', enabled: true, size: 'half' },
             { id: 'gear', label: 'Hardware Setup', enabled: true, size: 'half' },
         ];
 
         let currentLayout = userData.layout || defaultWidgets;
-        const existingIds = new Set(currentLayout.map((w: any) => w.id));
+        
+        // MIGRATION: Convert 'library' widget to 'connections' widget for existing users
+        currentLayout = currentLayout.map((w: any) => {
+            const wId = w.id || w.mapValue?.fields?.id?.stringValue;
+            if (wId === 'library') {
+                return {
+                    id: 'connections',
+                    label: 'Connections',
+                    enabled: w.enabled !== undefined ? w.enabled : w.mapValue?.fields?.enabled?.booleanValue,
+                    size: w.size || w.mapValue?.fields?.size?.stringValue || 'half'
+                };
+            }
+            return w;
+        });
+
+        const existingIds = new Set(currentLayout.map((w: any) => w.id || w.mapValue?.fields?.id?.stringValue));
         defaultWidgets.forEach(dw => {
             if (!existingIds.has(dw.id)) {
                 currentLayout.push(dw);
@@ -330,18 +309,10 @@ function DashboardContent() {
     if (!user) return;
 
     const hasProfanity = 
-      isProfane(displayName) ||
-      isProfane(bio) ||
-      Object.values(gear).some(isProfane) ||
-      Object.values(socials).some(isProfane) ||
-      isProfane(gaming.xbox) ||
-      isProfane(gaming.epic) ||
-      isProfane(gaming.valorant?.name) ||
-      isProfane(gaming.valorant?.tag) ||
-      isProfane(theme.customCursor) ||
-      isProfane(theme.customCursorHover) || 
-      customLinks.some(link => isProfane(link.label)) ||
-      clips.some(clip => isProfane(clip.title));
+      isProfane(displayName) || isProfane(bio) || Object.values(gear).some(isProfane) || Object.values(socials).some(isProfane) ||
+      isProfane(gaming.xbox) || isProfane(gaming.epic) || isProfane(gaming.valorant?.name) || isProfane(gaming.valorant?.tag) ||
+      isProfane(theme.customCursor) || isProfane(theme.customCursorHover) || 
+      customLinks.some(link => isProfane(link.label)) || clips.some(clip => isProfane(clip.title));
 
     if (hasProfanity) {
       alert("⚠️ We detected inappropriate language in your profile settings. Please remove it before saving.");
@@ -352,29 +323,12 @@ function DashboardContent() {
     try {
       const userRef = doc(db, "users", user.id);
       await updateDoc(userRef, {
-        displayName,
-        bio,
-        theme,
-        socials,
-        gaming,
-        customLinks,
-        clips, 
-        primaryCommunity,
-        lastfm,
-        layout,
-        gear
+        displayName, bio, theme, socials, gaming, customLinks, clips, primaryCommunity, lastfm, layout, gear
       });
       
       try {
-        await fetch('/api/revalidate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: `/${user.id}` })
-        });
-      } catch (cacheError) {
-        console.error("Cache clear failed:", cacheError);
-      }
-
+        await fetch('/api/revalidate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: `/${user.id}` }) });
+      } catch (cacheError) { console.error("Cache clear failed:", cacheError); }
       setTimeout(() => setSaving(false), 1000);
     } catch (e) {
       console.error(e);
@@ -383,35 +337,19 @@ function DashboardContent() {
   };
 
   const handleCreateCommunity = async () => {
-    if (myCommunities.length >= 3) {
-      alert("You can only create a maximum of 3 communities per account.");
-      return;
-    }
+    if (myCommunities.length >= 3) { alert("You can only create a maximum of 3 communities per account."); return; }
     if (!commName || !commHandle) return;
-    if (isProfane(commName) || isProfane(commHandle) || isProfane(commDesc)) {
-        alert("⚠️ We detected inappropriate language in your community details.");
-        return;
-    }
+    if (isProfane(commName) || isProfane(commHandle) || isProfane(commDesc)) { alert("⚠️ We detected inappropriate language in your community details."); return; }
     setSaving(true);
     try {
         const cleanHandle = commHandle.toLowerCase().replace(/[^a-z0-9-]/g, '');
         const docRef = doc(db, "communities", cleanHandle);
         const snap = await getDoc(docRef);
-        if (snap.exists()) { 
-           alert("This community handle is already taken. Choose another one!"); 
-           setSaving(false); 
-           return; 
-        }
+        if (snap.exists()) { alert("This community handle is already taken. Choose another one!"); setSaving(false); return; }
         await setDoc(docRef, {
-            name: commName,
-            handle: cleanHandle,
-            description: commDesc,
-            owner_uid: auth.currentUser?.uid,
-            members: [auth.currentUser?.uid],
-            created_at: serverTimestamp(),
-            memberCount: 1,
-            banner: "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2600&auto=format&fit=crop",
-            avatar: ""
+            name: commName, handle: cleanHandle, description: commDesc, owner_uid: auth.currentUser?.uid,
+            members: [auth.currentUser?.uid], created_at: serverTimestamp(), memberCount: 1,
+            banner: "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2600&auto=format&fit=crop", avatar: ""
         });
         alert("Community Launch Successful!");
         setIsCreatingCommunity(false);
@@ -422,16 +360,12 @@ function DashboardContent() {
                 const commQ = query(collection(db, "communities"), where("owner_uid", "==", auth.currentUser.uid));
                 const commSnap = await getDocs(commQ);
                 setMyCommunities(commSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-            } catch (err) {
-                console.warn(err);
-            }
+            } catch (err) { console.warn(err); }
         }
     } catch (e) { 
         console.error(e); 
         alert("Permission denied. Ensure your Firebase Rules are updated.");
-    } finally { 
-        setSaving(false); 
-    }
+    } finally { setSaving(false); }
   };
 
   const openEditModal = (comm: any) => {
@@ -445,28 +379,14 @@ function DashboardContent() {
   const handleUpdateCommunity = async () => {
      if (!editingCommunity) return;
      if (!editCommName) { alert("Community name cannot be empty."); return; }
-     if (isProfane(editCommName) || isProfane(editCommDesc)) {
-         alert("⚠️ We detected inappropriate language in your community details.");
-         return;
-     }
+     if (isProfane(editCommName) || isProfane(editCommDesc)) { alert("⚠️ We detected inappropriate language in your community details."); return; }
      setSaving(true);
      try {
          const commRef = doc(db, "communities", editingCommunity.handle);
-         await updateDoc(commRef, {
-             name: editCommName,
-             description: editCommDesc,
-             avatar: editCommAvatar,
-             banner: editCommBanner
-         });
+         await updateDoc(commRef, { name: editCommName, description: editCommDesc, avatar: editCommAvatar, banner: editCommBanner });
          try {
-           await fetch('/api/revalidate', {
-             method: 'POST',
-             headers: { 'Content-Type': 'application/json' },
-             body: JSON.stringify({ path: `/c/${editingCommunity.handle}` })
-           });
-         } catch (cacheError) {
-           console.error("Cache clear failed:", cacheError);
-         }
+           await fetch('/api/revalidate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: `/c/${editingCommunity.handle}` }) });
+         } catch (cacheError) { console.error("Cache clear failed:", cacheError); }
          alert("Community updated successfully!");
          setEditingCommunity(null);
          if (auth.currentUser) {
@@ -477,9 +397,7 @@ function DashboardContent() {
      } catch (e) {
          console.error(e);
          alert("Failed to update community details.");
-     } finally {
-         setSaving(false);
-     }
+     } finally { setSaving(false); }
   };
 
   const handleDeleteCommunity = async (commHandle: string) => {
@@ -490,18 +408,14 @@ function DashboardContent() {
          setMyCommunities(prev => prev.filter(c => c.handle !== commHandle));
          if (primaryCommunity === commHandle) {
              setPrimaryCommunity("");
-             if (user?.id) {
-                 await updateDoc(doc(db, "users", user.id), { primaryCommunity: "" });
-             }
+             if (user?.id) { await updateDoc(doc(db, "users", user.id), { primaryCommunity: "" }); }
          }
          alert("Community permanently deleted.");
          setEditingCommunity(null); 
      } catch (e) {
          console.error(e);
          alert("Failed to delete community. Please check your connection.");
-     } finally {
-         setSaving(false);
-     }
+     } finally { setSaving(false); }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -534,7 +448,7 @@ function DashboardContent() {
         { id: 'content', label: 'Creator Stack', enabled: true, size: 'half' },
         { id: 'spotify', label: 'Music Overview', enabled: true, size: 'half' },
         { id: 'valorant', label: 'Valorant Rank', enabled: true, size: 'half' },
-        { id: 'library', label: 'Game Library', enabled: true, size: 'half' },
+        { id: 'connections', label: 'Connections', enabled: true, size: 'half' },
         { id: 'gear', label: 'Hardware Setup', enabled: true, size: 'half' },
     ]);
   };
@@ -567,9 +481,7 @@ function DashboardContent() {
         }
     } catch (e) {
         console.error(e);
-    } finally {
-        setSaving(false);
-    }
+    } finally { setSaving(false); }
   };
 
   const COOLDOWN_MS = 12 * 60 * 60 * 1000;
@@ -585,10 +497,7 @@ function DashboardContent() {
     if (!confirm(`Change handle to @${newUsername}? This will change your profile URL and delete old ones.`)) return;
     const validationError = validateHandle(newUsername.toLowerCase());
     if (validationError) { alert(validationError); return; }
-    if (isProfane(newUsername)) {
-        alert("⚠️ This handle contains inappropriate language.");
-        return;
-    }
+    if (isProfane(newUsername)) { alert("⚠️ This handle contains inappropriate language."); return; }
 
     setSaving(true);
     try {
@@ -619,9 +528,7 @@ function DashboardContent() {
     } catch (e: any) {
       console.error(e);
       alert("Failed to change username: " + e.message);
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   };
 
   const handleUpdateAccount = async () => {
@@ -634,13 +541,10 @@ function DashboardContent() {
         }
         if (newPass) await updatePassword(auth.currentUser, newPass);
         alert("Credentials updated!");
-        setNewEmail("");
-        setNewPass("");
+        setNewEmail(""); setNewPass("");
     } catch (e: any) {
         alert("Error: " + e.message);
-    } finally {
-        setSaving(false);
-    }
+    } finally { setSaving(false); }
   };
 
   const handleDeleteAccount = async () => {
@@ -678,12 +582,8 @@ function DashboardContent() {
       {/* LIVE CURSOR PREVIEW FOR DASHBOARD (ULTRA-SAFE PNG SYNC) */}
       {(theme.customCursor || theme.customCursorHover) && (
         <style dangerouslySetInnerHTML={{ __html: `
-          html, body, *, .min-h-screen { 
-            cursor: url('${theme.customCursor}') 0 0, auto !important; 
-          }
-          a, button, [role="button"], [class*="hover:"], .cursor-pointer, input, textarea { 
-            cursor: url('${theme.customCursorHover || theme.customCursor}') 0 0, pointer !important; 
-          }
+          html, body, *, .min-h-screen { cursor: url('${theme.customCursor}') 0 0, auto !important; }
+          a, button, [role="button"], [class*="hover:"], .cursor-pointer, input, textarea { cursor: url('${theme.customCursorHover || theme.customCursor}') 0 0, pointer !important; }
         `}} />
       )}
 
@@ -702,22 +602,10 @@ function DashboardContent() {
                     <strong className="text-red-400">Note: You must delete all your owned communities before proceeding.</strong>
                   </p>
                   <div className="mt-4">
-                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-2">
-                      Type <span className="text-white select-none">{user?.id}</span> to confirm
-                    </label>
-                    <input 
-                      type="text" 
-                      value={deleteConfirmText} 
-                      onChange={e => setDeleteConfirmText(e.target.value)} 
-                      className="w-full bg-black/50 border border-white/10 rounded-xl p-3 outline-none focus:border-red-500 transition text-white font-mono" 
-                      placeholder={user?.id} 
-                    />
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-2">Type <span className="text-white select-none">{user?.id}</span> to confirm</label>
+                    <input type="text" value={deleteConfirmText} onChange={e => setDeleteConfirmText(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 outline-none focus:border-red-500 transition text-white font-mono" placeholder={user?.id} />
                   </div>
-                  <button 
-                    onClick={handleDeleteAccount} 
-                    disabled={saving || deleteConfirmText !== user?.id} 
-                    className="w-full py-4 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl transition shadow-lg shadow-red-500/20 disabled:opacity-50 mt-4"
-                  >
+                  <button onClick={handleDeleteAccount} disabled={saving || deleteConfirmText !== user?.id} className="w-full py-4 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl transition shadow-lg shadow-red-500/20 disabled:opacity-50 mt-4">
                     {saving ? "Deleting..." : "Permanently Delete"}
                   </button>
                </div>
@@ -789,11 +677,7 @@ function DashboardContent() {
                    <button onClick={handleUpdateCommunity} disabled={saving || !editCommName} className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl transition shadow-lg shadow-indigo-500/20 disabled:opacity-50">
                       {saving ? "Saving..." : "Save Changes"}
                    </button>
-                   <button 
-                      onClick={() => handleDeleteCommunity(editingCommunity.handle)} 
-                      disabled={saving} 
-                      className="w-full py-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 font-bold rounded-2xl transition border border-red-500/20 flex items-center justify-center gap-2"
-                   >
+                   <button onClick={() => handleDeleteCommunity(editingCommunity.handle)} disabled={saving} className="w-full py-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 font-bold rounded-2xl transition border border-red-500/20 flex items-center justify-center gap-2">
                       <Trash2 className="w-4 h-4" /> Delete Community
                    </button>
                </div>
@@ -869,15 +753,9 @@ function DashboardContent() {
                    <section className="bg-[#121214] border border-white/5 rounded-3xl p-6">
                       <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-2">Represented Community</h3>
                       <p className="text-xs text-zinc-500 mb-4">Choose which community badge appears on your public profile.</p>
-                      <select 
-                         value={primaryCommunity} 
-                         onChange={(e) => setPrimaryCommunity(e.target.value)} 
-                         className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-indigo-500 cursor-pointer"
-                      >
+                      <select value={primaryCommunity} onChange={(e) => setPrimaryCommunity(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-indigo-500 cursor-pointer">
                          <option value="">None (Hidden)</option>
-                         {myCommunities.map(c => (
-                            <option key={c.id} value={c.handle}>{c.name} (/c/{c.handle})</option>
-                         ))}
+                         {myCommunities.map(c => <option key={c.id} value={c.handle}>{c.name} (/c/{c.handle})</option>)}
                       </select>
                    </section>
                 )}
@@ -1304,20 +1182,25 @@ function DashboardContent() {
                       </div>
                       <p className="text-xs text-zinc-500 mb-5">Click a preset or paste direct links to your own .png files. (Ensure filenames match your folder!)</p>
 
-                      {/* Preset Grid */}
+                      {/* Preset Grid - MODIFIED TO LOAD HIGH-RES .CUR PREVIEWS & HOVER STATES */}
                       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
                          {cursorPresets.map(preset => (
                             <button
                                key={preset.name}
                                onClick={() => setTheme({ ...theme, customCursor: preset.url, customCursorHover: preset.hoverUrl || preset.url })}
-                               className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-3 transition hover:bg-white/5 ${theme.customCursor === preset.url ? 'border-indigo-500 bg-indigo-500/10 shadow-[0_0_15px_rgba(99,102,241,0.2)]' : 'border-white/10 bg-[#0a0a0c]'}`}
+                               className={`group p-3 rounded-xl border flex flex-col items-center justify-center gap-3 transition hover:bg-white/5 ${theme.customCursor === preset.url ? 'border-indigo-500 bg-indigo-500/10 shadow-[0_0_15px_rgba(99,102,241,0.2)]' : 'border-white/10 bg-[#0a0a0c]'}`}
                             >
                                {preset.url ? (
-                                  <img src={preset.url} alt={preset.name} className="w-8 h-8 object-contain" />
+                                  <div className="relative w-8 h-8">
+                                     {/* Idle Cursor */}
+                                     <img src={preset.url.replace('.png', '.cur')} alt={`${preset.name} Idle`} className="absolute inset-0 w-full h-full object-contain transition-opacity duration-200 group-hover:opacity-0" />
+                                     {/* Hover Cursor */}
+                                     <img src={(preset.hoverUrl || preset.url).replace('.png', '.cur')} alt={`${preset.name} Hover`} className="absolute inset-0 w-full h-full object-contain transition-opacity duration-200 opacity-0 group-hover:opacity-100" />
+                                  </div>
                                ) : (
-                                  <MousePointer2 className="w-8 h-8 text-zinc-400" />
+                                  <MousePointer2 className="w-8 h-8 text-zinc-400 group-hover:text-white transition-colors duration-200" />
                                )}
-                               <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{preset.name}</span>
+                               <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest group-hover:text-zinc-300 transition-colors">{preset.name}</span>
                             </button>
                          ))}
                       </div>

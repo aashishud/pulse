@@ -1,6 +1,6 @@
 import { getSteamProfile, getRecentlyPlayed, getSteamLevel, getOwnedGamesCount, getGameProgress } from '@/lib/steam';
 import { getValorantProfile } from '@/lib/valorant';
-import { Sparkles, Gamepad2, Trophy, Clock, MapPin, Link as LinkIcon, ExternalLink, Ghost, Music, LayoutGrid, Zap, Swords, Youtube, Twitch, Globe, ArrowUpRight, Share2, Users } from 'lucide-react';
+import { Sparkles, Gamepad2, Globe, ArrowUpRight, Ghost, Music, Zap, Share2, Users, ArrowRight, Eye, Cpu, Monitor, Mouse, Keyboard, Headphones } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Inter, Space_Grotesk, Press_Start_2P, Cinzel } from 'next/font/google';
@@ -9,12 +9,10 @@ import { Metadata } from 'next';
 import BadgeRack from '@/components/BadgeRack';
 import AvatarDecoration from '@/components/AvatarDecoration';
 import CursorEffects from '@/components/CursorEffects';
-import ProfileGrid from '@/components/ProfileGrid'; // Client Component
+import ProfileGrid from '@/components/ProfileGrid';
+import ViewCounter from '@/components/ViewCounter';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-
-
-export const dynamic = 'force-dynamic';
 
 // Load Fonts
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
@@ -22,7 +20,7 @@ const spaceGrotesk = Space_Grotesk({ subsets: ['latin'], display: 'swap' });
 const pressStart = Press_Start_2P({ weight: '400', subsets: ['latin'], display: 'swap' });
 const cinzel = Cinzel({ subsets: ['latin'], display: 'swap' });
 
-export const revalidate = 0;
+export const revalidate = 60;
 
 interface Props {
   params: Promise<{ username: string }>;
@@ -34,8 +32,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const isDev = process.env.NODE_ENV === 'development';
   const protocol = isDev ? 'http' : 'https';
   const domain = isDev ? 'localhost:3000' : (process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'pulsegg.in');
-  
-  // Added cache buster to force Discord to update the profile embed
   const ogImageUrl = `${protocol}://${domain}/api/og?user=${username}&v=1`;
 
   return {
@@ -46,14 +42,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: `${username} | Pulse`,
       description: `Check out ${username}'s gaming profile on Pulse.`,
       url: `${protocol}://${domain}/${username}`,
-      images: [
-        {
-          url: ogImageUrl,
-          width: 1200,
-          height: 630,
-          alt: `${username}'s Pulse Profile`,
-        },
-      ],
+      images: [{ url: ogImageUrl, width: 1200, height: 630, alt: `${username}'s Pulse Profile` }],
       type: 'profile',
     },
     twitter: {
@@ -65,6 +54,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+const ensureProtocol = (url: string) => {
+  if (!url) return "#";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  if (url.startsWith("mailto:")) return url;
+  return `https://${url}`;
+};
+
 async function getFirebaseUser(username: string) {
   const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
   const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${username}`;
@@ -75,51 +71,40 @@ async function getFirebaseUser(username: string) {
     
     const data = await res.json();
     const fields = data.fields;
-    
     const isVerified = (field: any) => field?.booleanValue || false;
 
-    const getMapArray = (field: any) => {
-        return field?.arrayValue?.values?.map((v: any) => {
-            const map = v.mapValue.fields;
-            return {
-                label: map.label?.stringValue || "Link",
-                url: map.url?.stringValue || "#"
-            }
-        }) || [];
-    };
+    const getMapArray = (field: any) => field?.arrayValue?.values?.map((v: any) => {
+        const map = v.mapValue.fields;
+        return { label: map.label?.stringValue || "Link", url: map.url?.stringValue || "#" }
+    }) || [];
 
-    const getClipsArray = (field: any) => {
-        return field?.arrayValue?.values?.map((v: any) => {
-            const map = v.mapValue.fields;
-            return {
-                title: map.title?.stringValue || "",
-                url: map.url?.stringValue || ""
-            }
-        }) || [];
-    };
+    const getClipsArray = (field: any) => field?.arrayValue?.values?.map((v: any) => {
+        const map = v.mapValue.fields;
+        return { title: map.title?.stringValue || "", url: map.url?.stringValue || "" }
+    }) || [];
 
     const getGear = (field: any) => {
         const map = field?.mapValue?.fields;
         if (!map) return {};
         return {
-            cpu: map.cpu?.stringValue || "",
-            gpu: map.gpu?.stringValue || "",
-            ram: map.ram?.stringValue || "",
-            mouse: map.mouse?.stringValue || "",
-            keyboard: map.keyboard?.stringValue || "",
-            headset: map.headset?.stringValue || "",
-            monitor: map.monitor?.stringValue || "",
+            cpu: map.cpu?.stringValue || "", gpu: map.gpu?.stringValue || "", ram: map.ram?.stringValue || "",
+            mouse: map.mouse?.stringValue || "", keyboard: map.keyboard?.stringValue || "",
+            headset: map.headset?.stringValue || "", monitor: map.monitor?.stringValue || "",
         };
+    };
+
+    const getNum = (val: any, def: number) => {
+        if (val?.doubleValue !== undefined) return val.doubleValue;
+        if (val?.integerValue !== undefined) return Number(val.integerValue);
+        return def;
     };
 
     const defaultLayout = [
       { mapValue: { fields: { id: { stringValue: "hero" }, enabled: { booleanValue: true }, size: { stringValue: 'full' } } } },
       { mapValue: { fields: { id: { stringValue: "content" }, enabled: { booleanValue: true }, size: { stringValue: 'half' } } } },
       { mapValue: { fields: { id: { stringValue: "spotify" }, enabled: { booleanValue: true }, size: { stringValue: 'half' } } } },
-      { mapValue: { fields: { id: { stringValue: "stats" }, enabled: { booleanValue: true }, size: { stringValue: 'half' } } } },
       { mapValue: { fields: { id: { stringValue: "valorant" }, enabled: { booleanValue: true }, size: { stringValue: 'half' } } } },
-      { mapValue: { fields: { id: { stringValue: "library" }, enabled: { booleanValue: true }, size: { stringValue: 'half' } } } },
-      { mapValue: { fields: { id: { stringValue: "gear" }, enabled: { booleanValue: true }, size: { stringValue: 'half' } } } },
+      { mapValue: { fields: { id: { stringValue: "connections" }, enabled: { booleanValue: true }, size: { stringValue: 'half' } } } }
     ];
 
     return {
@@ -136,12 +121,23 @@ async function getFirebaseUser(username: string) {
       primary: fields.theme?.mapValue?.fields?.primary?.stringValue || "#1e1f22", 
       avatarDecoration: fields.theme?.mapValue?.fields?.avatarDecoration?.stringValue || "none",
       cursorTrail: fields.theme?.mapValue?.fields?.cursorTrail?.stringValue || "none",
+      customCursor: fields.theme?.mapValue?.fields?.customCursor?.stringValue || "", 
+      customCursorHover: fields.theme?.mapValue?.fields?.customCursorHover?.stringValue || "",
+      cardOpacity: getNum(fields.theme?.mapValue?.fields?.cardOpacity, 0.8),
+      cardBlur: getNum(fields.theme?.mapValue?.fields?.cardBlur, 10),
+      discordDecoration: fields.theme?.mapValue?.fields?.discordDecoration?.stringValue || "",
       bio: fields.bio?.stringValue || "",
+      views: fields.views?.integerValue || "0", 
       primaryCommunity: fields.primaryCommunity?.stringValue ?? null,
-      lastfm: fields.lastfm?.stringValue || "", // <-- ADDED LASTFM BINDING
+      lastfm: fields.lastfm?.stringValue || "",
       customLinks: getMapArray(fields.customLinks),
       clips: getClipsArray(fields.clips),
-      layout: fields.layout?.arrayValue?.values || defaultLayout, 
+      layout: (fields.layout?.arrayValue?.values || defaultLayout).map((w: any) => {
+        if (w.mapValue?.fields?.id?.stringValue === 'library') {
+          return { ...w, mapValue: { ...w.mapValue, fields: { ...w.mapValue.fields, id: { stringValue: 'connections' } } } };
+        }
+        return w;
+      }),
       gear: getGear(fields.gear),
       gaming: {
         xbox: fields.gaming?.mapValue?.fields?.xbox?.stringValue,
@@ -171,31 +167,37 @@ async function getFirebaseUser(username: string) {
   }
 }
 
-const VerifiedBadge = () => (
-  <span className="inline-flex ml-1.5 text-blue-400 align-middle" title="Verified Link">
-    <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-  </span>
-);
-
 export default async function ProfilePage({ params }: Props) {
   const { username } = await params;
-  
   const firebaseUser = await getFirebaseUser(username);
 
   const isDev = process.env.NODE_ENV === 'development';
   const protocol = isDev ? 'http' : 'https';
   const domain = isDev ? 'localhost:3000' : (process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'pulsegg.in');
-  
   const dashboardUrl = `${protocol}://${domain}/dashboard`;
-  const homeUrl = `${protocol}://${domain}`;
-  const signupUrl = `${protocol}://${domain}/signup?handle=${username}`;
 
   if (!firebaseUser) {
     return (
-      <div className="min-h-screen bg-[#0a0a0c] text-white flex flex-col items-center justify-center font-sans p-4">
-        <h1 className="text-4xl font-black mb-2 tracking-tight">@{username}</h1>
-        <p className="text-zinc-500 mb-8">This handle is available.</p>
-        <a href={signupUrl} className="bg-white text-black px-8 py-3 rounded-lg font-bold hover:bg-zinc-200 transition">Claim Handle</a>
+      <div className="min-h-screen bg-[#0a0a0c] text-white flex flex-col items-center justify-center p-4 relative overflow-hidden font-sans">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.05)_0%,transparent_70%)] pointer-events-none" />
+        <div className="relative z-10 text-center max-w-md w-full">
+          <div className="w-20 h-20 bg-white/5 border border-white/10 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-2xl">
+            <Ghost className="w-10 h-10 text-zinc-500" />
+          </div>
+          <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-3">@{username}</h1>
+          <p className="text-zinc-400 mb-10 text-sm md:text-base leading-relaxed">
+            This handle is available. Claim it before someone else does and start building your gaming identity.
+          </p>
+          <div className="space-y-4 w-full max-w-xs mx-auto">
+            <Link href={`/signup?handle=${username}`} className="relative inline-flex h-14 w-full overflow-hidden rounded-xl p-[1px] group">
+              <span className="absolute inset-[-1000%] animate-[spin_3s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,#E2CBFF_0%,#6366f1_50%,#E2CBFF_100%)] opacity-70 group-hover:opacity-100 transition-opacity" />
+              <span className="inline-flex h-full w-full items-center justify-center rounded-[11px] bg-zinc-950 px-8 py-1 text-sm font-bold text-white backdrop-blur-3xl gap-2">
+                Claim This Link <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </span>
+            </Link>
+            <Link href="/" className="w-full flex items-center justify-center py-4 text-sm font-bold text-zinc-500 hover:text-white transition-colors">Return to Base</Link>
+          </div>
+        </div>
       </div>
     );
   }
@@ -204,146 +206,102 @@ export default async function ProfilePage({ params }: Props) {
   if (firebaseUser.steamId) badges.push('steam');
   if (firebaseUser.socials.discord_verified) badges.push('discord');
 
-  let profile = null;
-  let recentGames: any[] = [];
-  let level = 0;
-  let gameCount = 0;
-  let heroGameProgress = null;
-  let valorantData = null;
-  let musicData = null;
-  let community = null;
-
+  let profile = null; let recentGames: any[] = []; let level = 0; let gameCount = 0; let heroGameProgress = null; let valorantData = null; let musicData = null; let community = null;
   const promises: Promise<any>[] = [];
 
   if (firebaseUser.steamId) {
-    promises.push(getSteamProfile(firebaseUser.steamId));
-    promises.push(getRecentlyPlayed(firebaseUser.steamId));
-    promises.push(getSteamLevel(firebaseUser.steamId));
-    promises.push(getOwnedGamesCount(firebaseUser.steamId));
+    promises.push(getSteamProfile(firebaseUser.steamId), getRecentlyPlayed(firebaseUser.steamId), getSteamLevel(firebaseUser.steamId), getOwnedGamesCount(firebaseUser.steamId));
   } else {
     promises.push(Promise.resolve(null), Promise.resolve([]), Promise.resolve(0), Promise.resolve(0));
   }
 
   if (firebaseUser.gaming.valorant?.name && firebaseUser.gaming.valorant?.tag) {
-    promises.push(getValorantProfile(
-      firebaseUser.gaming.valorant.name, 
-      firebaseUser.gaming.valorant.tag, 
-      firebaseUser.gaming.valorant.region || 'na'
-    ));
-  } else {
-    promises.push(Promise.resolve(null));
-  }
+    promises.push(getValorantProfile(firebaseUser.gaming.valorant.name, firebaseUser.gaming.valorant.tag, firebaseUser.gaming.valorant.region || 'na'));
+  } else { promises.push(Promise.resolve(null)); }
 
-  // --- NEW LASTFM FETCH (Replaces Spotify) ---
-  promises.push(
-    firebaseUser.lastfm 
-      ? fetch(`${protocol}://${domain}/api/lastfm/now-playing?user=${firebaseUser.lastfm}`, { cache: 'no-store' })
-          .then(res => res.ok ? res.json() : null)
-          .catch(err => { console.error("Last.fm Fetch Error:", err); return null; })
-      : Promise.resolve(null)
-  );
+  promises.push(firebaseUser.lastfm ? fetch(`${protocol}://${domain}/api/lastfm/now-playing?user=${firebaseUser.lastfm}`, { cache: 'no-store', signal: AbortSignal.timeout(4000) }).then(res => res.ok ? res.json() : null).catch(() => null) : Promise.resolve(null));
 
-  // Fetch Community Data
-  promises.push(
-    firebaseUser.owner_uid ? (async () => {
-      try {
-        if (firebaseUser.primaryCommunity === "") {
-           return null;
-        }
+  promises.push(firebaseUser.owner_uid && firebaseUser.primaryCommunity ? (async () => {
+    try {
+      const commSnap = await getDoc(doc(db, "communities", firebaseUser.primaryCommunity));
+      if (commSnap.exists() && commSnap.data().members?.includes(firebaseUser.owner_uid)) return commSnap.data();
+      const commQ = query(collection(db, "communities"), where("members", "array-contains", firebaseUser.owner_uid));
+      const fallbackSnap = await getDocs(commQ);
+      return !fallbackSnap.empty ? fallbackSnap.docs[0].data() : null;
+    } catch { return null; }
+  })() : Promise.resolve(null));
 
-        if (firebaseUser.primaryCommunity) {
-           const commRef = doc(db, "communities", firebaseUser.primaryCommunity);
-           const commSnap = await getDoc(commRef);
-           
-           if (commSnap.exists() && commSnap.data().members?.includes(firebaseUser.owner_uid)) {
-              return commSnap.data();
-           }
-        }
-        
-        const commQ = query(collection(db, "communities"), where("members", "array-contains", firebaseUser.owner_uid));
-        const commSnap = await getDocs(commQ);
-        if (!commSnap.empty) {
-           return commSnap.docs[0].data();
-        }
-        
-        return null;
-      } catch (e) {
-        console.error("Community Fetch Error:", e);
-        return null;
-      }
-    })() : Promise.resolve(null)
-  );
+  const [steamProfile, steamGames, steamLevel, steamGameCount, valProfile, fetchedMusicData, fetchedCommunity] = await Promise.all(promises);
+  profile = steamProfile; recentGames = steamGames || []; level = steamLevel || 0; gameCount = steamGameCount || 0; valorantData = valProfile; musicData = fetchedMusicData; community = fetchedCommunity;
 
-  const [
-    steamProfile, 
-    steamGames, 
-    steamLevel, 
-    steamGameCount, 
-    valProfile,
-    fetchedMusicData,
-    fetchedCommunity
-  ] = await Promise.all(promises);
-
-  profile = steamProfile;
-  recentGames = steamGames || [];
-  level = steamLevel || 0;
-  gameCount = steamGameCount || 0;
-  valorantData = valProfile;
-  musicData = fetchedMusicData;
-  community = fetchedCommunity;
-
-  if (recentGames.length > 0 && firebaseUser.steamId) {
-    heroGameProgress = await getGameProgress(firebaseUser.steamId, recentGames[0].appid);
-  }
+  if (recentGames.length > 0 && firebaseUser.steamId) heroGameProgress = await getGameProgress(firebaseUser.steamId, recentGames[0].appid);
   
   const avatarSource = firebaseUser.avatar || profile?.avatarfull || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png";
-  
-  const backgroundStyle = firebaseUser.background 
-    ? { backgroundImage: `url(${firebaseUser.background})`, filter: 'brightness(0.3)' } 
-    : { backgroundImage: `url(${firebaseUser.banner})`, filter: 'blur(80px) opacity(0.4) scale(1.1)' }; 
+  const backgroundStyle = firebaseUser.background ? { backgroundImage: `url(${firebaseUser.background})`, filter: 'brightness(0.3)' } : { backgroundImage: `url(${firebaseUser.banner})`, filter: 'blur(80px) opacity(0.4) scale(1.1)' }; 
 
   let fontClass = inter.className;
   if (firebaseUser.font === 'space') fontClass = spaceGrotesk.className;
   if (firebaseUser.font === 'press') fontClass = pressStart.className;
   if (firebaseUser.font === 'cinzel') fontClass = cinzel.className;
 
-  let nameClasses = "text-3xl md:text-4xl font-black mb-1 leading-relaxed py-2";
+  let nameClasses = "text-3xl md:text-4xl font-black mb-1 leading-relaxed py-1";
   let nameStyle = {};
 
   if (firebaseUser.nameEffect === 'gradient') {
     nameClasses += ` bg-gradient-to-r ${firebaseUser.nameColor} bg-clip-text text-transparent`;
   } else if (firebaseUser.nameEffect === 'neon') {
     const colorMap: any = { "white": "#ffffff", "indigo-500": "#6366f1", "pink-500": "#ec4899", "cyan-400": "#22d3ee", "emerald-400": "#34d399", "yellow-400": "#facc15", "red-500": "#ef4444" };
-    const shadowColor = colorMap[firebaseUser.nameColor] || "#ffffff";
     nameClasses += ` text-${firebaseUser.nameColor === 'white' ? 'white' : firebaseUser.nameColor}`;
-    nameStyle = { textShadow: `0 0 15px ${shadowColor}` };
+    nameStyle = { textShadow: `0 0 15px ${colorMap[firebaseUser.nameColor] || "#ffffff"}` };
   } else {
     nameClasses += ` text-${firebaseUser.nameColor === 'white' ? 'white' : firebaseUser.nameColor}`;
   }
 
   const displayName = firebaseUser.displayName || profile?.personaname || username;
+  const steamData = { profile: steamProfile, recentGames: steamGames || [], level: steamLevel || 0, gameCount: steamGameCount || 0, heroGameProgress, valorantData: valProfile };
 
-  const steamData = {
-    profile: steamProfile,
-    recentGames: steamGames || [],
-    level: steamLevel || 0,
-    gameCount: steamGameCount || 0,
-    heroGameProgress,
-    valorantData: valProfile
+  function hexToRgba(hex: string, alpha: number) {
+    if (!hex) return `rgba(30, 31, 34, ${alpha})`;
+    hex = hex.replace('#', '');
+    let r = 30, g = 31, b = 34;
+    if (hex.length === 3) { r = parseInt(hex[0]+hex[0], 16); g = parseInt(hex[1]+hex[1], 16); b = parseInt(hex[2]+hex[2], 16); } 
+    else if (hex.length === 6) { r = parseInt(hex.slice(0, 2), 16); g = parseInt(hex.slice(2, 4), 16); b = parseInt(hex.slice(4, 6), 16); }
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+
+  const leftCardStyle = {
+    backgroundColor: hexToRgba(firebaseUser.primary, firebaseUser.cardOpacity),
+    backdropFilter: `blur(${firebaseUser.cardBlur}px)`, WebkitBackdropFilter: `blur(${firebaseUser.cardBlur}px)`,
   };
 
   return (
     <div className={`min-h-screen bg-[#111214] text-white ${fontClass} overflow-x-hidden`}>
       <CursorEffects type={firebaseUser.cursorTrail} />
+      <ViewCounter username={username} />
       
+      {(firebaseUser.customCursor || firebaseUser.customCursorHover) && (
+        <style dangerouslySetInnerHTML={{ __html: `
+          html, body, *, .min-h-screen { cursor: url("${firebaseUser.customCursor}") 0 0, auto !important; }
+          a, button, [role="button"], [class*="hover:"], .cursor-pointer, input, textarea { cursor: url("${firebaseUser.customCursorHover || firebaseUser.customCursor}") 0 0, pointer !important; }
+        `}} />
+      )}
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        .sleek-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+        .sleek-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .sleek-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 4px; }
+        .sleek-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
+      `}} />
+
       <div className="fixed inset-0 z-0">
          <div className="absolute inset-0 bg-cover bg-center" style={backgroundStyle}></div>
          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-[#111214]/90 to-[#111214]"></div>
       </div>
 
-      <div className="relative z-10 max-w-[1400px] mx-auto p-4 md:p-8">
+      {/* CHANGED: max-w-[1200px] and lg:py-10 added to float the layout off the screen edges */}
+      <div className="relative z-10 max-w-[1200px] mx-auto p-4 md:p-8 lg:py-10 h-screen flex flex-col overflow-hidden">
         
-        <div className="flex justify-between items-center mb-8 px-2">
+        <div className="flex justify-between items-center mb-6 px-2 shrink-0">
            <Link href="/" className="flex items-center gap-2 font-bold text-xl tracking-tighter hover:opacity-80 transition">
              <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center"><Sparkles className="w-4 h-4 text-white" /></div>Pulse
            </Link>
@@ -355,107 +313,164 @@ export default async function ProfilePage({ params }: Props) {
            </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* CHANGED: Increased grid gap slightly to match the new compact max-w */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 min-h-0 pb-4">
           
-          <div className="lg:col-span-4 lg:sticky lg:top-8 z-20">
-            <div className="bg-[#1e1f22]/80 backdrop-blur-md rounded-[32px] overflow-hidden border border-white/5 shadow-2xl relative">
-              <div className="h-32 bg-zinc-900 relative group">
-                <Image src={firebaseUser.banner} alt="Banner" fill className="object-cover group-hover:scale-105 transition duration-700" unoptimized />
-              </div>
+          <div className="lg:col-span-4 h-full rounded-[32px] border border-white/5 shadow-2xl relative overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={leftCardStyle}>
+            
+            <div className="h-28 bg-zinc-900 relative group">
+              <Image src={firebaseUser.banner} alt="Banner" fill className="object-cover group-hover:scale-105 transition duration-700" unoptimized />
+            </div>
+            
+            <div className="px-6 pb-6 relative">
               
-              <div className="px-6 pb-6 relative">
-                <div className="relative -mt-16 mb-4 w-32 h-32">
-                   <AvatarDecoration type={firebaseUser.avatarDecoration}>
-                     <div className="w-32 h-32 rounded-full p-1.5 bg-[#1e1f22] relative z-10">
-                        <Image src={avatarSource} alt="Avatar" fill className="rounded-full object-cover bg-zinc-900" unoptimized />
-                     </div>
-                   </AvatarDecoration>
-                   {profile?.gameextrainfo && (
-                     <div className="absolute bottom-2 right-2 w-6 h-6 rounded-full border-[4px] border-[#1e1f22] bg-green-500 z-20" title="Online"></div>
-                   )}
-                </div>
-
-                <div className="flex justify-between items-start mb-6 gap-4">
-                  <div className="min-w-0 flex-1">
-                    <h1 className={`${nameClasses} truncate`} style={nameStyle}>{displayName}</h1>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-zinc-400 font-medium">@{username}</p>
-                      <BadgeRack badgeList={badges} />
-                    </div>
-                  </div>
-
-                  {community && (
-                    <Link href={`/c/${community.handle}`} className="shrink-0 group mt-1">
-                       <div className="flex items-center gap-3 px-3 py-2 bg-[#111214] hover:bg-white/5 border border-white/5 rounded-2xl transition shadow-lg relative overflow-hidden">
-                           <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition duration-500"></div>
-                           <div className="text-right relative z-10 hidden sm:block">
-                              <p className="text-[9px] font-bold text-indigo-400/80 uppercase tracking-widest leading-none mb-1.5">Squad</p>
-                              <p className="text-xs font-black text-white group-hover:text-indigo-400 transition truncate max-w-[120px] leading-none">{community.name}</p>
-                           </div>
-                           <div className="w-10 h-10 rounded-xl bg-zinc-800 overflow-hidden flex items-center justify-center shrink-0 border border-white/10 group-hover:scale-105 transition relative z-10 shadow-md">
-                              {community.avatar ? (
-                                 <img src={community.avatar} alt={community.name} className="w-full h-full object-cover" />
-                              ) : (
-                                 <Users className="w-5 h-5 text-zinc-400" />
-                              )}
-                           </div>
-                       </div>
-                    </Link>
-                  )}
-                </div>
-
-                {profile?.gameextrainfo && (
-                  <div className="mb-4 p-3 bg-[#111214] rounded-xl border border-white/5 flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400"><Gamepad2 className="w-5 h-5" /></div>
-                      <div className="flex-1 min-w-0"><p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Playing now</p><p className="text-sm font-bold text-white truncate">{profile.gameextrainfo}</p></div>
-                  </div>
-                )}
-
-                {/* UPDATE: Displaying Last.fm data (Still styled like Spotify) */}
-                {musicData?.nowPlaying?.isPlaying && (
-                  <div className="mb-6 p-3 bg-[#111214] rounded-xl border border-[#1DB954]/20 flex items-center gap-3 group relative overflow-hidden">
-                      <div className="absolute inset-0 bg-gradient-to-r from-[#1DB954]/5 to-transparent opacity-0 group-hover:opacity-100 transition duration-500"></div>
-                      <div className="w-12 h-12 rounded-lg bg-[#1DB954]/10 flex items-center justify-center text-[#1DB954] overflow-hidden relative shrink-0 shadow-lg shadow-[#1DB954]/10">
-                         {musicData.nowPlaying.albumArt ? (
-                           <Image src={musicData.nowPlaying.albumArt} fill className="object-cover" alt="Album" unoptimized />
-                         ) : (
-                           <Music className="w-6 h-6" />
-                         )}
-                      </div>
-                      <div className="flex-1 min-w-0 relative z-10">
-                         <p className="text-[10px] font-bold text-[#1DB954] uppercase tracking-wider flex items-center gap-1.5 mb-0.5">
-                            <Music className="w-3 h-3" /> Listening on Spotify
-                         </p>
-                         <a href={musicData.nowPlaying.url} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-white truncate block hover:underline leading-tight">
-                            {musicData.nowPlaying.title}
-                         </a>
-                         <p className="text-xs text-zinc-400 truncate mt-0.5">{musicData.nowPlaying.artist}</p>
-                      </div>
-                      <div className="flex items-end gap-1 h-5 px-1 shrink-0">
-                         <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-full"></span>
-                         <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-2/3" style={{ animationDelay: '200ms' }}></span>
-                         <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-4/5" style={{ animationDelay: '400ms' }}></span>
-                      </div>
-                  </div>
-                )}
-                
-                <div className="h-px bg-white/5 my-6"></div>
-                
-                <div className="space-y-4">
-                   <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Connections</h3>
-                   {firebaseUser.steamId && <div className="flex items-center justify-between group"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-[#171a21] rounded flex items-center justify-center"><svg className="w-5 h-5 fill-white" viewBox="0 0 24 24"><path d="M11.979 0C5.352 0 .002 5.35.002 11.95c0 5.63 3.863 10.33 9.056 11.59-.115-.815-.04-1.637.28-2.392l.84-2.81c-.244-.765-.333-1.683-.153-2.61.547-2.66 3.102-4.32 5.714-3.715 2.613.604 4.234 3.25 3.687 5.91-.4 1.94-2.022 3.355-3.86 3.593l-.865 2.92c4.467-1.35 7.9-5.26 8.3-9.98.028-.27.042-.54.042-.814C23.956 5.35 18.605 0 11.98 0zm6.54 12.35c.78.18 1.265.98 1.085 1.776-.18.797-.97.94-1.75.76-.78-.18-1.264-.98-1.085-1.776.18-.798.97-.94 1.75-.76zm-5.46 3.7c-.035 1.54 1.06 2.87 2.53 3.11l.245-.82c-.815-.224-1.423-1.04-1.396-1.99.027-.95.7-1.706 1.543-1.83l.255-.86c-1.472.03-2.65 1.13-3.176 2.39zm-3.045 2.5c-.755.12-1.395-.385-1.43-1.127-.035-.742.53-1.413 1.285-1.532.755-.12 1.394.385 1.43 1.127.034.74-.53 1.41-1.285 1.53z"/></svg></div><div><p className="text-sm font-bold">Steam</p><p className="text-[10px] md:text-xs text-zinc-500">{level > 0 ? `Level ${level}` : 'Connected'}</p></div></div><VerifiedBadge /></div>}
-                   {firebaseUser.socials.discord && <div className="flex items-center justify-between group"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-[#5865F2] rounded flex items-center justify-center text-white"><svg className="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg></div><div><p className="text-sm font-bold">Discord</p><p className="text-[10px] md:text-xs text-zinc-500">{firebaseUser.socials.discord}</p></div></div>{firebaseUser.socials.discord_verified && <VerifiedBadge />}</div>}
-                   {firebaseUser.gaming.xbox && <div className="flex items-center justify-between group"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-[#107C10] rounded flex items-center justify-center font-bold text-xs">X</div><div><p className="text-sm font-bold">Xbox</p><p className="text-xs text-zinc-500">{firebaseUser.gaming.xbox}</p></div></div></div>}
-                   {firebaseUser.gaming.epic && <div className="flex items-center justify-between group"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-[#313131] rounded flex items-center justify-center font-bold text-xs">E</div><div><p className="text-sm font-bold">Epic Games</p><p className="text-xs text-zinc-500">{firebaseUser.gaming.epic}</p></div></div></div>}
-                   {firebaseUser.socials.twitter && <div className="flex items-center justify-between group"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-zinc-800 rounded flex items-center justify-center"><svg className="w-3 h-3 fill-white" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></div><div><p className="text-sm font-bold">Twitter</p><p className="text-xs text-zinc-500">{firebaseUser.socials.twitter}</p></div></div></div>}
-                   {firebaseUser.socials.instagram && <div className="flex items-center justify-between group"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-zinc-800 rounded flex items-center justify-center"><svg className="w-3 h-3 fill-white" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg></div><div><p className="text-sm font-bold">Instagram</p><p className="text-xs text-zinc-500">{firebaseUser.socials.instagram}</p></div></div></div>}
-                </div>
+              <div className="relative -mt-14 mb-3 w-28 h-28">
+                 <AvatarDecoration type={firebaseUser.avatarDecoration}>
+                   <div className="w-28 h-28 rounded-full p-1 bg-[#1e1f22] relative z-10">
+                      <Image src={avatarSource} alt="Avatar" fill className="rounded-full object-cover bg-zinc-900" unoptimized />
+                      {firebaseUser.discordDecoration && (
+                         <img src={firebaseUser.discordDecoration} alt="Decoration" className="absolute inset-0 w-full h-full scale-[1.25] z-30 pointer-events-none object-contain" />
+                      )}
+                   </div>
+                 </AvatarDecoration>
+                 {profile?.gameextrainfo && <div className="absolute bottom-1 right-1 w-5 h-5 rounded-full border-[3px] border-[#1e1f22] bg-green-500 z-20" title="Online"></div>}
               </div>
+
+              <div className="flex justify-between items-start mb-6 gap-4">
+                <div className="min-w-0 flex-1">
+                  <h1 className={`${nameClasses} truncate`} style={nameStyle}>{displayName}</h1>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-zinc-400 font-medium text-sm">@{username}</p>
+                    {parseInt(firebaseUser.views || "0") >= 0 && (
+                       <div className="flex items-center gap-1.5 text-zinc-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wide ml-1">
+                          <Eye className="w-3 h-3" /> {Number(firebaseUser.views || 0).toLocaleString()}
+                       </div>
+                    )}
+                    <BadgeRack badgeList={badges} />
+                  </div>
+                </div>
+
+                {community && (
+                  <Link href={`/c/${community.handle}`} className="shrink-0 group mt-1">
+                     <div className="flex items-center gap-3 px-3 py-2 bg-black/40 hover:bg-white/5 border border-white/5 rounded-2xl transition shadow-lg relative overflow-hidden">
+                         <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition duration-500"></div>
+                         <div className="text-right relative z-10 hidden sm:block">
+                            <p className="text-[9px] font-bold text-indigo-400/80 uppercase tracking-widest leading-none mb-1.5">Squad</p>
+                            <p className="text-xs font-black text-white group-hover:text-indigo-400 transition truncate max-w-[100px] leading-none">{community.name}</p>
+                         </div>
+                         <div className="w-8 h-8 rounded-xl bg-zinc-800 overflow-hidden flex items-center justify-center shrink-0 border border-white/10 group-hover:scale-105 transition relative z-10 shadow-md">
+                            {community.avatar ? <img src={community.avatar} alt="Logo" className="w-full h-full object-cover" /> : <Users className="w-4 h-4 text-zinc-400" />}
+                         </div>
+                     </div>
+                  </Link>
+                )}
+              </div>
+
+              {profile?.gameextrainfo && (
+                <div className="mb-4 p-3 bg-black/40 rounded-xl border border-white/5 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400"><Gamepad2 className="w-5 h-5" /></div>
+                    <div className="flex-1 min-w-0"><p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Playing now</p><p className="text-sm font-bold text-white truncate">{profile.gameextrainfo}</p></div>
+                </div>
+              )}
+
+              {musicData?.nowPlaying?.isPlaying && (
+                <div className="mb-6 p-3 bg-black/40 rounded-xl border border-[#1DB954]/20 flex items-center gap-3 group relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-r from-[#1DB954]/5 to-transparent opacity-0 group-hover:opacity-100 transition duration-500"></div>
+                    <div className="w-10 h-10 rounded-lg bg-[#1DB954]/10 flex items-center justify-center text-[#1DB954] overflow-hidden relative shrink-0 shadow-lg shadow-[#1DB954]/10">
+                       {musicData.nowPlaying.albumArt ? <Image src={musicData.nowPlaying.albumArt} fill className="object-cover" alt="Album" unoptimized /> : <Music className="w-5 h-5" />}
+                    </div>
+                    <div className="flex-1 min-w-0 relative z-10">
+                       <p className="text-[10px] font-bold text-[#1DB954] uppercase tracking-wider flex items-center gap-1.5 mb-0.5"><Music className="w-3 h-3" /> Listening on Spotify</p>
+                       <a href={musicData.nowPlaying.url} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-white truncate block hover:underline leading-tight">{musicData.nowPlaying.title}</a>
+                       <p className="text-xs text-zinc-400 truncate mt-0.5">{musicData.nowPlaying.artist}</p>
+                    </div>
+                    <div className="flex items-end gap-1 h-4 px-1 shrink-0">
+                       <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-full"></span>
+                       <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-2/3" style={{ animationDelay: '200ms' }}></span>
+                       <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-4/5" style={{ animationDelay: '400ms' }}></span>
+                    </div>
+                </div>
+              )}
+              
+              {firebaseUser.bio && (
+                <div className="mb-5 bg-black/20 p-4 rounded-xl border border-white/5">
+                  <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">ABOUT ME</h3>
+                  <div className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap font-medium">{firebaseUser.bio}</div>
+                </div>
+              )}
+
+              {firebaseUser.customLinks && firebaseUser.customLinks.length > 0 && (
+                <div className="mb-5">
+                   <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">LINKS</h3>
+                   <div className="space-y-2">
+                     {firebaseUser.customLinks.map((link: any, idx: number) => (
+                       <a key={idx} href={ensureProtocol(link.url)} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-3 rounded-xl bg-black/40 border border-white/5 hover:bg-white/10 transition group">
+                         <div className="flex items-center gap-3">
+                           <Globe className="w-4 h-4 text-zinc-400" />
+                           <span className="font-bold text-sm text-zinc-300 group-hover:text-white transition">{link.label}</span>
+                         </div>
+                         <ArrowUpRight className="w-4 h-4 text-zinc-500 group-hover:text-white transition" />
+                       </a>
+                     ))}
+                   </div>
+                </div>
+              )}
+
+              {firebaseUser.gear && Object.values(firebaseUser.gear).some((val: any) => val && (val as string).trim() !== "") && (
+                <div className="mb-2">
+                   <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">GEAR & SPECS</h3>
+                   <div className="space-y-2">
+                      {firebaseUser.gear.cpu && (
+                        <div className="flex items-center gap-3 p-3 rounded-xl bg-black/40 border border-white/5">
+                           <Cpu className="w-4 h-4 text-zinc-400 shrink-0" />
+                           <div className="min-w-0 flex-1"><p className="text-[9px] text-zinc-500 font-bold uppercase leading-none mb-1">CPU</p><p className="text-xs font-bold text-zinc-200 truncate">{firebaseUser.gear.cpu}</p></div>
+                        </div>
+                      )}
+                      {firebaseUser.gear.gpu && (
+                        <div className="flex items-center gap-3 p-3 rounded-xl bg-black/40 border border-white/5">
+                           <Cpu className="w-4 h-4 text-zinc-400 shrink-0" />
+                           <div className="min-w-0 flex-1"><p className="text-[9px] text-zinc-500 font-bold uppercase leading-none mb-1">GPU</p><p className="text-xs font-bold text-zinc-200 truncate">{firebaseUser.gear.gpu}</p></div>
+                        </div>
+                      )}
+                      {firebaseUser.gear.ram && (
+                        <div className="flex items-center gap-3 p-3 rounded-xl bg-black/40 border border-white/5">
+                           <Cpu className="w-4 h-4 text-zinc-400 shrink-0" />
+                           <div className="min-w-0 flex-1"><p className="text-[9px] text-zinc-500 font-bold uppercase leading-none mb-1">RAM</p><p className="text-xs font-bold text-zinc-200 truncate">{firebaseUser.gear.ram}</p></div>
+                        </div>
+                      )}
+                      {firebaseUser.gear.monitor && (
+                        <div className="flex items-center gap-3 p-3 rounded-xl bg-black/40 border border-white/5">
+                           <Monitor className="w-4 h-4 text-zinc-400 shrink-0" />
+                           <div className="min-w-0 flex-1"><p className="text-[9px] text-zinc-500 font-bold uppercase leading-none mb-1">Monitor</p><p className="text-xs font-bold text-zinc-200 truncate">{firebaseUser.gear.monitor}</p></div>
+                        </div>
+                      )}
+                      {firebaseUser.gear.mouse && (
+                        <div className="flex items-center gap-3 p-3 rounded-xl bg-black/40 border border-white/5">
+                           <Mouse className="w-4 h-4 text-zinc-400 shrink-0" />
+                           <div className="min-w-0 flex-1"><p className="text-[9px] text-zinc-500 font-bold uppercase leading-none mb-1">Mouse</p><p className="text-xs font-bold text-zinc-200 truncate">{firebaseUser.gear.mouse}</p></div>
+                        </div>
+                      )}
+                      {firebaseUser.gear.keyboard && (
+                        <div className="flex items-center gap-3 p-3 rounded-xl bg-black/40 border border-white/5">
+                           <Keyboard className="w-4 h-4 text-zinc-400 shrink-0" />
+                           <div className="min-w-0 flex-1"><p className="text-[9px] text-zinc-500 font-bold uppercase leading-none mb-1">Keyboard</p><p className="text-xs font-bold text-zinc-200 truncate">{firebaseUser.gear.keyboard}</p></div>
+                        </div>
+                      )}
+                      {firebaseUser.gear.headset && (
+                        <div className="flex items-center gap-3 p-3 rounded-xl bg-black/40 border border-white/5">
+                           <Headphones className="w-4 h-4 text-zinc-400 shrink-0" />
+                           <div className="min-w-0 flex-1"><p className="text-[9px] text-zinc-500 font-bold uppercase leading-none mb-1">Headset</p><p className="text-xs font-bold text-zinc-200 truncate">{firebaseUser.gear.headset}</p></div>
+                        </div>
+                      )}
+                   </div>
+                </div>
+              )}
+              
             </div>
           </div>
 
-          <div className="lg:col-span-8">
-            {/* Pass the Last.fm data into the same prop ProfileGrid uses */}
+          {/* Right column with invisible scrollbar logic remaining identical to previous iteration */}
+          <div className="lg:col-span-8 h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-6">
             <ProfileGrid user={firebaseUser} steam={steamData} spotify={musicData} />
           </div>
 
