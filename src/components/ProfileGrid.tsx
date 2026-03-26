@@ -138,7 +138,6 @@ export default function ProfileGrid({
   const heroGame = recentGames?.[0];
   const isLightCard = user.primary?.toLowerCase() === '#ffffff' || user.primary?.toLowerCase() === 'white';
   
-  // Force rigorous number parsing so sliders bind correctly 
   const opacity = user.cardOpacity !== undefined ? Number(user.cardOpacity) : 0.8;
   const blur = user.cardBlur !== undefined ? Number(user.cardBlur) : 10;
   
@@ -244,7 +243,8 @@ export default function ProfileGrid({
               <p className={`text-[10px] font-bold uppercase tracking-widest ${mutedColor}`}>Monthly Top Tracks</p>
             </div>
             
-            <div className="space-y-2.5 flex-1 min-h-0 overflow-x-hidden">
+            {/* ADDED SCROLLBAR HIDING CLASSES HERE */}
+            <div className="space-y-2.5 flex-1 min-h-0 overflow-x-hidden overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               {spotify.topTracks && spotify.topTracks.length > 0 ? (
                 spotify.topTracks.map((track: any) => (
                   <a key={track.id} href={track.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 group/track hover:bg-white/5 p-1.5 -m-1.5 rounded-lg transition-all">
@@ -436,7 +436,8 @@ export default function ProfileGrid({
              <h3 className={`text-[10px] font-black uppercase tracking-widest mb-3 flex items-center gap-2 ${mutedColor}`}>
                Connections
              </h3>
-             <div className="flex flex-col gap-2 flex-1 min-h-0 overflow-x-hidden">
+             {/* ADDED SCROLLBAR HIDING CLASSES HERE */}
+             <div className="flex flex-col gap-2 flex-1 min-h-0 overflow-x-hidden overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                  {user.steamId && (
                    <a href={`https://steamcommunity.com/profiles/${user.steamId}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-2.5 rounded-xl bg-black/20 border border-white/5 hover:bg-white/10 transition group/link shrink-0">
                      <div className="flex items-center gap-3">
