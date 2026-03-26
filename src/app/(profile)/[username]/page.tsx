@@ -1,6 +1,6 @@
 import { getSteamProfile, getRecentlyPlayed, getSteamLevel, getOwnedGamesCount, getGameProgress } from '@/lib/steam';
 import { getValorantProfile } from '@/lib/valorant';
-import { Sparkles, Gamepad2, Globe, ArrowUpRight, Ghost, Music, Zap, Share2, Users, ArrowRight, Eye, Cpu, Monitor, Mouse, Keyboard, Headphones } from 'lucide-react';
+import { Gamepad2, Globe, ArrowUpRight, Ghost, Music, Zap, Share2, Users, ArrowRight, Eye, Cpu, Monitor, Mouse, Keyboard, Headphones } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Inter, Space_Grotesk, Press_Start_2P, Cinzel } from 'next/font/google';
@@ -314,8 +314,9 @@ export default async function ProfilePage({ params }: Props) {
         <div className="absolute top-0 left-0 w-full z-50 p-4 md:p-6 flex justify-between items-center pointer-events-auto">
            <Link href="/" className="flex items-center gap-2 font-bold text-xl tracking-tighter hover:opacity-80 transition drop-shadow-md">
              <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-[0_0_20px_rgba(99,102,241,0.4)]">
-   <PulseLogo className="w-4 h-4 text-white" />
-</div>Pulse
+               <PulseLogo className="w-4 h-4 text-white" />
+             </div>
+             Pulse
            </Link>
            <div className="flex items-center gap-3">
               <ShareButton />
@@ -333,10 +334,12 @@ export default async function ProfilePage({ params }: Props) {
                 <div className="relative w-32 h-32 mb-6 shrink-0">
                    <AvatarDecoration type={firebaseUser.avatarDecoration}>
                      <div className="w-32 h-32 rounded-full p-1 bg-[#1e1f22] relative z-10">
-                        <Image src={avatarSource} alt="Avatar" fill className="rounded-full object-cover bg-zinc-900" unoptimized />
-                        {firebaseUser.discordDecoration && (
-                           <img src={firebaseUser.discordDecoration} alt="Decoration" className="absolute inset-0 w-full h-full scale-[1.25] z-30 pointer-events-none object-contain" />
-                        )}
+                        <div className="relative w-full h-full rounded-full z-10">
+                           <img src={avatarSource} alt="Avatar" className="w-full h-full rounded-full object-cover bg-zinc-900" />
+                           {firebaseUser.discordDecoration && (
+                              <img src={firebaseUser.discordDecoration} alt="Decoration" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] max-w-none z-30 pointer-events-none object-contain" />
+                           )}
+                        </div>
                      </div>
                    </AvatarDecoration>
                    {profile?.gameextrainfo && <div className="absolute bottom-2 right-2 w-6 h-6 rounded-full border-[4px] border-[#1e1f22] bg-green-500 z-20" title={`Playing ${profile.gameextrainfo}`}></div>}
@@ -421,7 +424,7 @@ export default async function ProfilePage({ params }: Props) {
 
             <div className="mt-8 text-center pb-4">
                 <Link href="/" className="inline-flex items-center gap-2 text-xs font-bold text-zinc-500 hover:text-white transition bg-black/40 px-4 py-2 rounded-full border border-white/5 backdrop-blur-md">
-                   <Sparkles className="w-3 h-3" /> Powered by Pulse
+                   <PulseLogo className="w-3 h-3" /> Powered by Pulse
                 </Link>
             </div>
         </div>
@@ -459,7 +462,10 @@ export default async function ProfilePage({ params }: Props) {
         
         <div className="flex justify-between items-center mb-6 px-2 shrink-0">
            <Link href="/" className="flex items-center gap-2 font-bold text-xl tracking-tighter hover:opacity-80 transition">
-             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center"><Sparkles className="w-4 h-4 text-white" /></div>Pulse
+             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+                <PulseLogo className="w-4 h-4 text-white" />
+             </div>
+             Pulse
            </Link>
            <div className="flex items-center gap-3">
               <ShareButton />
@@ -479,13 +485,15 @@ export default async function ProfilePage({ params }: Props) {
             
             <div className="px-6 pb-6 relative">
               
-              <div className="relative -mt-14 mb-3 w-28 h-28">
+              <div className="relative -mt-14 mb-3 w-28 h-28 shrink-0">
                  <AvatarDecoration type={firebaseUser.avatarDecoration}>
                    <div className="w-28 h-28 rounded-full p-1 bg-[#1e1f22] relative z-10">
-                      <Image src={avatarSource} alt="Avatar" fill className="rounded-full object-cover bg-zinc-900" unoptimized />
-                      {firebaseUser.discordDecoration && (
-                         <img src={firebaseUser.discordDecoration} alt="Decoration" className="absolute inset-0 w-full h-full scale-[1.25] z-30 pointer-events-none object-contain" />
-                      )}
+                      <div className="relative w-full h-full rounded-full z-10">
+                         <img src={avatarSource} alt="Avatar" className="w-full h-full rounded-full object-cover bg-zinc-900" />
+                         {firebaseUser.discordDecoration && (
+                            <img src={firebaseUser.discordDecoration} alt="Decoration" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] max-w-none z-30 pointer-events-none object-contain" />
+                         )}
+                      </div>
                    </div>
                  </AvatarDecoration>
                  {profile?.gameextrainfo && <div className="absolute bottom-1 right-1 w-5 h-5 rounded-full border-[3px] border-[#1e1f22] bg-green-500 z-20" title="Online"></div>}

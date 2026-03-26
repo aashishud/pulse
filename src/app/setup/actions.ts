@@ -43,10 +43,10 @@ export async function verifySteamLogin(queryString: string) {
 export async function verifyDiscordLogin(code: string, origin: string) {
   const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
   const CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
-  const REDIRECT_URI = `${origin}/api/auth/discord`; // Must match what was sent in the initial request
+  const REDIRECT_URI = `${origin}/api/auth/discord`;
 
   try {
-    // 1. Exchange Code for Token
+    // 1. Exchange the code for an Access Token
     const tokenResponse = await fetch("https://discord.com/api/oauth2/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -60,27 +60,44 @@ export async function verifyDiscordLogin(code: string, origin: string) {
     });
 
     const tokenData = await tokenResponse.json();
+    if (!tokenData.access_token) throw new Error("Failed to get access token");
 
-    if (tokenData.error) {
-      console.error("Discord Token Error:", tokenData);
-      return { success: false, error: tokenData.error_description || "Failed to exchange token" };
-    }
-
-    // 2. Get User Info
+    // 2. Fetch the User's Profile Data
     const userResponse = await fetch("https://discord.com/api/users/@me", {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
 
-    const discordUser = await userResponse.json();
-    return { success: true, username: discordUser.username, id: discordUser.id };
+    const userData = await userResponse.json();
+    if (!userData.id) throw new Error("Failed to get user data");
 
+    // 3. Construct the Avatar URL (Checks if it's an animated GIF or static PNG)
+    let avatarUrl = "";
+    if (userData.avatar) {
+      const ext = userData.avatar.startsWith("a_") ? "gif" : "png";
+      avatarUrl = `https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.${ext}?size=1024`;
+    }
+
+    // 4. Construct the Avatar Decoration URL (The animated Nitro frame!)
+    let decorationUrl = "";
+    if (userData.avatar_decoration_data) {
+      // Discord uses APNG (Animated PNGs) for frames, which work perfectly in web browsers!
+      decorationUrl = `https://cdn.discordapp.com/avatar-decoration-presets/${userData.avatar_decoration_data.asset}.png?size=512`;
+    }
+
+    return {
+      success: true,
+      username: userData.username,
+      discordId: userData.id,
+      avatarUrl,
+      decorationUrl
+    };
   } catch (error) {
-    console.error("Discord API Error:", error);
-    return { success: false, error: "Failed to connect to Discord" };
+    console.error("Discord verification failed:", error);
+    return { success: false };
   }
 }
 
-// --- SPOTIFY (NEW) ---
+// --- SPOTIFY ---
 export async function getSpotifyTokens(code: string, redirectUri: string) {
   // .trim() prevents accidental invisible spaces from breaking the API call
   const clientId = process.env.SPOTIFY_CLIENT_ID?.trim();

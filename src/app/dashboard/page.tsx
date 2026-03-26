@@ -37,11 +37,17 @@ function DashboardContent() {
     color: "indigo", mode: "dark", banner: "", background: "", avatar: "", avatarDecoration: "none",
     cursorTrail: "none", customCursor: "", customCursorHover: "", nameEffect: "solid",
     nameColor: "white", primary: "#1e1f22", font: "inter", cardOpacity: 0.8, cardBlur: 10, 
-    layoutStyle: "bento", shader: "none"
+    layoutStyle: "bento", shader: "none", discordDecoration: ""
   });
   
   const [gear, setGear] = useState({ cpu: "", gpu: "", ram: "", mouse: "", keyboard: "", headset: "", monitor: "" });
-  const [socials, setSocials] = useState({ twitter: "", instagram: "", youtube: "", twitch: "", discord: "", discord_verified: false });
+  
+  // ADDED NEW DISCORD FIELDS TO STATE
+  const [socials, setSocials] = useState({ 
+    twitter: "", instagram: "", youtube: "", twitch: "", discord: "", 
+    discordId: "", discord_avatar: "", discord_decoration: "", discord_verified: false 
+  });
+  
   const [gaming, setGaming] = useState({ xbox: "", epic: "", valorant: { name: "", tag: "", region: "na" } });
   const [customLinks, setCustomLinks] = useState<{label: string, url: string}[]>([]);
   const [clips, setClips] = useState<{title: string, url: string}[]>([]); 
@@ -123,6 +129,8 @@ function DashboardContent() {
             }
           }
         }
+        
+        // DISCORD VERIFICATION: Grabs avatar & decoration urls and saves them to db
         if (discordCode) {
            const result = await verifyDiscordLogin(discordCode, window.location.origin);
            if (result.success && result.username) {
@@ -131,6 +139,9 @@ function DashboardContent() {
               if (!querySnapshot.empty) {
                  await updateDoc(doc(db, "users", querySnapshot.docs[0].id), { 
                      "socials.discord": result.username,
+                     "socials.discordId": result.discordId,
+                     "socials.discord_avatar": result.avatarUrl,
+                     "socials.discord_decoration": result.decorationUrl,
                      "socials.discord_verified": true 
                  });
               }
@@ -169,10 +180,22 @@ function DashboardContent() {
             cardOpacity: userData.theme?.cardOpacity ?? 0.8,
             cardBlur: userData.theme?.cardBlur ?? 10,
             layoutStyle: userData.theme?.layoutStyle || "bento",
-            shader: userData.theme?.shader || "none"
+            shader: userData.theme?.shader || "none",
+            discordDecoration: userData.theme?.discordDecoration || ""
         });
 
-        setSocials({ ...userData.socials });
+        setSocials({ 
+            twitter: userData.socials?.twitter || "", 
+            instagram: userData.socials?.instagram || "", 
+            youtube: userData.socials?.youtube || "", 
+            twitch: userData.socials?.twitch || "", 
+            discord: userData.socials?.discord || "",
+            discordId: userData.socials?.discordId || "",
+            discord_avatar: userData.socials?.discord_avatar || "",
+            discord_decoration: userData.socials?.discord_decoration || "",
+            discord_verified: userData.socials?.discord_verified || false
+        });
+        
         setGaming({ ...userData.gaming || { valorant: { name: "", tag: "", region: "na" } } });
         setCustomLinks(userData.customLinks || []);
         setClips(userData.clips || []); 
@@ -335,8 +358,21 @@ function DashboardContent() {
             setUser((prev: any) => ({ ...prev, steamId: "" }));
         }
         if (platform === 'discord') {
-            await updateDoc(userRef, { "socials.discord": "", "socials.discord_verified": false });
-            setSocials(prev => ({ ...prev, discord: "", discord_verified: false }));
+            await updateDoc(userRef, { 
+              "socials.discord": "", 
+              "socials.discordId": "", 
+              "socials.discord_avatar": "", 
+              "socials.discord_decoration": "", 
+              "socials.discord_verified": false 
+            });
+            setSocials(prev => ({ 
+              ...prev, 
+              discord: "", 
+              discordId: "", 
+              discord_avatar: "", 
+              discord_decoration: "", 
+              discord_verified: false 
+            }));
         }
     } catch (e) {
         console.error(e);
@@ -557,7 +593,7 @@ function DashboardContent() {
       {/* Top Bar - Frosted Glass */}
       <div className="sticky top-0 z-50 bg-[#0a0a0c]/60 backdrop-blur-xl border-b border-white/[0.05] px-6 py-4 flex justify-between items-center shadow-sm">
          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/20">P</div>
+            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20"><PulseLogo className="w-5 h-5 text-white" /></div>
             <span className="font-bold tracking-tight hidden md:block">Dashboard</span>
          </div>
          <div className="flex items-center gap-3">
@@ -923,7 +959,7 @@ function DashboardContent() {
                       {/* Discord OAuth Button */}
                       <div className="relative">
                          <label className="text-xs font-bold text-zinc-500 block mb-2 uppercase tracking-wider">Discord Status</label>
-                         {user?.socials?.discord ? (
+                         {socials.discord ? (
                             <div className="flex gap-3">
                                <div className="flex-1 bg-black/40 border border-indigo-500/50 rounded-xl p-4 text-indigo-400 text-sm flex items-center gap-3 shadow-inner">
                                   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
@@ -1160,6 +1196,14 @@ function DashboardContent() {
                       <div>
                           <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Custom Avatar</label>
                           <input type="text" value={theme.avatar} onChange={e => setTheme({...theme, avatar: e.target.value})} className={inputStyle} placeholder="Image URL" />
+                          {socials.discord_avatar && (
+                             <button 
+                                onClick={() => setTheme({...theme, avatar: socials.discord_avatar})}
+                                className="mt-3 w-full py-2 bg-[#5865F2]/10 hover:bg-[#5865F2]/20 border border-[#5865F2]/30 text-[#5865F2] text-xs font-bold rounded-xl transition flex items-center justify-center gap-2"
+                             >
+                                <User className="w-3.5 h-3.5" /> Use Discord Profile Pic
+                             </button>
+                          )}
                       </div>
                    </div>
 
@@ -1169,7 +1213,7 @@ function DashboardContent() {
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                        <div>
                           <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Avatar Decoration Frame</label>
-                          <select value={theme.avatarDecoration} onChange={e => setTheme({...theme, avatarDecoration: e.target.value})} className={`${inputStyle} cursor-pointer`}>
+                          <select value={theme.avatarDecoration} onChange={e => setTheme({...theme, avatarDecoration: e.target.value, discordDecoration: ""})} className={`${inputStyle} cursor-pointer`}>
                              <optgroup label="Standard">
                                <option value="none">None</option>
                                <option value="gold">Golden Ring</option>
@@ -1185,6 +1229,38 @@ function DashboardContent() {
                                <option value="cherry_god">Cherry Blossoms 🌸</option>
                              </optgroup>
                           </select>
+
+                          {/* NEW: Discord Nitro Integration Box */}
+                          <div className="mt-4 p-4 bg-[#5865F2]/10 border border-[#5865F2]/20 rounded-2xl">
+                             <div className="flex items-center gap-2 mb-2">
+                                <svg className="w-4 h-4 text-[#5865F2] fill-current" viewBox="0 0 24 24"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
+                                <h4 className="font-bold text-[#5865F2] text-xs">Nitro Frame Sync</h4>
+                             </div>
+                             <p className="text-[10px] text-zinc-400 mb-3 leading-relaxed">
+                                We can pull your active Avatar Decoration from Discord. Equip it on Discord first, then click Sync.
+                             </p>
+                             <div className="flex flex-col gap-2">
+                                <button onClick={connectDiscord} className="w-full py-2 bg-[#5865F2] hover:bg-[#4752c4] text-white text-[10px] font-bold uppercase tracking-wider rounded-lg transition">
+                                   1. Fetch Latest from Discord
+                                </button>
+                                {socials.discord_decoration && (
+                                   <button 
+                                      onClick={() => setTheme({...theme, discordDecoration: socials.discord_decoration, avatarDecoration: 'none'})}
+                                      className="w-full py-2 bg-white text-black hover:bg-zinc-200 text-[10px] font-bold uppercase tracking-wider rounded-lg transition"
+                                   >
+                                      2. Apply Nitro Frame
+                                   </button>
+                                )}
+                                {theme.discordDecoration && (
+                                   <button 
+                                      onClick={() => setTheme({...theme, discordDecoration: ""})}
+                                      className="w-full py-2 mt-1 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 text-[10px] font-bold uppercase tracking-wider rounded-lg transition"
+                                   >
+                                      Remove Frame
+                                   </button>
+                                )}
+                             </div>
+                          </div>
                        </div>
                        
                        <div>
