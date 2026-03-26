@@ -14,6 +14,7 @@ import ViewCounter from '@/components/ViewCounter';
 import BackgroundShader from '@/components/BackgroundShader';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import PulseLogo from "@/components/PulseLogo"; 
 
 // Load Fonts
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
@@ -247,7 +248,7 @@ export default async function ProfilePage({ params }: Props) {
   if (firebaseUser.font === 'press') fontClass = pressStart.className;
   if (firebaseUser.font === 'cinzel') fontClass = cinzel.className;
 
-  let nameClasses = "font-black mb-1 leading-relaxed py-1";
+  let nameClasses = "text-3xl md:text-4xl font-black mb-1 leading-relaxed py-1";
   let nameStyle = {};
 
   if (firebaseUser.nameEffect === 'gradient') {
@@ -272,18 +273,13 @@ export default async function ProfilePage({ params }: Props) {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
 
-  // Force strictly parse numbers so they apply properly to inline styles
-  const currentOpacity = Number(firebaseUser.cardOpacity);
-  const currentBlur = Number(firebaseUser.cardBlur);
-
   const leftCardStyle = {
-    backgroundColor: hexToRgba(firebaseUser.primary, currentOpacity),
-    backdropFilter: `blur(${currentBlur}px)`, WebkitBackdropFilter: `blur(${currentBlur}px)`,
+    backgroundColor: hexToRgba(firebaseUser.primary, firebaseUser.cardOpacity),
+    backdropFilter: `blur(${firebaseUser.cardBlur}px)`, WebkitBackdropFilter: `blur(${firebaseUser.cardBlur}px)`,
   };
 
   const isSimpleMode = firebaseUser.layoutStyle === "simple";
 
-  // Build social buttons array for simple mode
   const simpleSocials = [];
   if (firebaseUser.socials?.discord) simpleSocials.push({ name: 'Discord', tooltip: firebaseUser.socials.discord, url: '#', icon: 'https://cdn.simpleicons.org/discord/white' });
   if (firebaseUser.socials?.twitter) simpleSocials.push({ name: 'Twitter', tooltip: `@${firebaseUser.socials.twitter}`, url: `https://twitter.com/${firebaseUser.socials.twitter}`, icon: 'https://cdn.simpleicons.org/x/white' });
@@ -317,7 +313,9 @@ export default async function ProfilePage({ params }: Props) {
         {/* Top Nav (Absolute floating) */}
         <div className="absolute top-0 left-0 w-full z-50 p-4 md:p-6 flex justify-between items-center pointer-events-auto">
            <Link href="/" className="flex items-center gap-2 font-bold text-xl tracking-tighter hover:opacity-80 transition drop-shadow-md">
-             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center"><Sparkles className="w-4 h-4 text-white" /></div>Pulse
+             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-[0_0_20px_rgba(99,102,241,0.4)]">
+   <PulseLogo className="w-4 h-4 text-white" />
+</div>Pulse
            </Link>
            <div className="flex items-center gap-3">
               <ShareButton />
@@ -393,7 +391,7 @@ export default async function ProfilePage({ params }: Props) {
                   <a href={musicData.nowPlaying.url} target="_blank" rel="noopener noreferrer" className="w-full p-3 bg-black/40 rounded-2xl border border-[#1DB954]/30 hover:border-[#1DB954]/60 transition flex items-center gap-3 mb-8 group overflow-hidden relative shadow-lg">
                       <div className="absolute inset-0 bg-gradient-to-r from-[#1DB954]/5 to-transparent opacity-0 group-hover:opacity-100 transition duration-500"></div>
                       <div className="w-12 h-12 rounded-xl bg-[#1DB954]/10 flex items-center justify-center text-[#1DB954] overflow-hidden relative shrink-0 shadow-sm border border-white/5">
-                         {musicData.nowPlaying.albumArt ? <Image src={musicData.nowPlaying.albumArt} fill className="object-cover" alt="Album" unoptimized /> : <Music className="w-5 h-5" />}
+                         {musicData.nowPlaying.albumArt ? <img src={musicData.nowPlaying.albumArt} className="w-full h-full object-cover" alt="Album" /> : <Music className="w-5 h-5" />}
                       </div>
                       <div className="flex-1 min-w-0 relative z-10 text-left">
                          <p className="text-[10px] font-bold text-[#1DB954] uppercase tracking-wider flex items-center gap-1.5 mb-0.5"><Music className="w-3 h-3" /> Listening on Spotify</p>
@@ -495,7 +493,7 @@ export default async function ProfilePage({ params }: Props) {
 
               <div className="flex justify-between items-start mb-6 gap-4">
                 <div className="min-w-0 flex-1">
-                  <h1 className={`text-3xl md:text-4xl ${nameClasses} truncate`} style={nameStyle}>{displayName}</h1>
+                  <h1 className={`${nameClasses} truncate`} style={nameStyle}>{displayName}</h1>
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-zinc-400 font-medium text-sm">@{username}</p>
                     {parseInt(firebaseUser.views || "0") >= 0 && (
@@ -534,7 +532,7 @@ export default async function ProfilePage({ params }: Props) {
                 <div className="mb-6 p-3 bg-black/40 rounded-xl border border-[#1DB954]/20 flex items-center gap-3 group relative overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-r from-[#1DB954]/5 to-transparent opacity-0 group-hover:opacity-100 transition duration-500"></div>
                     <div className="w-10 h-10 rounded-lg bg-[#1DB954]/10 flex items-center justify-center text-[#1DB954] overflow-hidden relative shrink-0 shadow-lg shadow-[#1DB954]/10">
-                       {musicData.nowPlaying.albumArt ? <Image src={musicData.nowPlaying.albumArt} fill className="object-cover" alt="Album" unoptimized /> : <Music className="w-5 h-5" />}
+                       {musicData.nowPlaying.albumArt ? <img src={musicData.nowPlaying.albumArt} className="w-full h-full object-cover" alt="Album" /> : <Music className="w-5 h-5" />}
                     </div>
                     <div className="flex-1 min-w-0 relative z-10">
                        <p className="text-[10px] font-bold text-[#1DB954] uppercase tracking-wider flex items-center gap-1.5 mb-0.5"><Music className="w-3 h-3" /> Listening on Spotify</p>

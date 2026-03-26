@@ -8,6 +8,7 @@ import Image from "next/image";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import AvatarDecoration from "@/components/AvatarDecoration";
+import PulseLogo from "@/components/PulseLogo";
 
 export default function LandingPageClient() {
   const [username, setUsername] = useState("");
@@ -138,9 +139,9 @@ export default function LandingPageClient() {
       {/* --- NAVBAR --- */}
       <nav className="w-full max-w-7xl mx-auto px-6 py-6 flex justify-between items-center z-50 relative">
         <div className="text-xl font-bold tracking-tighter flex items-center gap-2 group hover:opacity-80 transition cursor-pointer">
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-[0_0_20px_rgba(79,70,229,0.5)] group-hover:scale-105 transition">
-            <Sparkles className="w-4 h-4 text-white" />
-          </div>
+<div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-[0_0_20px_rgba(99,102,241,0.4)]">
+   <PulseLogo className="w-4 h-4 text-white" />
+</div>
           <span className="bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-400">Pulse</span>
         </div>
         
@@ -413,7 +414,9 @@ export default function LandingPageClient() {
       <footer className="w-full border-t border-white/5 bg-[#0a0a0c] py-12 z-10 relative">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-2 font-bold text-lg tracking-tighter opacity-80">
-             <div className="w-6 h-6 bg-white text-black rounded flex items-center justify-center"><Sparkles className="w-3 h-3" /></div>Pulse
+             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-[0_0_20px_rgba(99,102,241,0.4)]">
+   <PulseLogo className="w-4 h-4 text-white" />
+</div>Pulse
           </div>
           
           <div className="flex gap-6 text-sm text-zinc-500 font-medium">

@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import LandingPageClient from '@/components/LandingPageClient';
 
+
 const isDev = process.env.NODE_ENV === 'development';
 const protocol = isDev ? 'http' : 'https';
 const domain = isDev ? 'localhost:3000' : (process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'pulsegg.in');

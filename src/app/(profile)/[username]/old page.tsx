@@ -11,8 +11,10 @@ import AvatarDecoration from '@/components/AvatarDecoration';
 import CursorEffects from '@/components/CursorEffects';
 import ProfileGrid from '@/components/ProfileGrid';
 import ViewCounter from '@/components/ViewCounter';
+import BackgroundShader from '@/components/BackgroundShader';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import PulseLogo from "@/components/PulseLogo"; 
 
 // Load Fonts
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
@@ -94,7 +96,7 @@ async function getFirebaseUser(username: string) {
     };
 
     const getNum = (val: any, def: number) => {
-        if (val?.doubleValue !== undefined) return val.doubleValue;
+        if (val?.doubleValue !== undefined) return Number(val.doubleValue);
         if (val?.integerValue !== undefined) return Number(val.integerValue);
         return def;
     };
@@ -125,6 +127,8 @@ async function getFirebaseUser(username: string) {
       customCursorHover: fields.theme?.mapValue?.fields?.customCursorHover?.stringValue || "",
       cardOpacity: getNum(fields.theme?.mapValue?.fields?.cardOpacity, 0.8),
       cardBlur: getNum(fields.theme?.mapValue?.fields?.cardBlur, 10),
+      layoutStyle: fields.theme?.mapValue?.fields?.layoutStyle?.stringValue || "bento",
+      shader: fields.theme?.mapValue?.fields?.shader?.stringValue || "none",
       discordDecoration: fields.theme?.mapValue?.fields?.discordDecoration?.stringValue || "",
       bio: fields.bio?.stringValue || "",
       views: fields.views?.integerValue || "0", 
@@ -274,6 +278,156 @@ export default async function ProfilePage({ params }: Props) {
     backdropFilter: `blur(${firebaseUser.cardBlur}px)`, WebkitBackdropFilter: `blur(${firebaseUser.cardBlur}px)`,
   };
 
+  const isSimpleMode = firebaseUser.layoutStyle === "simple";
+
+  const simpleSocials = [];
+  if (firebaseUser.socials?.discord) simpleSocials.push({ name: 'Discord', tooltip: firebaseUser.socials.discord, url: '#', icon: 'https://cdn.simpleicons.org/discord/white' });
+  if (firebaseUser.socials?.twitter) simpleSocials.push({ name: 'Twitter', tooltip: `@${firebaseUser.socials.twitter}`, url: `https://twitter.com/${firebaseUser.socials.twitter}`, icon: 'https://cdn.simpleicons.org/x/white' });
+  if (firebaseUser.socials?.youtube) simpleSocials.push({ name: 'YouTube', tooltip: 'YouTube', url: ensureProtocol(firebaseUser.socials.youtube), icon: 'https://cdn.simpleicons.org/youtube/white' });
+  if (firebaseUser.socials?.twitch) simpleSocials.push({ name: 'Twitch', tooltip: 'Twitch', url: `https://twitch.tv/${firebaseUser.socials.twitch}`, icon: 'https://cdn.simpleicons.org/twitch/white' });
+  if (firebaseUser.socials?.instagram) simpleSocials.push({ name: 'Instagram', tooltip: `@${firebaseUser.socials.instagram}`, url: `https://instagram.com/${firebaseUser.socials.instagram}`, icon: 'https://cdn.simpleicons.org/instagram/white' });
+  if (firebaseUser.steamId) simpleSocials.push({ name: 'Steam', tooltip: 'Steam', url: `https://steamcommunity.com/profiles/${firebaseUser.steamId}`, icon: 'https://cdn.simpleicons.org/steam/white' });
+  if (firebaseUser.gaming?.xbox) simpleSocials.push({ name: 'Xbox', tooltip: firebaseUser.gaming.xbox, url: '#', icon: 'https://api.iconify.design/simple-icons:xbox.svg?color=white' });
+  if (firebaseUser.gaming?.epic) simpleSocials.push({ name: 'Epic Games', tooltip: firebaseUser.gaming.epic, url: '#', icon: 'https://cdn.simpleicons.org/epicgames/white' });
+
+  // === SIMPLE MODE RENDER ===
+  if (isSimpleMode) {
+    return (
+      <div className={`min-h-screen bg-[#111214] text-white ${fontClass} overflow-x-hidden flex flex-col`}>
+        <CursorEffects type={firebaseUser.cursorTrail} />
+        <ViewCounter username={username} />
+        
+        {(firebaseUser.customCursor || firebaseUser.customCursorHover) && (
+          <style dangerouslySetInnerHTML={{ __html: `
+            html, body, *, .min-h-screen { cursor: url("${firebaseUser.customCursor}") 0 0, auto !important; }
+            a, button, [role="button"], [class*="hover:"], .cursor-pointer, input, textarea { cursor: url("${firebaseUser.customCursorHover || firebaseUser.customCursor}") 0 0, pointer !important; }
+          `}} />
+        )}
+
+        <div className="fixed inset-0 z-0">
+           <div className="absolute inset-0 bg-cover bg-center" style={backgroundStyle}></div>
+           <div className="absolute inset-0 bg-black/60 backdrop-blur-xl"></div>
+           <BackgroundShader type={firebaseUser.shader} primaryColor={firebaseUser.primary} />
+        </div>
+
+        {/* Top Nav (Absolute floating) */}
+        <div className="absolute top-0 left-0 w-full z-50 p-4 md:p-6 flex justify-between items-center pointer-events-auto">
+           <Link href="/" className="flex items-center gap-2 font-bold text-xl tracking-tighter hover:opacity-80 transition drop-shadow-md">
+             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center"><Sparkles className="w-4 h-4 text-white" /></div>Pulse
+           </Link>
+           <div className="flex items-center gap-3">
+              <ShareButton />
+              <a href={dashboardUrl} className="px-3 py-1.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl font-bold text-[10px] hover:bg-white hover:text-black transition flex items-center gap-2 shadow-lg">
+                 <Zap className="w-3 h-3 text-yellow-400 fill-current" /> Edit
+              </a>
+           </div>
+        </div>
+
+        {/* Centered Simple Card Content */}
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-4 py-24 min-h-screen">
+            <div className="w-full max-w-[500px] rounded-[32px] border border-white/10 shadow-2xl p-8 md:p-10 flex flex-col items-center text-center relative overflow-hidden animate-in fade-in slide-in-from-bottom-8 duration-700" style={leftCardStyle}>
+                
+                {/* Avatar */}
+                <div className="relative w-32 h-32 mb-6 shrink-0">
+                   <AvatarDecoration type={firebaseUser.avatarDecoration}>
+                     <div className="w-32 h-32 rounded-full p-1 bg-[#1e1f22] relative z-10">
+                        <Image src={avatarSource} alt="Avatar" fill className="rounded-full object-cover bg-zinc-900" unoptimized />
+                        {firebaseUser.discordDecoration && (
+                           <img src={firebaseUser.discordDecoration} alt="Decoration" className="absolute inset-0 w-full h-full scale-[1.25] z-30 pointer-events-none object-contain" />
+                        )}
+                     </div>
+                   </AvatarDecoration>
+                   {profile?.gameextrainfo && <div className="absolute bottom-2 right-2 w-6 h-6 rounded-full border-[4px] border-[#1e1f22] bg-green-500 z-20" title={`Playing ${profile.gameextrainfo}`}></div>}
+                </div>
+
+                {/* Identity */}
+                <h1 className={`text-4xl ${nameClasses} truncate max-w-full`} style={nameStyle}>{displayName}</h1>
+                
+                <div className="flex items-center gap-2 justify-center mb-6 flex-wrap">
+                  <p className="text-zinc-400 font-medium text-sm">@{username}</p>
+                  {parseInt(firebaseUser.views || "0") >= 0 && (
+                     <div className="flex items-center gap-1.5 text-zinc-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wide">
+                        <Eye className="w-3 h-3" /> {Number(firebaseUser.views || 0).toLocaleString()}
+                     </div>
+                  )}
+                  <BadgeRack badgeList={badges} />
+                </div>
+
+                {/* Community Badge */}
+                {community && (
+                  <Link href={`/c/${community.handle}`} className="mb-6 group">
+                     <div className="inline-flex items-center gap-2.5 px-4 py-2 bg-black/20 hover:bg-white/5 border border-white/5 rounded-xl transition shadow-inner">
+                         <div className="w-6 h-6 rounded-md bg-zinc-800 overflow-hidden flex items-center justify-center shrink-0 border border-white/10">
+                            {community.avatar ? <img src={community.avatar} alt="Logo" className="w-full h-full object-cover" /> : <Users className="w-3 h-3 text-zinc-400" />}
+                         </div>
+                         <div className="text-left flex flex-col justify-center leading-none">
+                             <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">Squad</span>
+                             <span className="text-sm font-bold text-white group-hover:text-indigo-400 transition">{community.name}</span>
+                         </div>
+                     </div>
+                  </Link>
+                )}
+
+                {/* Bio */}
+                {firebaseUser.bio && (
+                  <p className="text-sm text-zinc-300 leading-relaxed mb-8 font-medium max-w-[340px] whitespace-pre-wrap">{firebaseUser.bio}</p>
+                )}
+
+                {/* Social Row */}
+                {simpleSocials.length > 0 && (
+                  <div className="flex flex-wrap justify-center gap-3 w-full mb-8">
+                    {simpleSocials.map((s, idx) => (
+                      <a key={idx} href={s.url !== '#' ? s.url : undefined} target={s.url !== '#' ? "_blank" : undefined} rel="noopener noreferrer" title={s.tooltip} className="w-12 h-12 rounded-2xl bg-black/40 hover:bg-white/10 border border-white/5 flex items-center justify-center transition-all hover:scale-110 shadow-lg">
+                         <img src={s.icon} alt={s.name} className="w-5 h-5 object-contain opacity-90" />
+                      </a>
+                    ))}
+                  </div>
+                )}
+
+                {/* Spotify Pill */}
+                {musicData?.nowPlaying?.isPlaying && (
+                  <a href={musicData.nowPlaying.url} target="_blank" rel="noopener noreferrer" className="w-full p-3 bg-black/40 rounded-2xl border border-[#1DB954]/30 hover:border-[#1DB954]/60 transition flex items-center gap-3 mb-8 group overflow-hidden relative shadow-lg">
+                      <div className="absolute inset-0 bg-gradient-to-r from-[#1DB954]/5 to-transparent opacity-0 group-hover:opacity-100 transition duration-500"></div>
+                      <div className="w-12 h-12 rounded-xl bg-[#1DB954]/10 flex items-center justify-center text-[#1DB954] overflow-hidden relative shrink-0 shadow-sm border border-white/5">
+                         {musicData.nowPlaying.albumArt ? <img src={musicData.nowPlaying.albumArt} className="w-full h-full object-cover" alt="Album" /> : <Music className="w-5 h-5" />}
+                      </div>
+                      <div className="flex-1 min-w-0 relative z-10 text-left">
+                         <p className="text-[10px] font-bold text-[#1DB954] uppercase tracking-wider flex items-center gap-1.5 mb-0.5"><Music className="w-3 h-3" /> Listening on Spotify</p>
+                         <p className="text-sm font-bold text-white truncate leading-tight group-hover:underline">{musicData.nowPlaying.title}</p>
+                         <p className="text-xs text-zinc-400 truncate mt-0.5">{musicData.nowPlaying.artist}</p>
+                      </div>
+                      <div className="flex items-end gap-1 h-4 px-2 shrink-0">
+                         <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-full"></span>
+                         <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-2/3" style={{ animationDelay: '200ms' }}></span>
+                         <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-4/5" style={{ animationDelay: '400ms' }}></span>
+                      </div>
+                  </a>
+                )}
+
+                {/* Custom Links */}
+                {firebaseUser.customLinks && firebaseUser.customLinks.length > 0 && (
+                  <div className="w-full space-y-3 mt-auto">
+                     {firebaseUser.customLinks.map((link: any, idx: number) => (
+                       <a key={idx} href={ensureProtocol(link.url)} target="_blank" rel="noopener noreferrer" className="block w-full py-4 px-6 bg-black/40 hover:bg-white/10 border border-white/5 rounded-2xl font-bold text-sm transition-all hover:scale-[1.02] shadow-lg group relative overflow-hidden">
+                         <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition"></div>
+                         <span className="relative z-10 text-white flex justify-center items-center gap-2">{link.label}</span>
+                       </a>
+                     ))}
+                  </div>
+                )}
+            </div>
+
+            <div className="mt-8 text-center pb-4">
+                <Link href="/" className="inline-flex items-center gap-2 text-xs font-bold text-zinc-500 hover:text-white transition bg-black/40 px-4 py-2 rounded-full border border-white/5 backdrop-blur-md">
+                   <Sparkles className="w-3 h-3" /> Powered by Pulse
+                </Link>
+            </div>
+        </div>
+      </div>
+    );
+  }
+
+  // === BENTO GRID RENDER (DEFAULT) ===
   return (
     <div className={`min-h-screen bg-[#111214] text-white ${fontClass} overflow-x-hidden`}>
       <CursorEffects type={firebaseUser.cursorTrail} />
@@ -296,9 +450,9 @@ export default async function ProfilePage({ params }: Props) {
       <div className="fixed inset-0 z-0">
          <div className="absolute inset-0 bg-cover bg-center" style={backgroundStyle}></div>
          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-[#111214]/90 to-[#111214]"></div>
+         <BackgroundShader type={firebaseUser.shader} primaryColor={firebaseUser.primary} />
       </div>
 
-      {/* CHANGED: max-w-[1200px] and lg:py-10 added to float the layout off the screen edges */}
       <div className="relative z-10 max-w-[1200px] mx-auto p-4 md:p-8 lg:py-10 h-screen flex flex-col overflow-hidden">
         
         <div className="flex justify-between items-center mb-6 px-2 shrink-0">
@@ -313,7 +467,6 @@ export default async function ProfilePage({ params }: Props) {
            </div>
         </div>
 
-        {/* CHANGED: Increased grid gap slightly to match the new compact max-w */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 min-h-0 pb-4">
           
           <div className="lg:col-span-4 h-full rounded-[32px] border border-white/5 shadow-2xl relative overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={leftCardStyle}>
@@ -377,7 +530,7 @@ export default async function ProfilePage({ params }: Props) {
                 <div className="mb-6 p-3 bg-black/40 rounded-xl border border-[#1DB954]/20 flex items-center gap-3 group relative overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-r from-[#1DB954]/5 to-transparent opacity-0 group-hover:opacity-100 transition duration-500"></div>
                     <div className="w-10 h-10 rounded-lg bg-[#1DB954]/10 flex items-center justify-center text-[#1DB954] overflow-hidden relative shrink-0 shadow-lg shadow-[#1DB954]/10">
-                       {musicData.nowPlaying.albumArt ? <Image src={musicData.nowPlaying.albumArt} fill className="object-cover" alt="Album" unoptimized /> : <Music className="w-5 h-5" />}
+                       {musicData.nowPlaying.albumArt ? <img src={musicData.nowPlaying.albumArt} className="w-full h-full object-cover" alt="Album" /> : <Music className="w-5 h-5" />}
                     </div>
                     <div className="flex-1 min-w-0 relative z-10">
                        <p className="text-[10px] font-bold text-[#1DB954] uppercase tracking-wider flex items-center gap-1.5 mb-0.5"><Music className="w-3 h-3" /> Listening on Spotify</p>
@@ -469,7 +622,6 @@ export default async function ProfilePage({ params }: Props) {
             </div>
           </div>
 
-          {/* Right column with invisible scrollbar logic remaining identical to previous iteration */}
           <div className="lg:col-span-8 h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-6">
             <ProfileGrid user={firebaseUser} steam={steamData} spotify={musicData} />
           </div>

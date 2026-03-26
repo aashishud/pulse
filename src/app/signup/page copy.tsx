@@ -59,19 +59,16 @@ function SignupContent() {
     e.preventDefault();
     setError("");
 
-    // 1. Terms Check
     if (!termsAccepted) {
       setError("Please accept the Terms of Service to continue.");
       return;
     }
 
-    // 2. Bot Check
     if (!captchaValue) {
       setError("Please verify that you are not a robot.");
       return;
     }
 
-    // 3. Validation Check
     const validationError = validateHandle(handle.toLowerCase().trim());
     if (validationError) {
       setError(validationError);
@@ -153,13 +150,13 @@ function SignupContent() {
         <div className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Username</label>
-            <div className="flex bg-black/20 border border-white/10 rounded-xl overflow-hidden focus-within:border-indigo-500 transition">
+            <div className="flex bg-black/20 border border-white/10 rounded-xl overflow-hidden focus-within:border-indigo-500 transition text-sm">
               <span className="pl-4 py-3 text-zinc-600 font-medium">pulsegg.in/</span>
               <input 
                 type="text" 
                 value={handle}
                 onChange={(e) => setHandle(e.target.value.replace(/[^a-zA-Z0-9-_]/g, ''))}
-                className="flex-1 bg-transparent text-white outline-none p-3 pl-0 font-mono text-sm"
+                className="flex-1 bg-transparent text-white outline-none p-3 pl-0 font-mono"
                 placeholder="username"
               />
             </div>
@@ -192,7 +189,6 @@ function SignupContent() {
 
             {error && <p className="text-red-400 text-xs font-bold text-center bg-red-500/10 border border-red-500/20 p-3 rounded-xl">{error}</p>}
 
-            {/* Terms Checkbox */}
             <div className="flex items-start gap-3 py-2">
               <input
                 type="checkbox"
@@ -206,7 +202,6 @@ function SignupContent() {
               </label>
             </div>
 
-            {/* reCAPTCHA Checkbox */}
             <div className="flex justify-center py-2 scale-90 sm:scale-100">
               <ReCAPTCHA
                 sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || ""}

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Sparkles, ArrowLeft, Shield } from "lucide-react";
+import PulseLogo from "@/components/PulseLogo";
 
 export const metadata = {
   title: "Terms & Privacy | Pulse",
@@ -17,9 +18,9 @@ export default function TermsPage() {
 
       <nav className="w-full max-w-4xl mx-auto px-6 py-8 flex justify-between items-center z-50 relative">
         <Link href="/" className="text-xl font-bold tracking-tighter flex items-center gap-2 group hover:opacity-80 transition">
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:scale-105 transition">
-            <Sparkles className="w-4 h-4 text-white" />
-          </div>
+<div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-[0_0_20px_rgba(99,102,241,0.4)]">
+   <PulseLogo className="w-4 h-4 text-white" />
+</div>
           <span className="bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-400">Pulse</span>
         </Link>
         <Link href="/" className="text-sm font-bold text-zinc-400 hover:text-white transition flex items-center gap-2 bg-white/5 px-4 py-2 rounded-xl hover:bg-white/10">

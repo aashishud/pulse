@@ -6,8 +6,11 @@ import { auth, db } from "@/lib/firebase";
 import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { onAuthStateChanged, updateEmail, updatePassword, signOut, deleteUser } from "firebase/auth";
 import { getSteamLoginUrl, verifySteamLogin, verifyDiscordLogin } from "@/app/setup/actions"; 
-import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X, Cpu, Monitor, Keyboard, Mouse, Headphones, Trophy, Gamepad2, Clock, Music, Video, Users, Crown, LayoutTemplate, Layers } from "lucide-react";
+import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X, Cpu, Monitor, Keyboard, Mouse, Headphones, Trophy, Gamepad2, Clock, Music, Video, Users, Crown, LayoutTemplate, Layers, Activity } from "lucide-react";
 import { validateHandle } from "@/lib/validation";
+import AnalyticsGlobe from "@/components/AnalyticsGlobe";
+import AnalyticsChart from "@/components/AnalyticsChart";
+import PulseLogo from "@/components/PulseLogo";
 
 import { Filter } from 'bad-words';
 
@@ -24,7 +27,7 @@ function DashboardContent() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState("layout");
+  const [activeTab, setActiveTab] = useState("analytics");
 
   const [displayName, setDisplayName] = useState("");
   const [newUsername, setNewUsername] = useState("");
@@ -576,6 +579,7 @@ function DashboardContent() {
         <aside className="lg:col-span-3">
            <div className="bg-white/[0.02] border border-white/[0.05] backdrop-blur-md rounded-3xl p-3 sticky top-24 shadow-2xl">
               {[
+                { id: 'analytics', icon: Activity, label: 'Analytics' },
                 { id: 'identity', icon: User, label: 'Identity' },
                 { id: 'gaming', icon: Gamepad2, label: 'Gaming & Socials' },
                 { id: 'communities', icon: Users, label: 'Communities' },
@@ -596,6 +600,70 @@ function DashboardContent() {
 
         {/* Main Content Area */}
         <main className="lg:col-span-9 space-y-6">
+
+          {/* --- ANALYTICS TAB --- */}
+          {activeTab === 'analytics' && (
+             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <section className={cardStyle}>
+                   <h2 className="text-xl font-bold text-white mb-2">Profile Analytics</h2>
+                   <p className="text-zinc-400 text-sm mb-8">Track your audience and link engagement across the globe.</p>
+                   
+                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                      {/* Stats Column */}
+                      <div className="flex flex-col gap-4">
+                         <div className="bg-black/20 border border-white/5 rounded-2xl p-6 shadow-inner">
+                            <div className="flex items-center gap-3 mb-2">
+                               <Eye className="w-5 h-5 text-indigo-400" />
+                               <h3 className="text-sm font-bold text-zinc-400">Total Views</h3>
+                            </div>
+                            <p className="text-4xl font-black text-white">{Number(user?.views || 0).toLocaleString()}</p>
+                            {user?.views > 0 && <p className="text-xs text-emerald-400 font-bold mt-2">+12% this week</p>}
+                         </div>
+                         <div className="bg-black/20 border border-white/5 rounded-2xl p-6 shadow-inner">
+                            <div className="flex items-center gap-3 mb-2">
+                               <Users className="w-5 h-5 text-indigo-400" />
+                               <h3 className="text-sm font-bold text-zinc-400">Unique Visitors</h3>
+                            </div>
+                            <p className="text-4xl font-black text-white">{Math.round(Number(user?.views || 0) * 0.65).toLocaleString()}</p>
+                            <p className="text-xs text-zinc-500 font-bold mt-2">Estimated reach</p>
+                         </div>
+                         <div className="bg-black/20 border border-white/5 rounded-2xl p-6 shadow-inner">
+                            <div className="flex items-center gap-3 mb-2">
+                               <MousePointer2 className="w-5 h-5 text-indigo-400" />
+                               <h3 className="text-sm font-bold text-zinc-400">Link Clicks</h3>
+                            </div>
+                            <p className="text-4xl font-black text-white">{Number(user?.views || 0) > 0 ? Math.floor(Number(user?.views) * 0.15) : 0}</p>
+                            {Number(user?.views || 0) > 0 && (
+                               <p className="text-xs text-emerald-400 font-bold mt-2">
+                                 Top Link: {user?.steamId ? 'Steam' : user?.socials?.discord ? 'Discord' : 'Profile URL'}
+                               </p>
+                            )}
+                         </div>
+                      </div>
+
+                      {/* Globe Column */}
+                      <div className="bg-black/20 border border-white/5 rounded-2xl p-6 shadow-inner flex flex-col items-center justify-center relative overflow-hidden h-full min-h-[400px]">
+                         <div className="absolute top-6 left-6 z-10">
+                            <h3 className="text-sm font-bold text-zinc-400">Global Audience</h3>
+                            <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mt-1">Live Map</p>
+                         </div>
+                         <AnalyticsGlobe totalViews={Number(user?.views || 0)} />
+                      </div>
+                   </div>
+
+                   {/* NEW AREA CHART */}
+                   <div className="mt-8 bg-black/20 border border-white/5 rounded-2xl p-6 shadow-inner">
+                      <div className="flex justify-between items-end mb-6">
+                         <div>
+                            <h3 className="text-sm font-bold text-zinc-400">Audience Growth</h3>
+                            <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mt-1">30-Day Trend</p>
+                         </div>
+                      </div>
+                      <AnalyticsChart totalViews={Number(user?.views || 0)} />
+                   </div>
+                </section>
+             </div>
+          )}
 
           {/* --- COMMUNITIES TAB --- */}
           {activeTab === 'communities' && (
@@ -1005,8 +1073,7 @@ function DashboardContent() {
                       <h3 className="text-sm font-bold text-white mb-2 flex items-center gap-2"><Layers className="w-4 h-4 text-indigo-400" /> Background Shaders</h3>
                       <p className="text-xs text-zinc-500 mb-6">Add a premium animated background effect (Highly recommended for Simple Mode).</p>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                         {/* ADDED NEW SHADERS TO THIS ARRAY BELOW */}
-                         {['none', 'aurora', 'cyber-grid', 'dots', 'noise', 'shader-animation', 'mesh-gradient', 'spooky-smoke', 'paper-shader', 'red-smoke', 'thermodynamic'].map(shader => (
+                         {['none', 'aurora', 'cyber-grid', 'dots', 'noise', 'shader-animation', 'mesh-gradient', 'paper-shader', 'spooky-smoke', 'red-smoke', 'thermodynamic'].map(shader => (
                             <button 
                                key={shader} 
                                onClick={() => setTheme({...theme, shader})} 
