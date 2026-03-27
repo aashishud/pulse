@@ -10,6 +10,8 @@ const cspHeader = `
     connect-src *;
     font-src 'self' data:;
     frame-src *;
+    object-src 'none'; 
+    base-uri 'none';
     frame-ancestors 'none';
     worker-src 'self' blob:;
 `;
