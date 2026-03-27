@@ -3,27 +3,87 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, Sparkles, Gamepad2, Palette, Share2, Music, Users, Cpu, Flame, ChevronRight, Monitor, Keyboard, Mouse, LayoutDashboard, BadgeCheck, Diamond, Crown } from "lucide-react";
+import { ArrowRight, Sparkles, Gamepad2, Palette, Music, Users, Cpu, Monitor, LayoutDashboard, BadgeCheck, Diamond, Crown, Terminal } from "lucide-react";
 import Image from "next/image";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import AvatarDecoration from "@/components/AvatarDecoration";
 import PulseLogo from "@/components/PulseLogo";
-import BackgroundShader from "@/components/BackgroundShader"; // Brought the shaders to the landing page!
+import BackgroundShader from "@/components/BackgroundShader";
+
+// The username that acts as the default "Showcase" profile for logged-out users
+const SHOWCASE_USERNAME = "sour";
 
 export default function LandingPageClient() {
   const [username, setUsername] = useState("");
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [previewUser, setPreviewUser] = useState<any>(null); // State for live profile preview
+  const [mockSpotify, setMockSpotify] = useState<{ title: string; artist: string; albumArt: string; isPlaying: boolean } | null>(null); // State for live music
   const [authLoading, setAuthLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    let isMounted = true;
+
+    // 1. Fetch the default showcase profile right away so it never looks fake
+    const fetchDefaultProfile = async () => {
+      try {
+        const docRef = doc(db, "users", SHOWCASE_USERNAME);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists() && isMounted) {
+          // Set it as the preview user (will be overridden if they are logged in)
+          setPreviewUser((prev: any) => prev ? prev : docSnap.data());
+        }
+      } catch (e) {
+        console.error("Failed to fetch showcase user", e);
+      }
+    };
+
+    fetchDefaultProfile();
+
+    // 2. Listen for auth changes and override the preview if they are logged in
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
+      if (user) {
+         try {
+            const q = query(collection(db, "users"), where("owner_uid", "==", user.uid));
+            const snap = await getDocs(q);
+            if (!snap.empty && isMounted) {
+               setPreviewUser(snap.docs[0].data());
+            }
+         } catch (e) {
+            console.error("Failed to fetch preview user", e);
+         }
+      }
       setAuthLoading(false);
     });
-    return () => unsubscribe();
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, []);
+
+  // 3. Fetch live music data whenever the previewUser changes
+  useEffect(() => {
+    const fetchMusic = async () => {
+      if (previewUser?.lastfm) {
+        try {
+          const res = await fetch(`/api/lastfm/now-playing?user=${previewUser.lastfm}`);
+          const data = await res.json();
+          if (data.nowPlaying?.isPlaying) {
+            setMockSpotify(data.nowPlaying);
+          } else if (data.topTracks && data.topTracks.length > 0) {
+            setMockSpotify(data.topTracks[0]);
+          }
+        } catch (e) {
+          console.error("Failed to fetch music for showcase", e);
+        }
+      }
+    };
+    fetchMusic();
+  }, [previewUser?.lastfm]);
 
   const handleClaim = (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,192 +92,274 @@ export default function LandingPageClient() {
     }
   };
 
-  const exampleProfiles = [
+  // --- NEW COMPACT SHOWCASE CARDS (Replaces the chunky fake profile cards) ---
+  const showcaseRow1 = [
     {
-      handle: "sour",
-      name: "Sour",
-      color: "bg-indigo-600",
-      banner: "https://images.unsplash.com/photo-1618336753974-aae8e04506aa?q=80&w=800&auto=format&fit=crop", 
-      avatar: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=200&auto=format&fit=crop", 
-      badges: ["Level 42", "Pro"],
-      games: "142 Games"
+      handle: "sour", name: "Sour", avatar: "https://cdn.discordapp.com/avatars/700982390113173545/a_410368d4363682ff8f5be0b361907563.gif?size=1024", deco: "electric_god",
+      statusIcon: <Music className="w-3.5 h-3.5" />, statusText: "Listening to STARWALK",
+      colorClass: "text-[#1DB954]", bgClass: "bg-[#1DB954]/10", borderClass: "border-[#1DB954]/20",
+      badges: [<BadgeCheck key="1" className="w-4 h-4 text-blue-400 fill-blue-400/20" />, <Crown key="2" className="w-4 h-4 text-yellow-400 fill-yellow-400/20" />]
     },
     {
-      handle: "milky",
-      name: "Milky",
-      color: "bg-blue-500",
-      banner: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=800&auto=format&fit=crop", 
-      avatar: "https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?q=80&w=200&auto=format&fit=crop", 
-      badges: ["Streamer", "Partner"],
-      games: "312 Games"
+      handle: "phantom", name: "Phantom", avatar: "https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?q=80&w=200&auto=format&fit=crop", deco: "fire_god",
+      statusIcon: <Gamepad2 className="w-3.5 h-3.5" />, statusText: "Playing VALORANT",
+      colorClass: "text-red-400", bgClass: "bg-red-500/10", borderClass: "border-red-500/20",
+      badges: [<Diamond key="1" className="w-4 h-4 text-white fill-white/20" />]
     },
     {
-      handle: "glitch",
-      name: "Glitch",
-      color: "bg-emerald-500",
-      banner: "https://images.unsplash.com/photo-1614624532983-4ce03382d63d?q=80&w=800&auto=format&fit=crop", 
-      avatar: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?q=80&w=200&auto=format&fit=crop", 
-      badges: ["Dev", "Verified"],
-      games: "89 Games"
+      handle: "glitch", name: "Glitch", avatar: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?q=80&w=200&auto=format&fit=crop", deco: "glitch",
+      statusIcon: <Monitor className="w-3.5 h-3.5" />, statusText: "Developing Pulse",
+      colorClass: "text-indigo-400", bgClass: "bg-indigo-500/10", borderClass: "border-indigo-500/20",
+      badges: [<BadgeCheck key="1" className="w-4 h-4 text-blue-400 fill-blue-400/20" />]
     },
-    {
-      handle: "kream",
-      name: "Kream",
-      color: "bg-pink-500",
-      banner: "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=800&auto=format&fit=crop", 
-      avatar: "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=200&auto=format&fit=crop", 
-      badges: ["Artist"],
-      games: "24 Games"
+     {
+      handle: "milky", name: "Milky", avatar: "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=200&auto=format&fit=crop", deco: "none",
+      statusIcon: <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/twitch.svg" className="w-3.5 h-3.5 invert opacity-80" />, statusText: "Live on Twitch",
+      colorClass: "text-purple-400", bgClass: "bg-purple-500/10", borderClass: "border-purple-500/20",
+      badges: [<BadgeCheck key="1" className="w-4 h-4 text-blue-400 fill-blue-400/20" />]
     }
   ];
 
+  const showcaseRow2 = [
+    {
+      handle: "kream", name: "Kream", avatar: "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=200&auto=format&fit=crop", deco: "neon",
+      statusIcon: <Palette className="w-3.5 h-3.5" />, statusText: "Designing Graphics",
+      colorClass: "text-pink-400", bgClass: "bg-pink-500/10", borderClass: "border-pink-500/20",
+      badges: []
+    },
+    {
+      handle: "vex", name: "Vex", avatar: "https://cdn.discordapp.com/avatars/700982390113173545/a_410368d4363682ff8f5be0b361907563.gif?size=1024", deco: "gold",
+      statusIcon: <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/steam.svg" className="w-3.5 h-3.5 invert opacity-80" />, statusText: "Level 142 on Steam",
+      colorClass: "text-[#66c0f4]", bgClass: "bg-[#66c0f4]/10", borderClass: "border-[#66c0f4]/20",
+      badges: [<BadgeCheck key="1" className="w-4 h-4 text-blue-400 fill-blue-400/20" />]
+    },
+    {
+      handle: "zero", name: "Zero", avatar: "https://images.unsplash.com/photo-1511367461989-f85a21fda167?q=80&w=200&auto=format&fit=crop", deco: "none",
+      statusIcon: <Users className="w-3.5 h-3.5" />, statusText: "In Squad: SOUR_GANG",
+      colorClass: "text-zinc-300", bgClass: "bg-white/10", borderClass: "border-white/20",
+      badges: []
+    },
+    {
+      handle: "Trexen", name: "Trexen", avatar: "https://cdn.discordapp.com/avatars/866224112082616351/a75ce57ac7f990ca4bfdd6e2c119a18f.png?size=512", deco: "electric_god",
+      statusIcon: <Music className="w-3.5 h-3.5" />, statusText: "Listening to Deftones",
+      colorClass: "text-[#1DB954]", bgClass: "bg-[#1DB954]/10", borderClass: "border-[#1DB954]/20",
+      badges: [<Diamond key="1" className="w-4 h-4 text-white fill-white/20" />]
+    }
+  ];
+
+  // Dynamic variables for the 3D Floating Mockup (Uses the real user's data from Firestore!)
+  const mockName = previewUser?.displayName || previewUser?.username || "Sour";
+  const mockHandle = previewUser?.username || "sour";
+  const mockAvatar = previewUser?.theme?.avatar || "https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=200&auto=format&fit=crop";
+  const mockBanner = previewUser?.theme?.banner || "https://images.unsplash.com/photo-1614624532983-4ce03382d63d?q=80&w=800&auto=format&fit=crop";
+  const mockDecoration = previewUser?.theme?.avatarDecoration || "electric_god";
+  const mockDiscordDeco = previewUser?.theme?.discordDecoration || "";
+  const mockPrimaryColor = previewUser?.theme?.primary || "#6366f1"; 
+  
+  // Dynamic Connections
+  const hasVerified = previewUser ? previewUser.isVerified : true;
+  const hasDiscord = previewUser ? !!previewUser.socials?.discord_verified : true;
+  const hasSteam = previewUser ? !!previewUser.steamId : true;
+  const hasTwitter = previewUser ? !!previewUser.socials?.twitter : true;
+
   return (
-    <div className="min-h-screen bg-[#0a0a0c] text-white selection:bg-indigo-500/30 font-sans flex flex-col overflow-x-hidden">
+    <div className="min-h-screen bg-[#050505] text-white selection:bg-indigo-500/30 font-sans flex flex-col overflow-x-hidden">
       
       {/* --- MAGIC CSS ELEMENTS --- */}
       <style jsx global>{`
         @keyframes scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-        .animate-scroll { animation: scroll 40s linear infinite; }
+        .animate-scroll { animation: scroll 30s linear infinite; }
         .animate-scroll:hover { animation-play-state: paused; }
+
+        @keyframes scroll-reverse { 0% { transform: translateX(-50%); } 100% { transform: translateX(0); } }
+        .animate-scroll-reverse { animation: scroll-reverse 30s linear infinite; }
+        .animate-scroll-reverse:hover { animation-play-state: paused; }
         
-        @keyframes shimmer { 0% { background-position: 200% center; } 100% { background-position: -200% center; } }
-        .animate-shimmer { background-size: 200% auto; animation: shimmer 4s linear infinite; }
-
-        @keyframes spin-slow { 100% { transform: rotate(360deg); } }
-        .animate-spin-slow { animation: spin-slow 4s linear infinite; }
-
-        @keyframes word-slide {
-          0%, 20% { transform: translateY(0%); }
-          25%, 45% { transform: translateY(-25%); }
-          50%, 70% { transform: translateY(-50%); }
-          75%, 95% { transform: translateY(-75%); }
-          100% { transform: translateY(0%); }
-        }
-        .animate-word-slide { animation: word-slide 8s cubic-bezier(0.87, 0, 0.13, 1) infinite; }
-
-        .bg-dot-pattern {
-          background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px);
-          background-size: 24px 24px;
-        }
-
-        /* Float animation for the mockup */
         @keyframes float {
-          0% { transform: translateY(0px); }
-          50% { transform: translateY(-20px); }
-          100% { transform: translateY(0px); }
+          0% { transform: translateY(0px) rotateY(-15deg) rotateX(5deg); }
+          50% { transform: translateY(-20px) rotateY(-12deg) rotateX(8deg); }
+          100% { transform: translateY(0px) rotateY(-15deg) rotateX(5deg); }
         }
-        .animate-float { animation: float 6s ease-in-out infinite; }
+        .animate-float-3d { animation: float 8s ease-in-out infinite; transform-style: preserve-3d; }
+
+        .bg-grid-pattern {
+          background-size: 40px 40px;
+          background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                            linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+        }
       `}</style>
 
-      {/* --- BACKGROUND AMBIENCE (AURORA + DOTS) --- */}
+      {/* --- BACKGROUND AMBIENCE --- */}
       <div className="fixed inset-0 z-0 pointer-events-none">
-         <BackgroundShader type="aurora" />
-         <div className="absolute inset-0 bg-dot-pattern opacity-40" style={{ maskImage: 'radial-gradient(ellipse at center, black 20%, transparent 80%)', WebkitMaskImage: 'radial-gradient(ellipse at center, black 20%, transparent 80%)' }}></div>
-         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0a0a0c]/80 to-[#0a0a0c]"></div>
+         <BackgroundShader type="mesh-gradient" />
+         <div className="absolute inset-0 bg-grid-pattern opacity-50" style={{ maskImage: 'radial-gradient(ellipse at center, black 40%, transparent 80%)', WebkitMaskImage: 'radial-gradient(ellipse at center, black 40%, transparent 80%)' }}></div>
+         <div className="absolute inset-0 bg-gradient-to-b from-[#050505]/40 via-[#050505]/80 to-[#050505] mix-blend-multiply"></div>
       </div>
 
       {/* --- NAVBAR --- */}
       <nav className="w-full max-w-7xl mx-auto px-6 py-6 flex justify-between items-center z-50 relative">
-        <div className="text-xl font-bold tracking-tighter flex items-center gap-2 group hover:opacity-80 transition cursor-pointer drop-shadow-md">
-           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-[0_0_20px_rgba(99,102,241,0.4)]">
-              <PulseLogo className="w-4 h-4 text-white" />
+        <div className="text-xl font-bold tracking-tighter flex items-center gap-3 group cursor-pointer">
+           <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.2)] group-hover:scale-105 transition">
+              <PulseLogo className="w-4 h-4 text-black" />
            </div>
-          <span className="text-white">Pulse</span>
+          <span className="text-white drop-shadow-md">Pulse</span>
         </div>
         
         <div className={`flex gap-4 items-center transition-opacity duration-300 ${authLoading ? 'opacity-0' : 'opacity-100'}`}>
           {currentUser ? (
-            <Link href="/dashboard" className="text-sm font-bold bg-white text-black px-5 py-2.5 rounded-full hover:bg-zinc-200 hover:scale-105 transition shadow-[0_0_20px_rgba(255,255,255,0.1)] flex items-center gap-2">
+            <Link href="/dashboard" className="text-xs font-bold bg-white/10 border border-white/20 text-white px-5 py-2.5 rounded-xl hover:bg-white hover:text-black transition flex items-center gap-2 backdrop-blur-md">
               <LayoutDashboard className="w-4 h-4" /> Dashboard
             </Link>
           ) : (
             <>
-              <Link href="/login" className="text-sm font-medium text-zinc-400 hover:text-white transition">
+              <Link href="/login" className="text-xs font-bold text-zinc-400 hover:text-white transition uppercase tracking-widest">
                 Login
               </Link>
-              <Link href="/signup" className="relative group text-sm font-bold bg-white text-black px-5 py-2.5 rounded-full hover:scale-105 transition">
-                <span className="absolute inset-0 bg-white rounded-full blur-[10px] opacity-20 group-hover:opacity-50 transition"></span>
-                <span className="relative z-10">Sign Up</span>
+              <Link href="/signup" className="text-xs font-bold bg-white text-black px-6 py-2.5 rounded-xl hover:bg-zinc-200 transition hover:scale-105 shadow-[0_0_20px_rgba(255,255,255,0.2)] uppercase tracking-widest">
+                Sign Up
               </Link>
             </>
           )}
         </div>
       </nav>
 
-      {/* --- MAIN CONTENT --- */}
-      <main className="flex-1 flex flex-col items-center z-10 relative pt-12 md:pt-20">
-        
-        {/* HERO SECTION */}
-        <div className="text-center px-4 max-w-5xl mx-auto mb-32 relative">
+      {/* --- HERO SPLIT SECTION --- */}
+      <main className="flex-1 z-10 relative">
+        <div className="max-w-7xl mx-auto px-6 pt-12 pb-24 lg:pt-24 lg:pb-32 flex flex-col lg:flex-row items-center justify-between gap-16 lg:gap-8">
           
-          {/* Animated Pill Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 text-xs font-bold mb-8 shadow-2xl relative overflow-hidden group hover:border-white/20 transition">
-            <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/0 via-indigo-500/20 to-indigo-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
-            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-            <span className="text-zinc-300 relative z-10"><span className="text-white">Pulse Premium</span> is now available.</span>
+          {/* LEFT: Copy & Input (Brutalist, Confident) */}
+          <div className="flex-1 text-left w-full max-w-2xl lg:max-w-none mx-auto lg:mx-0">
+             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-mono uppercase tracking-widest text-zinc-400 mb-6 backdrop-blur-md">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                Public Beta Live
+             </div>
+             
+             <h1 className="text-6xl sm:text-7xl lg:text-[5.5rem] font-black tracking-tighter leading-[0.95] mb-6 drop-shadow-2xl">
+                Your gaming <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">
+                  legacy.
+                </span><br />
+                Unified.
+             </h1>
+             
+             <p className="text-lg text-zinc-400 max-w-lg mb-10 leading-relaxed font-medium">
+                Stop pasting messy links. Everything you play, listen to, and create in one place. Build a custom gaming profile that actually represents you.
+             </p>
+
+             <div className={`w-full max-w-md transition-opacity duration-500 ${authLoading ? 'opacity-0' : 'opacity-100'}`}>
+               {currentUser ? (
+                 <button onClick={() => router.push('/dashboard')} className="w-full bg-white text-black rounded-2xl flex items-center justify-center p-5 font-black text-lg gap-3 hover:bg-zinc-200 transition shadow-[0_0_30px_rgba(255,255,255,0.2)] hover:scale-[1.02]">
+                    Enter Dashboard <ArrowRight className="w-5 h-5" />
+                 </button>
+               ) : (
+                 <form onSubmit={handleClaim} className="relative group">
+                   <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
+                   <div className="relative bg-[#0a0a0c] border border-white/10 rounded-2xl flex items-center p-2 pl-4 focus-within:border-indigo-500/50 transition shadow-2xl">
+                     <Terminal className="w-4 h-4 text-zinc-500 hidden sm:block shrink-0" />
+                     <span className="text-zinc-500 font-mono text-sm sm:text-base ml-2 sm:ml-3 select-none">pulse.gg/</span>
+                     <input 
+                       type="text" 
+                       placeholder="username"
+                       className="flex-1 bg-transparent border-none outline-none text-white font-mono text-sm sm:text-base p-2 w-full min-w-0"
+                       value={username}
+                       onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9-_]/g, ''))} 
+                     />
+                     <button 
+                       type="submit"
+                       disabled={username.length < 3}
+                       className="bg-white text-black px-5 py-3 rounded-xl font-bold hover:bg-zinc-200 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg"
+                     >
+                       Claim <ArrowRight className="w-4 h-4" />
+                     </button>
+                   </div>
+                 </form>
+               )}
+             </div>
           </div>
 
-          {/* FLIP WORD HEADLINE */}
-          <h1 className="text-5xl sm:text-7xl md:text-[5.5rem] font-black tracking-tight mb-8 leading-[1.1] drop-shadow-2xl">
-            The Ultimate Identity <br />
-            <div className="h-[1.2em] overflow-hidden block w-full mt-2">
-               <div className="animate-word-slide flex flex-col items-center">
-                  <span className="h-[1.2em] flex items-center justify-center gap-3 md:gap-4 w-full">
-                     <span className="text-white">For</span>
-                     <span className="animate-shimmer text-transparent bg-clip-text bg-[linear-gradient(110deg,#a855f7,45%,#fff,55%,#3b82f6)] drop-shadow-sm">Gamers.</span>
-                  </span>
-                  <span className="h-[1.2em] flex items-center justify-center gap-3 md:gap-4 w-full">
-                     <span className="text-white">For</span>
-                     <span className="animate-shimmer text-transparent bg-clip-text bg-[linear-gradient(110deg,#a855f7,45%,#fff,55%,#3b82f6)] drop-shadow-sm">Streamers.</span>
-                  </span>
-                  <span className="h-[1.2em] flex items-center justify-center gap-3 md:gap-4 w-full">
-                     <span className="text-white">For</span>
-                     <span className="animate-shimmer text-transparent bg-clip-text bg-[linear-gradient(110deg,#a855f7,45%,#fff,55%,#3b82f6)] drop-shadow-sm">Esports.</span>
-                  </span>
-                  <span className="h-[1.2em] flex items-center justify-center gap-3 md:gap-4 w-full">
-                     <span className="text-white">For</span>
-                     <span className="animate-shimmer text-transparent bg-clip-text bg-[linear-gradient(110deg,#a855f7,45%,#fff,55%,#3b82f6)] drop-shadow-sm">Creators.</span>
-                  </span>
-               </div>
-            </div>
-          </h1>
-          
-          <p className="text-lg md:text-xl text-zinc-400 max-w-2xl mx-auto mb-12 leading-relaxed">
-            Aggregate your Steam library, showcase your hardware, sync your live music, and build your gaming legacy in one stunning, WebGL-powered link.
-          </p>
+          {/* RIGHT: Floating 3D Profile Mockup (Powered by real user data!) */}
+          <div className="flex-1 w-full relative perspective-[2000px] hidden md:block">
+             <div className="w-full max-w-[400px] mx-auto animate-float-3d">
+                {/* Glass Card Base */}
+                <div className="bg-black/40 backdrop-blur-2xl border border-white/10 rounded-[32px] p-6 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden">
+                   
+                   {/* Dynamic Mock Banner */}
+                   <div className="absolute top-0 left-0 w-full h-32 opacity-40">
+                      <img src={mockBanner} alt="Banner" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#0a0a0c]"></div>
+                   </div>
 
-          {/* MAGIC INPUT (Glassmorphism) */}
-          <div className={`w-full max-w-lg mx-auto transition-opacity duration-500 relative z-20 ${authLoading ? 'opacity-0' : 'opacity-100'}`}>
-            {currentUser ? (
-              <div className="relative p-[1px] overflow-hidden rounded-2xl group hover:scale-[1.02] transition-transform duration-300 shadow-2xl shadow-indigo-500/20 cursor-pointer" onClick={() => router.push('/dashboard')}>
-                 <span className="absolute inset-[-1000%] animate-spin-slow bg-[conic-gradient(from_90deg_at_50%_50%,#0a0a0c_0%,#4f46e5_50%,#0a0a0c_100%)] opacity-50 group-hover:opacity-100 transition duration-500" />
-                 <div className="relative bg-black/60 backdrop-blur-xl rounded-2xl flex items-center justify-center p-4 text-white font-bold gap-3 z-10 h-full w-full border border-white/10">
-                    Go to your Dashboard <ArrowRight className="w-5 h-5 text-indigo-400 group-hover:translate-x-1 transition-transform" />
-                 </div>
-              </div>
-            ) : (
-              <form onSubmit={handleClaim} className="relative p-[1px] overflow-hidden rounded-2xl group shadow-[0_0_40px_rgba(168,85,247,0.15)]">
-                <span className="absolute inset-[-1000%] animate-spin-slow bg-[conic-gradient(from_90deg_at_50%_50%,#0a0a0c_0%,#a855f7_50%,#0a0a0c_100%)] opacity-20 group-hover:opacity-100 transition duration-500" />
-                <div className="relative bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl flex items-center p-2 pl-5 z-10 w-full">
-                  <span className="text-white font-bold text-lg select-none hidden sm:block">pulsegg.in/</span>
-                  <span className="text-white font-bold text-lg select-none sm:hidden">/</span>
-                  <input 
-                    type="text" 
-                    placeholder="username"
-                    className="flex-1 bg-transparent border-none outline-none text-indigo-400 placeholder-zinc-600 font-bold text-lg p-2 w-full min-w-0"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9-_]/g, ''))} 
-                  />
-                  <button 
-                    type="submit"
-                    disabled={username.length < 3}
-                    className="bg-white text-black px-6 py-4 rounded-xl font-bold hover:bg-zinc-200 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(255,255,255,0.3)]"
-                  >
-                    Claim <ArrowRight className="w-4 h-4" />
-                  </button>
+                   {/* Dynamic Mock Avatar with Aura & Lottie */}
+                   <div className="relative pt-12 flex justify-center mb-4">
+                      {/* Aura dynamically uses their primary color */}
+                      <div className="absolute inset-0 top-12 w-24 h-24 mx-auto rounded-full blur-xl opacity-50 animate-pulse pointer-events-none" style={{ backgroundColor: mockPrimaryColor }}></div>
+                      
+                      <div className="w-28 h-28 relative">
+                         <AvatarDecoration type={mockDecoration}>
+                            <div className="w-24 h-24 rounded-full bg-[#121214] relative z-10 border border-white/10 mx-auto mt-2">
+                               <img src={mockAvatar} alt="Avatar" className="rounded-full object-cover p-1 bg-[#0a0a0c] w-full h-full" />
+                               {mockDiscordDeco && (
+                                  <img src={mockDiscordDeco} alt="Decoration" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] max-w-none z-30 pointer-events-none object-contain scale-[1.2]" />
+                               )}
+                            </div>
+                         </AvatarDecoration>
+                      </div>
+                   </div>
+
+                   {/* Dynamic Mock Identity */}
+                   <div className="text-center relative z-10">
+                      <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-400 tracking-tight flex items-center justify-center gap-2 mb-2">
+                         {mockName} 
+                         {(hasVerified || mockHandle === 'sour') && (
+                           <div className="flex items-center gap-1.5 bg-white/10 px-2 py-0.5 rounded-full border border-white/10">
+                             <BadgeCheck className="w-3.5 h-3.5 text-blue-400" />
+                             {mockHandle === 'sour' && <Crown className="w-3.5 h-3.5 text-yellow-400" />}
+                           </div>
+                         )}
+                      </h2>
+                      <p className="text-xs font-mono text-zinc-500 mb-6">@{mockHandle}</p>
+                      
+                      {/* Socials Mock */}
+                      <div className="flex justify-center gap-2 mb-6">
+                         {hasDiscord && (
+                           <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                              <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/discord.svg" className="w-4 h-4 invert opacity-80" />
+                           </div>
+                         )}
+                         {hasSteam && (
+                           <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                              <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/steam.svg" className="w-4 h-4 invert opacity-80" />
+                           </div>
+                         )}
+                         {hasTwitter && (
+                           <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                              <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/x.svg" className="w-4 h-4 invert opacity-80" />
+                           </div>
+                         )}
+                      </div>
+
+                      {/* Spotify Mock Widget (Now Live!) */}
+                      <div className="bg-black/60 border border-[#1DB954]/30 rounded-2xl p-3 flex items-center gap-3 text-left w-full">
+                         <div className="w-10 h-10 bg-zinc-800 rounded-lg overflow-hidden shrink-0 relative">
+                            <img src={mockSpotify?.albumArt || "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=200&auto=format&fit=crop"} alt="Album" className="w-full h-full object-cover" />
+                         </div>
+                         <div className="flex-1 min-w-0">
+                            <p className="text-[9px] text-[#1DB954] font-bold uppercase tracking-wider mb-0.5 flex items-center gap-1">
+                               <Music className="w-2.5 h-2.5"/> {mockSpotify?.isPlaying ? "Listening on Spotify" : "Top Track"}
+                            </p>
+                            <p className="text-xs font-bold truncate text-white">{mockSpotify?.title || "Cyberpunk Vibes"}</p>
+                            {mockSpotify?.artist && <p className="text-[10px] text-zinc-400 truncate mt-0.5">{mockSpotify.artist}</p>}
+                         </div>
+                         <div className="flex items-end gap-0.5 h-3 px-1 shrink-0">
+                            <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-full"></span>
+                            <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-2/3" style={{ animationDelay: '200ms' }}></span>
+                            <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-4/5" style={{ animationDelay: '400ms' }}></span>
+                         </div>
+                      </div>
+
+                   </div>
                 </div>
-              </form>
-            )}
+             </div>
           </div>
         </div>
 
@@ -225,200 +367,189 @@ export default function LandingPageClient() {
         <div className="max-w-6xl mx-auto px-6 w-full mb-32 relative z-20">
            <div className="text-center mb-16">
               <h2 className="text-3xl md:text-4xl font-black mb-4 tracking-tight">Everything in one place.</h2>
-              <p className="text-zinc-400 text-lg">Powerful, auto-syncing widgets designed to show off who you are.</p>
+              <p className="text-zinc-500 font-mono text-sm uppercase tracking-widest">Built exclusively for gamers.</p>
            </div>
 
            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[280px]">
               
-              {/* Box 1: Music Sync */}
-              <div className="md:col-span-2 bg-black/40 backdrop-blur-xl border border-white/10 rounded-[32px] overflow-hidden relative group p-8 flex flex-col justify-between shadow-2xl transition duration-500">
-                 <div className="absolute inset-0 bg-gradient-to-br from-[#1DB954]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                 
+              {/* Box 1: Aesthetics */}
+              <div className="md:col-span-2 bg-[#0c0c0e] border border-white/5 rounded-[32px] overflow-hidden relative group p-8 flex flex-col justify-between shadow-2xl transition duration-500 hover:border-white/10">
                  <div className="relative z-10">
-                    <div className="w-12 h-12 bg-[#1DB954]/10 rounded-2xl flex items-center justify-center text-[#1DB954] mb-6 shadow-[0_0_15px_rgba(29,185,84,0.2)]">
-                       <Music className="w-6 h-6" />
+                    <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-white mb-6 border border-white/10">
+                       <Palette className="w-5 h-5" />
                     </div>
-                    <h3 className="text-2xl font-black mb-2">Live Music Sync</h3>
-                    <p className="text-zinc-400 text-sm max-w-sm">Connect Spotify to display exactly what you are listening to in real-time, completely automatically.</p>
+                    <h3 className="text-2xl font-black mb-2">Make it yours.</h3>
+                    <p className="text-zinc-500 text-sm max-w-sm">Express yourself with animated backgrounds, dynamic avatar frames, frosted glass effects, and custom cursors to match your vibe.</p>
                  </div>
                  
-                 {/* TRUE TO APP: Spotify Pill Mockup */}
-                 <div className="relative z-10 bg-black/60 border border-[#1DB954]/30 rounded-2xl p-3 flex items-center gap-3 w-full max-w-md transform group-hover:translate-x-2 transition duration-500 shadow-lg">
-                    <div className="absolute inset-0 bg-gradient-to-r from-[#1DB954]/5 to-transparent opacity-100 rounded-2xl pointer-events-none"></div>
-                    <div className="w-12 h-12 bg-zinc-800 rounded-xl overflow-hidden shrink-0 shadow-lg relative border border-white/5">
-                       <Image src="https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=200&auto=format&fit=crop" alt="Album" fill className="object-cover" unoptimized />
+                 <div className="absolute -bottom-10 -right-10 w-64 h-64 bg-indigo-500/20 blur-[80px] rounded-full group-hover:bg-indigo-500/30 transition duration-500"></div>
+                 
+                 {/* Visual Mockups */}
+                 <div className="relative z-10 flex gap-4 mt-8 opacity-80 group-hover:opacity-100 transition">
+                    <div className="px-4 py-2 bg-black/40 border border-white/10 rounded-full flex items-center gap-2 text-xs font-mono backdrop-blur-md shadow-lg">
+                       <Sparkles className="w-3 h-3 text-yellow-400" /> Custom Badges
                     </div>
-                    <div className="flex-1 min-w-0 text-left">
-                       <p className="text-[10px] text-[#1DB954] font-bold uppercase tracking-wider mb-0.5 flex items-center gap-1.5"><Music className="w-3 h-3"/> Listening on Spotify</p>
-                       <p className="text-sm font-bold truncate text-white leading-tight">STARWALK</p>
-                       <p className="text-xs text-zinc-400 truncate mt-0.5">Odetari</p>
-                    </div>
-                    <div className="flex items-end gap-1 h-4 px-2 shrink-0">
-                       <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-full"></span>
-                       <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-2/3" style={{ animationDelay: '200ms' }}></span>
-                       <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-4/5" style={{ animationDelay: '400ms' }}></span>
+                    <div className="px-4 py-2 bg-black/40 border border-white/10 rounded-full flex items-center gap-2 text-xs font-mono backdrop-blur-md shadow-lg">
+                       <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/discord.svg" alt="Discord" className="w-3 h-3 object-contain invert opacity-80" /> Profile Effects
                     </div>
                  </div>
               </div>
 
               {/* Box 2: Communities */}
-              <div className="md:col-span-1 bg-black/40 backdrop-blur-xl border border-white/10 rounded-[32px] overflow-hidden relative group p-8 flex flex-col justify-between shadow-2xl transition duration-500">
-                 <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                 
-                 <div className="relative z-10 text-center flex flex-col items-center">
-                    <div className="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-indigo-400 mb-6 shadow-[0_0_15px_rgba(99,102,241,0.2)]">
-                       <Users className="w-6 h-6" />
+              <div className="md:col-span-1 bg-[#0c0c0e] border border-white/5 rounded-[32px] overflow-hidden relative group p-8 flex flex-col justify-between shadow-2xl transition duration-500 hover:border-white/10">
+                 <div className="relative z-10">
+                    <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400 mb-6 border border-indigo-500/20">
+                       <Users className="w-5 h-5" />
                     </div>
-                    <h3 className="text-xl font-black mb-2">Squad Up</h3>
-                    <p className="text-zinc-400 text-sm">Create a shared hub for your clan, esports team, or friend group.</p>
+                    <h3 className="text-xl font-black mb-2">Squad Hubs</h3>
+                    <p className="text-zinc-500 text-sm">Build a centralized page for your esports org, clan, or friend group.</p>
                  </div>
                  
-                 {/* TRUE TO APP: Community Pill Mockup */}
-                 <div className="relative z-10 flex justify-center mt-6 group-hover:-translate-y-2 transition duration-500">
-                     <div className="inline-flex items-center gap-3 px-4 py-2.5 bg-black/60 border border-white/10 rounded-2xl shadow-inner">
-                         <div className="w-8 h-8 rounded-xl bg-zinc-800 overflow-hidden flex items-center justify-center shrink-0 border border-white/10">
-                            <Image src="https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=100&auto=format&fit=crop" width={32} height={32} alt="Logo" className="w-full h-full object-cover" unoptimized/>
+                 <div className="relative z-10 flex justify-start mt-6 group-hover:-translate-y-2 transition duration-500">
+                     <div className="inline-flex items-center gap-3 px-4 py-3 bg-black/60 border border-white/10 rounded-2xl shadow-inner">
+                         <div className="w-8 h-8 rounded-xl bg-zinc-800 overflow-hidden flex items-center justify-center shrink-0 border border-white/10 relative">
+                            <img src="https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=100&auto=format&fit=crop" alt="Logo" className="w-full h-full object-cover" />
                          </div>
                          <div className="text-left flex flex-col justify-center leading-none">
                              <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mb-1">Squad</span>
-                             <span className="text-sm font-bold text-white">SOUR GANG</span>
+                             <span className="text-sm font-bold text-white font-mono">SOUR_GANG</span>
                          </div>
                      </div>
                  </div>
               </div>
 
-              {/* Box 3: Hardware (Flickering Grid) */}
-              <div className="md:col-span-1 bg-black/40 backdrop-blur-xl border border-white/10 rounded-[32px] overflow-hidden relative group p-8 flex flex-col justify-between shadow-2xl transition duration-500">
-                 {/* Flickering Grid Background */}
-                 <div className="absolute inset-0 bg-dot-pattern animate-flicker pointer-events-none opacity-50"></div>
-                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
-
+              {/* Box 3: Hardware */}
+              <div className="md:col-span-1 bg-[#0c0c0e] border border-white/5 rounded-[32px] overflow-hidden relative group p-8 flex flex-col justify-between shadow-2xl transition duration-500 hover:border-white/10">
                  <div className="relative z-10">
-                    <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-white mb-6 backdrop-blur-md border border-white/10">
-                       <Cpu className="w-6 h-6" />
+                    <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-white mb-6 border border-white/10">
+                       <Cpu className="w-5 h-5" />
                     </div>
-                    <h3 className="text-xl font-black mb-2">Flex Your Rig</h3>
-                    <p className="text-zinc-400 text-sm">Show off your exact PC specs and gaming peripherals.</p>
+                    <h3 className="text-xl font-black mb-2">Hardware Setup</h3>
+                    <p className="text-zinc-500 text-sm">Showcase your PC build, peripherals, and gaming rig.</p>
                  </div>
                  
-                 <div className="relative z-10 space-y-2 mt-4 opacity-80 group-hover:opacity-100 transition">
-                    <div className="bg-black/60 border border-white/10 rounded-xl p-3 flex items-center gap-3">
-                       <Monitor className="w-4 h-4 text-zinc-400 shrink-0" />
-                       <div className="min-w-0 flex-1"><p className="text-[9px] text-zinc-500 font-bold uppercase leading-none mb-1">Monitor</p><p className="text-xs font-bold text-zinc-200 truncate">AW3423DW OLED</p></div>
+                 <div className="relative z-10 space-y-2 mt-4 opacity-70 group-hover:opacity-100 transition">
+                    <div className="bg-black/40 border border-white/5 rounded-xl p-3 flex items-center gap-3">
+                       <Monitor className="w-4 h-4 text-zinc-500 shrink-0" />
+                       <div className="min-w-0 flex-1"><p className="text-[9px] text-zinc-600 font-bold uppercase leading-none mb-1 tracking-widest">Monitor</p><p className="text-xs font-bold text-zinc-300 truncate font-mono">OLED G8</p></div>
                     </div>
                  </div>
               </div>
 
-              {/* Box 4: Aesthetics (Border Beam + Actual Mockups) */}
-              <div className="md:col-span-2 bg-black/40 backdrop-blur-xl border border-white/10 rounded-[32px] overflow-hidden relative group p-8 flex flex-col sm:flex-row items-center justify-between gap-8 shadow-2xl transition duration-500">
-                 
-                 {/* Border Beam Animation */}
-                 <span className="absolute inset-[-1000%] animate-spin-slow bg-[conic-gradient(from_0deg,transparent_0_300deg,#ec4899_360deg)] opacity-0 group-hover:opacity-30 transition duration-500 pointer-events-none" />
-                 <div className="absolute inset-[1px] bg-black/60 backdrop-blur-xl rounded-[31px]"></div> {/* Inner Mask for Border Beam */}
-                 
-                 <div className="absolute inset-0 bg-gradient-to-l from-pink-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                 
+              {/* Box 4: Connections */}
+              <div className="md:col-span-2 bg-[#0c0c0e] border border-white/5 rounded-[32px] overflow-hidden relative group p-8 flex flex-col sm:flex-row items-center justify-between gap-8 shadow-2xl transition duration-500 hover:border-white/10">
                  <div className="relative z-10 flex-1">
-                    <div className="w-12 h-12 bg-pink-500/10 rounded-2xl flex items-center justify-center text-pink-400 mb-6 shadow-[0_0_15px_rgba(236,72,153,0.2)]">
-                       <Palette className="w-6 h-6" />
+                    <div className="w-10 h-10 bg-[#1DB954]/10 rounded-xl flex items-center justify-center text-[#1DB954] mb-6 border border-[#1DB954]/20">
+                       <Gamepad2 className="w-5 h-5" />
                     </div>
-                    <h3 className="text-2xl font-black mb-2">God-Tier Aesthetics</h3>
-                    <p className="text-zinc-400 text-sm max-w-sm mb-6">Stand out with WebGL liquid shaders, synced Discord Nitro frames, glowing auras, and premium custom badges.</p>
+                    <h3 className="text-2xl font-black mb-2">Live Auto-Sync</h3>
+                    <p className="text-zinc-500 text-sm max-w-sm mb-6">Connect Steam, Valorant, and Spotify to automatically display your real-time stats and status directly on your profile.</p>
                     
-                    {/* TRUE TO APP: Premium Badge Pill Mockup */}
-                    <div className="flex items-center gap-3.5 bg-black/60 border border-white/10 px-4 py-2 rounded-full shadow-inner backdrop-blur-md w-max group-hover:border-white/20 transition">
-                        <div className="flex items-center justify-center drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]">
-                           <BadgeCheck className="w-4 h-4 text-white fill-white/20" />
-                        </div>
-                        <div className="flex items-center justify-center drop-shadow-[0_0_8px_rgba(255,255,255,0.6)]">
-                           <Diamond className="w-4 h-4 text-white fill-white/20" />
-                        </div>
-                        <div className="flex items-center justify-center drop-shadow-[0_0_8px_rgba(250,204,21,0.4)]">
-                           <Crown className="w-4 h-4 text-yellow-400 fill-yellow-400/20" />
-                        </div>
+                    <div className="flex gap-3">
+                       {["steam", "discord", "xbox", "epicgames"].map((brand) => (
+                         <div key={brand} className="w-10 h-10 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center">
+                            <img src={`https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/${brand}.svg`} className="w-4 h-4 invert opacity-60" />
+                         </div>
+                       ))}
                     </div>
                  </div>
-
-                 {/* TRUE TO APP: AvatarDecoration Mockup */}
-                 <div className="relative z-10 shrink-0 w-36 h-36 flex items-center justify-center mt-6 sm:mt-0 group-hover:scale-105 transition duration-500 animate-float">
-                    {/* Glowing Aura matching the primary color (indigo) */}
-                    <div className="absolute inset-0 rounded-full blur-xl opacity-60 bg-indigo-500 animate-pulse pointer-events-none"></div>
-                    
-                    <AvatarDecoration type="electric_god">
-                       <div className="w-32 h-32 rounded-full bg-[#121214] relative z-10 shadow-[0_0_30px_rgba(168,85,247,0.3)] border border-white/10">
-                          <div className="relative w-[calc(100%-8px)] h-[calc(100%-8px)] top-1 left-1">
-                             <Image src="https://images.unsplash.com/photo-1633356122544-f134324a6cee?q=80&w=200&auto=format&fit=crop" alt="Avatar" fill className="rounded-full object-cover bg-zinc-900 relative z-10" unoptimized />
-                          </div>
+                 
+                 <div className="relative z-10 shrink-0 w-full sm:w-auto mt-6 sm:mt-0">
+                    <div className="bg-black/60 border border-[#66c0f4]/30 rounded-2xl p-4 flex items-center gap-4 shadow-xl group-hover:-translate-y-2 transition duration-500">
+                       <div className="w-12 h-12 bg-[#171a21] rounded-xl flex items-center justify-center border border-white/10">
+                         <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/steam.svg" alt="Steam" className="w-6 h-6 invert" />
                        </div>
-                    </AvatarDecoration>
+                       <div>
+                          <p className="text-[10px] text-[#66c0f4] font-bold uppercase tracking-wider mb-1">Steam Level 42</p>
+                          <p className="text-sm font-bold text-white font-mono">1,402 Hours</p>
+                       </div>
+                    </div>
                  </div>
               </div>
 
            </div>
         </div>
 
-        {/* --- INFINITE CAROUSEL WITH MASKS --- */}
-        <div className="w-full overflow-hidden mb-24 border-y border-white/5 bg-black/40 backdrop-blur-xl py-16 relative" style={{ maskImage: 'linear-gradient(to right, transparent, black 15%, black 85%, transparent)', WebkitMaskImage: 'linear-gradient(to right, transparent, black 15%, black 85%, transparent)' }}>
+        {/* --- COMPACT DUAL-MARQUEE CAROUSEL (Replaces the chunky boxes) --- */}
+        <div className="w-full overflow-hidden mb-24 border-y border-white/5 bg-[#050505] py-16 relative" style={{ maskImage: 'linear-gradient(to right, transparent, black 5%, black 95%, transparent)', WebkitMaskImage: 'linear-gradient(to right, transparent, black 5%, black 95%, transparent)' }}>
            
            <div className="text-center mb-10 relative z-30">
-              <p className="text-sm font-bold text-zinc-500 uppercase tracking-widest">Join thousands of gamers</p>
+              <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest font-mono">Gamers already on Pulse</p>
            </div>
 
-           <div className="flex w-max animate-scroll gap-6 px-4">
-              {[...exampleProfiles, ...exampleProfiles, ...exampleProfiles].map((profile, i) => (
-                <div key={i} className="w-[280px] h-[360px] bg-black/60 backdrop-blur-md rounded-3xl border border-white/10 overflow-hidden flex-shrink-0 relative group hover:border-white/30 transition-all hover:-translate-y-2 shadow-2xl">
-                   {/* Banner */}
-                   <div className="h-32 relative">
-                      <Image src={profile.banner} alt="Banner" fill className="object-cover group-hover:scale-110 transition duration-700" unoptimized />
-                      <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/80"></div>
-                   </div>
-                   {/* Content */}
-                   <div className="p-6 relative -mt-12 flex flex-col h-full">
-                      <div className="w-20 h-20 rounded-2xl p-1 bg-[#121214] border border-white/10 mb-3 shadow-xl relative z-10">
-                         <Image src={profile.avatar} alt="PFP" width={80} height={80} className="rounded-xl object-cover w-full h-full bg-zinc-900" unoptimized />
-                      </div>
-                      <h3 className="text-2xl font-black text-white">{profile.name}</h3>
-                      <p className="text-zinc-500 text-sm mb-4 font-mono">@{profile.handle}</p>
-                      
-                      <div className="flex flex-wrap gap-2 mb-6">
-                         {profile.badges.map(b => (
-                           <span key={b} className={`text-[10px] font-bold px-2 py-1 rounded-md text-white bg-white/10 border border-white/10`}>
-                             {b}
-                           </span>
-                         ))}
-                      </div>
-
-                      <div className="mt-auto bg-black/40 p-3 rounded-xl border border-white/5 flex items-center gap-3 group-hover:bg-white/10 transition">
-                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${profile.color} text-white`}>
-                           <Gamepad2 className="w-4 h-4" />
-                         </div>
-                         <div>
-                            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Library</p>
-                            <p className="text-sm font-bold text-white">{profile.games}</p>
-                         </div>
-                      </div>
-                   </div>
-                </div>
-              ))}
+           <div className="flex flex-col gap-5 relative z-20">
+               {/* ROW 1 (Scrolls Left) */}
+               <div className="flex w-max animate-scroll gap-5 px-3">
+                  {[...showcaseRow1, ...showcaseRow1, ...showcaseRow1, ...showcaseRow1].map((profile, i) => (
+                     <div key={`r1-${i}`} className="w-[320px] bg-[#0a0a0c]/80 backdrop-blur-md rounded-2xl border border-white/5 p-4 flex flex-col gap-4 group hover:border-white/20 transition-all hover:-translate-y-1 shadow-lg flex-shrink-0">
+                        <div className="flex items-center gap-3">
+                           <div className="w-12 h-12 relative shrink-0">
+                               <AvatarDecoration type={profile.deco}>
+                                  <div className="w-10 h-10 rounded-full bg-[#121214] relative z-10 border border-white/10 mx-auto mt-1">
+                                     <img src={profile.avatar} alt="PFP" className="rounded-full object-cover p-0.5 bg-[#0a0a0c] w-full h-full" />
+                                  </div>
+                               </AvatarDecoration>
+                           </div>
+                           <div className="min-w-0 flex-1">
+                               <div className="flex items-center gap-1 font-black text-white text-base truncate">
+                                  {profile.name} {profile.badges.map((b) => b)}
+                               </div>
+                               <p className="text-[10px] text-zinc-500 font-mono truncate">@{profile.handle}</p>
+                           </div>
+                        </div>
+                        <div className={`w-full rounded-xl p-2.5 flex items-center gap-2.5 text-xs font-bold ${profile.bgClass} ${profile.colorClass} border ${profile.borderClass}`}>
+                           {profile.statusIcon}
+                           <span className="truncate">{profile.statusText}</span>
+                        </div>
+                     </div>
+                  ))}
+               </div>
+               
+               {/* ROW 2 (Scrolls Right) */}
+               <div className="flex w-max animate-scroll-reverse gap-5 px-3">
+                  {[...showcaseRow2, ...showcaseRow2, ...showcaseRow2, ...showcaseRow2].map((profile, i) => (
+                     <div key={`r2-${i}`} className="w-[320px] bg-[#0a0a0c]/80 backdrop-blur-md rounded-2xl border border-white/5 p-4 flex flex-col gap-4 group hover:border-white/20 transition-all hover:-translate-y-1 shadow-lg flex-shrink-0">
+                        <div className="flex items-center gap-3">
+                           <div className="w-12 h-12 relative shrink-0">
+                               <AvatarDecoration type={profile.deco}>
+                                  <div className="w-10 h-10 rounded-full bg-[#121214] relative z-10 border border-white/10 mx-auto mt-1">
+                                     <img src={profile.avatar} alt="PFP" className="rounded-full object-cover p-0.5 bg-[#0a0a0c] w-full h-full" />
+                                  </div>
+                               </AvatarDecoration>
+                           </div>
+                           <div className="min-w-0 flex-1">
+                               <div className="flex items-center gap-1 font-black text-white text-base truncate">
+                                  {profile.name} {profile.badges.map((b) => b)}
+                               </div>
+                               <p className="text-[10px] text-zinc-500 font-mono truncate">@{profile.handle}</p>
+                           </div>
+                        </div>
+                        <div className={`w-full rounded-xl p-2.5 flex items-center gap-2.5 text-xs font-bold ${profile.bgClass} ${profile.colorClass} border ${profile.borderClass}`}>
+                           {profile.statusIcon}
+                           <span className="truncate">{profile.statusText}</span>
+                        </div>
+                     </div>
+                  ))}
+               </div>
            </div>
         </div>
 
       </main>
 
       {/* Footer */}
-      <footer className="w-full border-t border-white/5 bg-[#0a0a0c] py-12 z-10 relative">
+      <footer className="w-full border-t border-white/5 bg-[#050505] py-12 z-10 relative mt-auto">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-2 font-bold text-lg tracking-tighter opacity-80">
-             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-[0_0_20px_rgba(99,102,241,0.4)]">
-               <PulseLogo className="w-4 h-4 text-white" />
+          <div className="flex items-center gap-2 font-bold text-lg tracking-tighter opacity-50 hover:opacity-100 transition">
+             <div className="w-6 h-6 bg-white rounded-md flex items-center justify-center">
+               <PulseLogo className="w-3 h-3 text-black" />
              </div>Pulse
           </div>
           
-          <div className="flex gap-6 text-sm text-zinc-500 font-medium">
+          <div className="flex gap-6 text-xs text-zinc-600 font-mono uppercase tracking-widest">
              <Link href="/terms" className="hover:text-white transition">Terms & Privacy</Link>
           </div>
 
-          <div className="text-zinc-600 text-xs font-medium">
+          <div className="text-zinc-700 text-[10px] font-mono uppercase tracking-widest">
             &copy; {new Date().getFullYear()} Pulse. All rights reserved.
           </div>
         </div>

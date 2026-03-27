@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 // We format the CSP as a readable string, then strip the newlines before injecting it
 const cspHeader = `
     default-src 'self';
-    script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.jsdelivr.net;
+    script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.jsdelivr.net https://apis.google.com https://www.gstatic.com https://www.google.com;
     style-src 'self' 'unsafe-inline';
     img-src * blob: data:;
     media-src * blob: data:;
@@ -17,14 +17,13 @@ const cspHeader = `
 `;
 
 const nextConfig: NextConfig = {
-  // Disables source maps in production to protect your source code (Checklist Item)
+  // Disables source maps in production to protect your source code
   productionBrowserSourceMaps: false,
 
-  // Inject Strict Security Headers to score an A+ on Mozilla Observatory
+  // Inject Strict Security Headers
   async headers() {
     return [
       {
-        // Apply these headers to all routes
         source: '/(.*)',
         headers: [
           {
@@ -48,7 +47,6 @@ const nextConfig: NextConfig = {
     ];
   },
 
-  // We remove allowedDevOrigins to let Vercel handle the host headers automatically
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'avatars.akamai.steamstatic.com' },
