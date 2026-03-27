@@ -12,6 +12,7 @@ import AnalyticsGlobe from "@/components/AnalyticsGlobe";
 import AnalyticsChart from "@/components/AnalyticsChart";
 import PulseLogo from "@/components/PulseLogo";
 import AvatarDecoration from "@/components/AvatarDecoration";
+import LayoutBuilder, { LayoutItem } from "@/components/LayoutBuilder";
 
 import { Filter } from 'bad-words';
 
@@ -43,7 +44,6 @@ function DashboardContent() {
   
   const [gear, setGear] = useState({ cpu: "", gpu: "", ram: "", mouse: "", keyboard: "", headset: "", monitor: "" });
   
-  // ADDED NEW DISCORD FIELDS TO STATE
   const [socials, setSocials] = useState({ 
     twitter: "", instagram: "", youtube: "", twitch: "", discord: "", 
     discordId: "", discord_avatar: "", discord_decoration: "", discord_verified: false 
@@ -52,7 +52,7 @@ function DashboardContent() {
   const [gaming, setGaming] = useState({ xbox: "", epic: "", valorant: { name: "", tag: "", region: "na" } });
   const [customLinks, setCustomLinks] = useState<{label: string, url: string}[]>([]);
   const [clips, setClips] = useState<{title: string, url: string}[]>([]); 
-  const [layout, setLayout] = useState<any[]>([]);
+  const [layout, setLayout] = useState<LayoutItem[]>([]);
   const [primaryCommunity, setPrimaryCommunity] = useState("");
   const [lastfm, setLastfm] = useState("");
 
@@ -131,7 +131,6 @@ function DashboardContent() {
           }
         }
         
-        // DISCORD VERIFICATION: Grabs avatar & decoration urls and saves them to db
         if (discordCode) {
            const result = await verifyDiscordLogin(discordCode, window.location.origin);
            if (result.success && result.username) {
@@ -254,6 +253,26 @@ function DashboardContent() {
     }
   };
 
+  // Dedicated Save Handler for the Grid Builder Component
+  const handleSaveLayout = async (newLayout: LayoutItem[]) => {
+    if (!user) return;
+    setSaving(true);
+    try {
+      const userRef = doc(db, "users", user.id);
+      await updateDoc(userRef, { layout: newLayout });
+      setLayout(newLayout); // Update local state so global save doesn't overwrite it
+      
+      try {
+        await fetch('/api/revalidate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: `/${user.id}` }) });
+      } catch (cacheError) { console.error("Cache clear failed:", cacheError); }
+    } catch (e) {
+      console.error(e);
+      alert("Failed to save layout.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleCreateCommunity = async () => {
     if (myCommunities.length >= 3) { alert("You can only create a maximum of 3 communities per account."); return; }
     if (!commName || !commHandle) return;
@@ -267,7 +286,7 @@ function DashboardContent() {
         await setDoc(docRef, {
             name: commName, handle: cleanHandle, description: commDesc, owner_uid: auth.currentUser?.uid,
             members: [auth.currentUser?.uid], created_at: serverTimestamp(), memberCount: 1,
-            banner: "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2600&auto=format&fit=crop", avatar: ""
+            banner: "[https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2600&auto=format&fit=crop](https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2600&auto=format&fit=crop)", avatar: ""
         });
         alert("Community Launch Successful!");
         setIsCreatingCommunity(false);
@@ -291,7 +310,7 @@ function DashboardContent() {
      setEditCommName(comm.name || "");
      setEditCommDesc(comm.description || "");
      setEditCommAvatar(comm.avatar || "");
-     setEditCommBanner(comm.banner || "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2600&auto=format&fit=crop");
+     setEditCommBanner(comm.banner || "[https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2600&auto=format&fit=crop](https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2600&auto=format&fit=crop)");
   };
 
   const handleUpdateCommunity = async () => {
@@ -470,7 +489,7 @@ function DashboardContent() {
     }
   };
 
-  // Base input style to keep things extremely clean and uniform
+  // Base input style
   const inputStyle = "w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all";
   const cardStyle = "bg-white/[0.02] border border-white/[0.05] backdrop-blur-md rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden";
 
@@ -1221,7 +1240,7 @@ function DashboardContent() {
                              <AvatarDecoration type={theme.avatarDecoration}>
                                <div className="w-32 h-32 rounded-full p-1 bg-[#1e1f22] relative z-10">
                                   <div className="relative w-full h-full rounded-full z-10">
-                                     <img src={theme.avatar || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"} alt="Avatar" className="w-full h-full rounded-full object-cover bg-zinc-900" />
+                                     <img src={theme.avatar || "[https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png](https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png)"} alt="Avatar" className="w-full h-full rounded-full object-cover bg-zinc-900" />
                                      {theme.discordDecoration && (
                                         <img src={theme.discordDecoration} alt="Decoration" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] max-w-none z-30 pointer-events-none object-contain" />
                                      )}
@@ -1331,7 +1350,7 @@ function DashboardContent() {
                                type="text"
                                value={theme.customCursor}
                                onChange={e => setTheme({ ...theme, customCursor: e.target.value })}
-                               placeholder="https://example.com/idle.png"
+                               placeholder="[https://example.com/idle.png](https://example.com/idle.png)"
                                className={`${inputStyle} font-mono text-xs`}
                             />
                          </div>
@@ -1341,7 +1360,7 @@ function DashboardContent() {
                                type="text"
                                value={theme.customCursorHover}
                                onChange={e => setTheme({ ...theme, customCursorHover: e.target.value })}
-                               placeholder="https://example.com/hover.png"
+                               placeholder="[https://example.com/hover.png](https://example.com/hover.png)"
                                className={`${inputStyle} font-mono text-xs`}
                             />
                          </div>
@@ -1349,6 +1368,16 @@ function DashboardContent() {
                    </div>
 
                 </section>
+
+                {/* --- DRAG AND DROP LAYOUT BUILDER --- */}
+                <section className={cardStyle}>
+                  <LayoutBuilder 
+                    initialLayout={layout} 
+                    onSave={handleSaveLayout} 
+                    isSaving={saving} 
+                  />
+                </section>
+
              </div>
           )}
 

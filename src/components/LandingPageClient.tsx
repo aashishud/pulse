@@ -460,8 +460,8 @@ export default function LandingPageClient() {
                          <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/steam.svg" alt="Steam" className="w-6 h-6 invert" />
                        </div>
                        <div>
-                          <p className="text-[10px] text-[#66c0f4] font-bold uppercase tracking-wider mb-1">Steam Level 42</p>
-                          <p className="text-sm font-bold text-white font-mono">1,402 Hours</p>
+                          <p className="text-[10px] text-[#66c0f4] font-bold uppercase tracking-wider mb-1">Steam Level 38</p>
+                          <p className="text-sm font-bold text-white font-mono">15,402 Hours</p>
                        </div>
                     </div>
                  </div>
