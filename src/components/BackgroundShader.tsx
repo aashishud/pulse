@@ -3,6 +3,95 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
+// We declare the global window interface so TypeScript doesn't yell at us
+declare global {
+  interface Window {
+    __liquidApp?: any;
+    __liquidApps?: Record<string, any>;
+  }
+}
+
+// --- NEW SHADER: LIQUID FLUID PHYSICS ---
+function LiquidShaderAnimation({ backgroundImage }: { backgroundImage?: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    if (!canvasRef.current) return;
+
+    // Generate a unique ID for this specific canvas instance to avoid React Strict Mode collisions
+    const canvasId = 'liquid-canvas-' + Math.random().toString(36).substring(2, 9);
+    canvasRef.current.id = canvasId;
+
+    // Use the user's background image, or a sleek dark fallback if none exists
+    const imageUrl = backgroundImage || 'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2600&auto=format&fit=crop';
+
+    // Load the 3D fluid script dynamically
+    const script = document.createElement("script");
+    script.type = "module";
+    script.textContent = `
+      import LiquidBackground from 'https://cdn.jsdelivr.net/npm/threejs-components@0.0.22/build/backgrounds/liquid1.min.js';
+      
+      const canvas = document.getElementById('${canvasId}');
+      if (canvas) {
+        try {
+          const app = LiquidBackground(canvas);
+          
+          const originalUrl = '${imageUrl}';
+          // Use wsrv.nl proxy to forcefully bypass CORS restrictions for WebGL textures
+          const proxyUrl = 'https://wsrv.nl/?url=' + encodeURIComponent(originalUrl) + '&output=webp&w=1920';
+          const fallbackUrl = 'https://images.unsplash.com/photo-1618336753974-aae8e04506aa?q=80&w=2600&auto=format&fit=crop';
+          
+          // Tweak the fluid to look more like liquid glass rather than raw metal
+          app.liquidPlane.material.metalness = 0.5;
+          app.liquidPlane.material.roughness = 0.3;
+          app.liquidPlane.uniforms.displacementScale.value = 3.0;
+          app.setRain(false);
+          
+          // Attempt to load the user's image via the proxy to guarantee CORS
+          const loadPromise = app.loadImage(proxyUrl);
+          if (loadPromise && typeof loadPromise.catch === 'function') {
+            loadPromise.catch(e => {
+              console.warn('Proxy fluid image failed, attempting direct load...', e);
+              const directPromise = app.loadImage(originalUrl);
+              if (directPromise && typeof directPromise.catch === 'function') {
+                directPromise.catch(err => {
+                  console.warn('Direct fluid image failed (CORS), using fallback.', err);
+                  app.loadImage(fallbackUrl);
+                });
+              }
+            });
+          }
+          
+          window.__liquidApps = window.__liquidApps || {};
+          window.__liquidApps['${canvasId}'] = app;
+        } catch (err) {
+          console.warn('Liquid Background Error:', err);
+        }
+      }
+    `;
+    document.body.appendChild(script);
+
+    return () => {
+      if (window.__liquidApps && window.__liquidApps[canvasId]) {
+        if (typeof window.__liquidApps[canvasId].dispose === 'function') {
+          window.__liquidApps[canvasId].dispose();
+        }
+        delete window.__liquidApps[canvasId];
+      }
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
+  }, [backgroundImage]);
+
+  return (
+    // Dropped opacity to 90 so the heavy dark gradients from the page.tsx can help with contrast
+    <div className="absolute inset-0 w-full h-full pointer-events-none opacity-90">
+      <canvas ref={canvasRef} className="block w-full h-full" />
+    </div>
+  );
+}
+
 // --- EXISTING SHADER (shader-animation) ---
 function ThreeShaderAnimation() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -733,7 +822,7 @@ function ThermodynamicGridAnimation() {
 }
 
 // --- MAIN EXPORT COMPONENT ---
-export default function BackgroundShader({ type, primaryColor }: { type: string, primaryColor?: string }) {
+export default function BackgroundShader({ type, primaryColor, backgroundImage }: { type: string, primaryColor?: string, backgroundImage?: string }) {
   if (!type || type === "none") return null;
 
   // Extract RGB from hex for CSS-based shaders
@@ -753,6 +842,7 @@ export default function BackgroundShader({ type, primaryColor }: { type: string,
 
   return (
     <>
+      {type === "liquid" && <LiquidShaderAnimation backgroundImage={backgroundImage} />}
       {type === "shader-animation" && <ThreeShaderAnimation />}
       {type === "paper-shader" && <PaperShaderAnimation primaryColor={primaryColor} />}
       {type === "spooky-smoke" && <SpookySmokeAnimation primaryColor={primaryColor} />}

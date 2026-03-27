@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from 'react';
+import Oneko from './Oneko';
 
 interface Particle {
   x: number;
@@ -20,7 +21,7 @@ export default function CursorEffects({ type }: { type: string }) {
   const cursor = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
-    if (type === 'none' || !type) return;
+    if (type === 'none' || !type || type === 'oneko') return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -163,6 +164,7 @@ export default function CursorEffects({ type }: { type: string }) {
   }, [type]);
 
   if (type === 'none' || !type) return null;
+  if (type === 'oneko') return <Oneko />;
 
   return (
     <canvas 

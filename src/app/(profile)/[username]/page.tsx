@@ -1,12 +1,11 @@
 import { getSteamProfile, getRecentlyPlayed, getSteamLevel, getOwnedGamesCount, getGameProgress } from '@/lib/steam';
 import { getValorantProfile } from '@/lib/valorant';
-import { Gamepad2, Globe, ArrowUpRight, Ghost, Music, Zap, Share2, Users, ArrowRight, Eye, Cpu, Monitor, Mouse, Keyboard, Headphones } from 'lucide-react';
+import { Gamepad2, Globe, ArrowUpRight, Ghost, Music, Zap, Share2, Users, ArrowRight, Eye, Cpu, Monitor, Mouse, Keyboard, Headphones, BadgeCheck } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Inter, Space_Grotesk, Press_Start_2P, Cinzel } from 'next/font/google';
 import ShareButton from '@/components/ShareButton';
 import { Metadata } from 'next';
-import BadgeRack from '@/components/BadgeRack';
 import AvatarDecoration from '@/components/AvatarDecoration';
 import CursorEffects from '@/components/CursorEffects';
 import ProfileGrid from '@/components/ProfileGrid';
@@ -15,6 +14,9 @@ import BackgroundShader from '@/components/BackgroundShader';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import PulseLogo from "@/components/PulseLogo"; 
+
+// --- IMPORT YOUR NEW CUSTOM BADGES ---
+import { customBadges } from '@/config/badges';
 
 // Load Fonts
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
@@ -112,6 +114,7 @@ async function getFirebaseUser(username: string) {
     return {
       owner_uid: fields.owner_uid?.stringValue,
       steamId: fields.steamId?.stringValue,
+      isVerified: isVerified(fields.isVerified),
       displayName: fields.displayName?.stringValue,
       banner: fields.theme?.mapValue?.fields?.banner?.stringValue || "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2600&auto=format&fit=crop",
       background: fields.theme?.mapValue?.fields?.background?.stringValue || "",
@@ -206,9 +209,9 @@ export default async function ProfilePage({ params }: Props) {
     );
   }
 
-  const badges = [];
-  if (firebaseUser.steamId) badges.push('steam');
-  if (firebaseUser.socials.discord_verified) badges.push('discord');
+  // Generate the Custom Badges List for this User
+  const userCustomBadges = customBadges[username.toLowerCase()] || [];
+  const hasBadges = userCustomBadges.length > 0 || firebaseUser.steamId || firebaseUser.socials.discord_verified;
 
   let profile = null; let recentGames: any[] = []; let level = 0; let gameCount = 0; let heroGameProgress = null; let valorantData = null; let musicData = null; let community = null;
   const promises: Promise<any>[] = [];
@@ -275,20 +278,22 @@ export default async function ProfilePage({ params }: Props) {
 
   const leftCardStyle = {
     backgroundColor: hexToRgba(firebaseUser.primary, firebaseUser.cardOpacity),
-    backdropFilter: `blur(${firebaseUser.cardBlur}px)`, WebkitBackdropFilter: `blur(${firebaseUser.cardBlur}px)`,
+    backdropFilter: `blur(${firebaseUser.cardBlur}px)`, 
+    WebkitBackdropFilter: `blur(${firebaseUser.cardBlur}px)`,
   };
 
   const isSimpleMode = firebaseUser.layoutStyle === "simple";
 
+  // FIXED: Using JSDelivr for SVG icons and `invert` to make them white. This fixes the broken images from simpleicons.org.
   const simpleSocials = [];
-  if (firebaseUser.socials?.discord) simpleSocials.push({ name: 'Discord', tooltip: firebaseUser.socials.discord, url: '#', icon: 'https://cdn.simpleicons.org/discord/white' });
-  if (firebaseUser.socials?.twitter) simpleSocials.push({ name: 'Twitter', tooltip: `@${firebaseUser.socials.twitter}`, url: `https://twitter.com/${firebaseUser.socials.twitter}`, icon: 'https://cdn.simpleicons.org/x/white' });
-  if (firebaseUser.socials?.youtube) simpleSocials.push({ name: 'YouTube', tooltip: 'YouTube', url: ensureProtocol(firebaseUser.socials.youtube), icon: 'https://cdn.simpleicons.org/youtube/white' });
-  if (firebaseUser.socials?.twitch) simpleSocials.push({ name: 'Twitch', tooltip: 'Twitch', url: `https://twitch.tv/${firebaseUser.socials.twitch}`, icon: 'https://cdn.simpleicons.org/twitch/white' });
-  if (firebaseUser.socials?.instagram) simpleSocials.push({ name: 'Instagram', tooltip: `@${firebaseUser.socials.instagram}`, url: `https://instagram.com/${firebaseUser.socials.instagram}`, icon: 'https://cdn.simpleicons.org/instagram/white' });
-  if (firebaseUser.steamId) simpleSocials.push({ name: 'Steam', tooltip: 'Steam', url: `https://steamcommunity.com/profiles/${firebaseUser.steamId}`, icon: 'https://cdn.simpleicons.org/steam/white' });
-  if (firebaseUser.gaming?.xbox) simpleSocials.push({ name: 'Xbox', tooltip: firebaseUser.gaming.xbox, url: '#', icon: 'https://api.iconify.design/simple-icons:xbox.svg?color=white' });
-  if (firebaseUser.gaming?.epic) simpleSocials.push({ name: 'Epic Games', tooltip: firebaseUser.gaming.epic, url: '#', icon: 'https://cdn.simpleicons.org/epicgames/white' });
+  if (firebaseUser.socials?.discord) simpleSocials.push({ name: 'Discord', tooltip: firebaseUser.socials.discord, url: '#', icon: 'https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/discord.svg' });
+  if (firebaseUser.socials?.twitter) simpleSocials.push({ name: 'Twitter', tooltip: `@${firebaseUser.socials.twitter}`, url: `https://twitter.com/${firebaseUser.socials.twitter}`, icon: 'https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/x.svg' });
+  if (firebaseUser.socials?.youtube) simpleSocials.push({ name: 'YouTube', tooltip: 'YouTube', url: ensureProtocol(firebaseUser.socials.youtube), icon: 'https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/youtube.svg' });
+  if (firebaseUser.socials?.twitch) simpleSocials.push({ name: 'Twitch', tooltip: 'Twitch', url: `https://twitch.tv/${firebaseUser.socials.twitch}`, icon: 'https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/twitch.svg' });
+  if (firebaseUser.socials?.instagram) simpleSocials.push({ name: 'Instagram', tooltip: `@${firebaseUser.socials.instagram}`, url: `https://instagram.com/${firebaseUser.socials.instagram}`, icon: 'https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/instagram.svg' });
+  if (firebaseUser.steamId) simpleSocials.push({ name: 'Steam', tooltip: 'Steam', url: `https://steamcommunity.com/profiles/${firebaseUser.steamId}`, icon: 'https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/steam.svg' });
+  if (firebaseUser.gaming?.xbox) simpleSocials.push({ name: 'Xbox', tooltip: firebaseUser.gaming.xbox, url: '#', icon: 'https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/xbox.svg' });
+  if (firebaseUser.gaming?.epic) simpleSocials.push({ name: 'Epic Games', tooltip: firebaseUser.gaming.epic, url: '#', icon: 'https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/epicgames.svg' });
 
   // === SIMPLE MODE RENDER ===
   if (isSimpleMode) {
@@ -305,9 +310,18 @@ export default async function ProfilePage({ params }: Props) {
         )}
 
         <div className="fixed inset-0 z-0">
+           {/* Layer 1: Base Background Image */}
            <div className="absolute inset-0 bg-cover bg-center" style={backgroundStyle}></div>
-           <div className="absolute inset-0 bg-black/60 backdrop-blur-xl"></div>
-           <BackgroundShader type={firebaseUser.shader} primaryColor={firebaseUser.primary} />
+           
+           {/* Layer 2: Shaders (The liquid fluid physics will render here and warp the image!) */}
+           <BackgroundShader 
+              type={firebaseUser.shader} 
+              primaryColor={firebaseUser.primary} 
+              backgroundImage={firebaseUser.background || firebaseUser.banner} 
+           />
+           
+           {/* Layer 3: Dark overlay ON TOP of the shader to ensure the glassmorphism blur and text are readable */}
+           <div className="absolute inset-0 bg-black/40"></div>
         </div>
 
         {/* Top Nav (Absolute floating) */}
@@ -332,12 +346,15 @@ export default async function ProfilePage({ params }: Props) {
                 
                 {/* Avatar */}
                 <div className="relative w-32 h-32 mb-6 shrink-0">
+                   {/* DYNAMIC AVATAR AURA */}
+                   <div className="absolute inset-0 rounded-full blur-xl opacity-40 z-0 animate-pulse" style={{ backgroundColor: firebaseUser.primary }}></div>
+                   
                    <AvatarDecoration type={firebaseUser.avatarDecoration}>
-                     <div className="w-32 h-32 rounded-full p-1 bg-[#1e1f22] relative z-10">
-                        <div className="relative w-full h-full rounded-full z-10">
-                           <img src={avatarSource} alt="Avatar" className="w-full h-full rounded-full object-cover bg-zinc-900" />
+                     <div className="w-32 h-32 rounded-full bg-[#1e1f22] relative z-10 flex items-center justify-center">
+                        <div className="relative w-[calc(100%-8px)] h-[calc(100%-8px)]">
+                           <img src={avatarSource} alt="Avatar" className="w-full h-full rounded-full object-cover bg-zinc-900 relative z-10" />
                            {firebaseUser.discordDecoration && (
-                              <img src={firebaseUser.discordDecoration} alt="Decoration" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] max-w-none z-30 pointer-events-none object-contain" />
+                              <img src={firebaseUser.discordDecoration} alt="Decoration" className="absolute inset-0 w-full h-full z-30 pointer-events-none object-contain scale-[1.2]" />
                            )}
                         </div>
                      </div>
@@ -346,16 +363,66 @@ export default async function ProfilePage({ params }: Props) {
                 </div>
 
                 {/* Identity */}
-                <h1 className={`text-4xl ${nameClasses} truncate max-w-full`} style={nameStyle}>{displayName}</h1>
+                <div className="flex items-center justify-center gap-2 mb-2 max-w-full">
+                   <h1 className={`text-4xl ${nameClasses} truncate`} style={nameStyle}>{displayName}</h1>
+                   {firebaseUser.isVerified && (
+                      <div className="relative group flex items-center justify-center shrink-0 cursor-help">
+                         <BadgeCheck className="w-7 h-7 text-white fill-white/20 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" />
+                         <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-zinc-900 border border-white/10 rounded-md text-[10px] font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl">
+                            Verified
+                         </div>
+                      </div>
+                   )}
+                </div>
                 
                 <div className="flex items-center gap-2 justify-center mb-6 flex-wrap">
                   <p className="text-zinc-400 font-medium text-sm">@{username}</p>
+                  
                   {parseInt(firebaseUser.views || "0") >= 0 && (
                      <div className="flex items-center gap-1.5 text-zinc-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wide">
                         <Eye className="w-3 h-3" /> {Number(firebaseUser.views || 0).toLocaleString()}
                      </div>
                   )}
-                  <BadgeRack badgeList={badges} />
+
+                  {/* ======================================================= */}
+                  {/* NEW UNIFIED BADGE PILL (Custom + Connections) */}
+                  {/* ======================================================= */}
+                  {hasBadges && (
+                     <div className="flex items-center gap-3.5 bg-black/40 border border-white/10 px-4 py-1.5 rounded-full shadow-inner backdrop-blur-md ml-1">
+                        
+                        {userCustomBadges.map((badge, idx) => {
+                           const Icon = badge.icon;
+                           return (
+                              <div key={idx} className={`relative group flex items-center justify-center cursor-help ${badge.dropShadow || ''}`}>
+                                 <Icon className={`w-4 h-4 ${badge.color} ${badge.fill || ''}`} />
+                                 <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-zinc-900 border border-white/10 rounded-md text-[10px] font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl">
+                                    {badge.tooltip}
+                                 </div>
+                              </div>
+                           )
+                        })}
+
+                        {firebaseUser.steamId && (
+                           <div className="relative group flex items-center justify-center w-4 h-4 opacity-80 hover:opacity-100 transition cursor-help">
+                              <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/steam.svg" alt="Steam" className="w-full h-full object-contain invert" />
+                              <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-zinc-900 border border-white/10 rounded-md text-[10px] font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl">
+                                 Steam Connected
+                              </div>
+                           </div>
+                        )}
+
+                        {firebaseUser.socials.discord_verified && (
+                           <div className="relative group flex items-center justify-center w-4 h-4 opacity-80 hover:opacity-100 transition cursor-help">
+                              <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/discord.svg" alt="Discord" className="w-full h-full object-contain invert" />
+                              <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-zinc-900 border border-white/10 rounded-md text-[10px] font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl">
+                                 Discord Connected
+                              </div>
+                           </div>
+                        )}
+                     </div>
+                  )}
+                  {/* ======================================================= */}
+
                 </div>
 
                 {/* Community Badge */}
@@ -383,7 +450,8 @@ export default async function ProfilePage({ params }: Props) {
                   <div className="flex flex-wrap justify-center gap-3 w-full mb-8">
                     {simpleSocials.map((s, idx) => (
                       <a key={idx} href={s.url !== '#' ? s.url : undefined} target={s.url !== '#' ? "_blank" : undefined} rel="noopener noreferrer" title={s.tooltip} className="w-12 h-12 rounded-2xl bg-black/40 hover:bg-white/10 border border-white/5 flex items-center justify-center transition-all hover:scale-110 shadow-lg">
-                         <img src={s.icon} alt={s.name} className="w-5 h-5 object-contain opacity-90" />
+                         {/* Added invert class here! */}
+                         <img src={s.icon} alt={s.name} className="w-5 h-5 object-contain opacity-90 invert" />
                       </a>
                     ))}
                   </div>
@@ -453,9 +521,18 @@ export default async function ProfilePage({ params }: Props) {
       `}} />
 
       <div className="fixed inset-0 z-0">
+         {/* Layer 1: Base Background Image */}
          <div className="absolute inset-0 bg-cover bg-center" style={backgroundStyle}></div>
-         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-[#111214]/90 to-[#111214]"></div>
-         <BackgroundShader type={firebaseUser.shader} primaryColor={firebaseUser.primary} />
+         
+         {/* Layer 2: Shaders (The liquid fluid physics will render here and warp the image!) */}
+         <BackgroundShader 
+            type={firebaseUser.shader} 
+            primaryColor={firebaseUser.primary} 
+            backgroundImage={firebaseUser.background || firebaseUser.banner} 
+         />
+         
+         {/* Layer 3: Dark gradient overlay ON TOP of the shader so the glassmorphism blur has good contrast */}
+         <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/60 to-black/80"></div>
       </div>
 
       <div className="relative z-10 max-w-[1200px] mx-auto p-4 md:p-8 lg:py-10 h-screen flex flex-col overflow-hidden">
@@ -486,12 +563,15 @@ export default async function ProfilePage({ params }: Props) {
             <div className="px-6 pb-6 relative">
               
               <div className="relative -mt-14 mb-3 w-28 h-28 shrink-0">
+                 {/* DYNAMIC AVATAR AURA */}
+                 <div className="absolute inset-0 rounded-full blur-xl opacity-40 z-0 animate-pulse" style={{ backgroundColor: firebaseUser.primary }}></div>
+
                  <AvatarDecoration type={firebaseUser.avatarDecoration}>
-                   <div className="w-28 h-28 rounded-full p-1 bg-[#1e1f22] relative z-10">
-                      <div className="relative w-full h-full rounded-full z-10">
-                         <img src={avatarSource} alt="Avatar" className="w-full h-full rounded-full object-cover bg-zinc-900" />
+                   <div className="w-28 h-28 rounded-full bg-[#1e1f22] relative z-10 flex items-center justify-center">
+                      <div className="relative w-[calc(100%-8px)] h-[calc(100%-8px)]">
+                         <img src={avatarSource} alt="Avatar" className="w-full h-full rounded-full object-cover bg-zinc-900 relative z-10" />
                          {firebaseUser.discordDecoration && (
-                            <img src={firebaseUser.discordDecoration} alt="Decoration" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] max-w-none z-30 pointer-events-none object-contain" />
+                            <img src={firebaseUser.discordDecoration} alt="Decoration" className="absolute inset-0 w-full h-full z-30 pointer-events-none object-contain scale-[1.2]" />
                          )}
                       </div>
                    </div>
@@ -501,15 +581,67 @@ export default async function ProfilePage({ params }: Props) {
 
               <div className="flex justify-between items-start mb-6 gap-4">
                 <div className="min-w-0 flex-1">
-                  <h1 className={`${nameClasses} truncate`} style={nameStyle}>{displayName}</h1>
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 mb-1">
+                     <h1 className={`text-3xl md:text-4xl font-black leading-relaxed py-1 truncate ${nameClasses.replace('mb-1', '')}`} style={nameStyle}>{displayName}</h1>
+                     {/* VERIFIED BADGE */}
+                     {firebaseUser.isVerified && (
+                        <div className="relative group flex items-center justify-center shrink-0 cursor-help">
+                           <BadgeCheck className="w-6 h-6 text-white fill-white/20 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)] mt-1" />
+                           <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-zinc-900 border border-white/10 rounded-md text-[10px] font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl">
+                              Verified
+                           </div>
+                        </div>
+                     )}
+                  </div>
+                  
+                  <div className="flex items-center gap-2 flex-wrap mt-1">
                     <p className="text-zinc-400 font-medium text-sm">@{username}</p>
+                    
                     {parseInt(firebaseUser.views || "0") >= 0 && (
-                       <div className="flex items-center gap-1.5 text-zinc-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wide ml-1">
+                       <div className="flex items-center gap-1.5 text-zinc-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wide">
                           <Eye className="w-3 h-3" /> {Number(firebaseUser.views || 0).toLocaleString()}
                        </div>
                     )}
-                    <BadgeRack badgeList={badges} />
+
+                    {/* ======================================================= */}
+                    {/* NEW UNIFIED BADGE PILL (Custom + Connections) */}
+                    {/* ======================================================= */}
+                    {hasBadges && (
+                       <div className="flex items-center gap-3.5 bg-black/40 border border-white/10 px-4 py-1.5 rounded-full shadow-inner backdrop-blur-md ml-1">
+                          
+                          {userCustomBadges.map((badge, idx) => {
+                             const Icon = badge.icon;
+                             return (
+                                <div key={idx} className={`relative group flex items-center justify-center cursor-help ${badge.dropShadow || ''}`}>
+                                   <Icon className={`w-4 h-4 ${badge.color} ${badge.fill || ''}`} />
+                                   <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-zinc-900 border border-white/10 rounded-md text-[10px] font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl">
+                                      {badge.tooltip}
+                                   </div>
+                                </div>
+                             )
+                          })}
+
+                          {firebaseUser.steamId && (
+                             <div className="relative group flex items-center justify-center w-4 h-4 opacity-80 hover:opacity-100 transition cursor-help">
+                                <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/steam.svg" alt="Steam" className="w-full h-full object-contain invert" />
+                                <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-zinc-900 border border-white/10 rounded-md text-[10px] font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl">
+                                   Steam Connected
+                                </div>
+                             </div>
+                          )}
+
+                          {firebaseUser.socials.discord_verified && (
+                             <div className="relative group flex items-center justify-center w-4 h-4 opacity-80 hover:opacity-100 transition cursor-help">
+                                <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/discord.svg" alt="Discord" className="w-full h-full object-contain invert" />
+                                <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-zinc-900 border border-white/10 rounded-md text-[10px] font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl">
+                                   Discord Connected
+                                </div>
+                             </div>
+                          )}
+                       </div>
+                    )}
+                    {/* ======================================================= */}
+                    
                   </div>
                 </div>
 
