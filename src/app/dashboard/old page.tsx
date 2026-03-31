@@ -6,20 +6,13 @@ import { auth, db } from "@/lib/firebase";
 import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { onAuthStateChanged, updateEmail, updatePassword, signOut, deleteUser } from "firebase/auth";
 import { getSteamLoginUrl, verifySteamLogin, verifyDiscordLogin } from "@/app/setup/actions"; 
-import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X, Cpu, Monitor, Keyboard, Mouse, Headphones, Trophy, Gamepad2, Clock, Music, Video, Users, Crown, LayoutTemplate, Layers, Activity } from "lucide-react";
+import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X, Cpu, Monitor, Keyboard, Mouse, Headphones, Trophy, Gamepad2, Clock, Music, Video, Users, Crown, LayoutTemplate, Layers, Activity, Diamond, Mail, ArrowRight, CheckCircle2, Info } from "lucide-react";
 import { validateHandle } from "@/lib/validation";
 import AnalyticsGlobe from "@/components/AnalyticsGlobe";
 import AnalyticsChart from "@/components/AnalyticsChart";
 import PulseLogo from "@/components/PulseLogo";
-
-import { Filter } from 'bad-words';
-
-const filter = new Filter();
-
-const isProfane = (text: any) => {
-  if (!text || typeof text !== 'string') return false;
-  return filter.isProfane(text);
-};
+import AvatarDecoration from "@/components/AvatarDecoration";
+import LayoutBuilder, { LayoutItem } from "@/components/LayoutBuilder";
 
 function DashboardContent() {
   const router = useRouter();
@@ -33,16 +26,16 @@ function DashboardContent() {
   const [newUsername, setNewUsername] = useState("");
   const [bio, setBio] = useState("");
   
+  // ADDED bgm and backgroundVideo to initial state
   const [theme, setTheme] = useState({ 
     color: "indigo", mode: "dark", banner: "", background: "", avatar: "", avatarDecoration: "none",
     cursorTrail: "none", customCursor: "", customCursorHover: "", nameEffect: "solid",
     nameColor: "white", primary: "#1e1f22", font: "inter", cardOpacity: 0.8, cardBlur: 10, 
-    layoutStyle: "bento", shader: "none", discordDecoration: ""
+    layoutStyle: "bento", shader: "none", discordDecoration: "", bgm: "", backgroundVideo: ""
   });
   
   const [gear, setGear] = useState({ cpu: "", gpu: "", ram: "", mouse: "", keyboard: "", headset: "", monitor: "" });
   
-  // ADDED NEW DISCORD FIELDS TO STATE
   const [socials, setSocials] = useState({ 
     twitter: "", instagram: "", youtube: "", twitch: "", discord: "", 
     discordId: "", discord_avatar: "", discord_decoration: "", discord_verified: false 
@@ -51,7 +44,7 @@ function DashboardContent() {
   const [gaming, setGaming] = useState({ xbox: "", epic: "", valorant: { name: "", tag: "", region: "na" } });
   const [customLinks, setCustomLinks] = useState<{label: string, url: string}[]>([]);
   const [clips, setClips] = useState<{title: string, url: string}[]>([]); 
-  const [layout, setLayout] = useState<any[]>([]);
+  const [layout, setLayout] = useState<LayoutItem[]>([]);
   const [primaryCommunity, setPrimaryCommunity] = useState("");
   const [lastfm, setLastfm] = useState("");
 
@@ -70,6 +63,13 @@ function DashboardContent() {
   const [newPass, setNewPass] = useState("");
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+
+  const [alertContent, setAlertContent] = useState<{title?: string, message: string, type?: 'info' | 'error' | 'success'} | null>(null);
+  const [confirmContent, setConfirmContent] = useState<{title?: string, message: string, onConfirm: () => void, actionText?: string, isDanger?: boolean} | null>(null);
+
+  const showAlert = (message: string, type: 'info' | 'error' | 'success' = 'info', title?: string) => {
+    setAlertContent({ message, type, title });
+  };
 
   const gradients = [
     { name: "Sunset", class: "from-orange-400 to-pink-600" },
@@ -130,7 +130,6 @@ function DashboardContent() {
           }
         }
         
-        // DISCORD VERIFICATION: Grabs avatar & decoration urls and saves them to db
         if (discordCode) {
            const result = await verifyDiscordLogin(discordCode, window.location.origin);
            if (result.success && result.username) {
@@ -181,7 +180,9 @@ function DashboardContent() {
             cardBlur: userData.theme?.cardBlur ?? 10,
             layoutStyle: userData.theme?.layoutStyle || "bento",
             shader: userData.theme?.shader || "none",
-            discordDecoration: userData.theme?.discordDecoration || ""
+            discordDecoration: userData.theme?.discordDecoration || "",
+            bgm: userData.theme?.bgm || "",
+            backgroundVideo: userData.theme?.backgroundVideo || ""
         });
 
         setSocials({ 
@@ -225,17 +226,6 @@ function DashboardContent() {
   const handleSave = async () => {
     if (!user) return;
 
-    const hasProfanity = 
-      isProfane(displayName) || isProfane(bio) || Object.values(gear).some(isProfane) || Object.values(socials).some(isProfane) ||
-      isProfane(gaming.xbox) || isProfane(gaming.epic) || isProfane(gaming.valorant?.name) || isProfane(gaming.valorant?.tag) ||
-      isProfane(theme.customCursor) || isProfane(theme.customCursorHover) || 
-      customLinks.some(link => isProfane(link.label)) || clips.some(clip => isProfane(clip.title));
-
-    if (hasProfanity) {
-      alert("⚠️ We detected inappropriate language in your profile settings. Please remove it before saving.");
-      return;
-    }
-
     setSaving(true);
     try {
       const userRef = doc(db, "users", user.id);
@@ -247,28 +237,49 @@ function DashboardContent() {
         await fetch('/api/revalidate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: `/${user.id}` }) });
       } catch (cacheError) { console.error("Cache clear failed:", cacheError); }
       setTimeout(() => setSaving(false), 1000);
+      showAlert("Profile settings saved successfully!", "success");
     } catch (e) {
       console.error(e);
+      showAlert("Failed to save profile.", "error");
+      setSaving(false);
+    }
+  };
+
+  const handleSaveLayout = async (newLayout: LayoutItem[]) => {
+    if (!user) return;
+    setSaving(true);
+    try {
+      const userRef = doc(db, "users", user.id);
+      await updateDoc(userRef, { layout: newLayout });
+      setLayout(newLayout);
+      
+      try {
+        await fetch('/api/revalidate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: `/${user.id}` }) });
+      } catch (cacheError) { console.error("Cache clear failed:", cacheError); }
+      showAlert("Layout saved successfully!", "success");
+    } catch (e) {
+      console.error(e);
+      showAlert("Failed to save layout.", "error");
+    } finally {
       setSaving(false);
     }
   };
 
   const handleCreateCommunity = async () => {
-    if (myCommunities.length >= 3) { alert("You can only create a maximum of 3 communities per account."); return; }
+    if (myCommunities.length >= 3) { showAlert("You can only create a maximum of 3 communities per account.", "error"); return; }
     if (!commName || !commHandle) return;
-    if (isProfane(commName) || isProfane(commHandle) || isProfane(commDesc)) { alert("⚠️ We detected inappropriate language in your community details."); return; }
     setSaving(true);
     try {
         const cleanHandle = commHandle.toLowerCase().replace(/[^a-z0-9-]/g, '');
         const docRef = doc(db, "communities", cleanHandle);
         const snap = await getDoc(docRef);
-        if (snap.exists()) { alert("This community handle is already taken. Choose another one!"); setSaving(false); return; }
+        if (snap.exists()) { showAlert("This community handle is already taken. Choose another one!", "error"); setSaving(false); return; }
         await setDoc(docRef, {
             name: commName, handle: cleanHandle, description: commDesc, owner_uid: auth.currentUser?.uid,
             members: [auth.currentUser?.uid], created_at: serverTimestamp(), memberCount: 1,
             banner: "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2600&auto=format&fit=crop", avatar: ""
         });
-        alert("Community Launch Successful!");
+        showAlert("Community Launch Successful!", "success");
         setIsCreatingCommunity(false);
         setCommName(""); setCommHandle(""); setCommDesc("");
         
@@ -281,7 +292,7 @@ function DashboardContent() {
         }
     } catch (e) { 
         console.error(e); 
-        alert("Permission denied. Ensure your Firebase Rules are updated.");
+        showAlert("Permission denied. Ensure your Firebase Rules are updated.", "error");
     } finally { setSaving(false); }
   };
 
@@ -295,8 +306,7 @@ function DashboardContent() {
 
   const handleUpdateCommunity = async () => {
      if (!editingCommunity) return;
-     if (!editCommName) { alert("Community name cannot be empty."); return; }
-     if (isProfane(editCommName) || isProfane(editCommDesc)) { alert("⚠️ We detected inappropriate language in your community details."); return; }
+     if (!editCommName) { showAlert("Community name cannot be empty.", "error"); return; }
      setSaving(true);
      try {
          const commRef = doc(db, "communities", editingCommunity.handle);
@@ -304,7 +314,7 @@ function DashboardContent() {
          try {
            await fetch('/api/revalidate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: `/c/${editingCommunity.handle}` }) });
          } catch (cacheError) { console.error("Cache clear failed:", cacheError); }
-         alert("Community updated successfully!");
+         showAlert("Community updated successfully!", "success");
          setEditingCommunity(null);
          if (auth.currentUser) {
              const commQ = query(collection(db, "communities"), where("owner_uid", "==", auth.currentUser.uid));
@@ -313,26 +323,33 @@ function DashboardContent() {
          }
      } catch (e) {
          console.error(e);
-         alert("Failed to update community details.");
+         showAlert("Failed to update community details.", "error");
      } finally { setSaving(false); }
   };
 
-  const handleDeleteCommunity = async (commHandle: string) => {
-     if (!confirm(`Are you absolutely sure you want to delete the community /c/${commHandle}? This action cannot be undone.`)) return;
-     setSaving(true);
-     try {
-         await deleteDoc(doc(db, "communities", commHandle));
-         setMyCommunities(prev => prev.filter(c => c.handle !== commHandle));
-         if (primaryCommunity === commHandle) {
-             setPrimaryCommunity("");
-             if (user?.id) { await updateDoc(doc(db, "users", user.id), { primaryCommunity: "" }); }
+  const handleDeleteCommunity = (commHandle: string) => {
+     setConfirmContent({
+         title: "Delete Community",
+         message: `Are you absolutely sure you want to delete the community /c/${commHandle}? This action cannot be undone.`,
+         actionText: "Delete Community",
+         isDanger: true,
+         onConfirm: async () => {
+             setSaving(true);
+             try {
+                 await deleteDoc(doc(db, "communities", commHandle));
+                 setMyCommunities(prev => prev.filter(c => c.handle !== commHandle));
+                 if (primaryCommunity === commHandle) {
+                     setPrimaryCommunity("");
+                     if (user?.id) { await updateDoc(doc(db, "users", user.id), { primaryCommunity: "" }); }
+                 }
+                 showAlert("Community permanently deleted.", "success");
+                 setEditingCommunity(null); 
+             } catch (e) {
+                 console.error(e);
+                 showAlert("Failed to delete community. Please check your connection.", "error");
+             } finally { setSaving(false); }
          }
-         alert("Community permanently deleted.");
-         setEditingCommunity(null); 
-     } catch (e) {
-         console.error(e);
-         alert("Failed to delete community. Please check your connection.");
-     } finally { setSaving(false); }
+     });
   };
 
   const handleSteamLink = async () => {
@@ -347,36 +364,45 @@ function DashboardContent() {
     window.location.href = `/api/auth/discord?state=${user.id}`;
   };
 
-  const handleDisconnect = async (platform: string) => {
-    if (!confirm(`Disconnect ${platform}?`)) return;
+  const handleDisconnect = (platform: string) => {
     if (!user) return;
-    setSaving(true);
-    try {
-        const userRef = doc(db, "users", user.id);
-        if (platform === 'steam') {
-            await updateDoc(userRef, { steamId: "" });
-            setUser((prev: any) => ({ ...prev, steamId: "" }));
+    setConfirmContent({
+        title: `Disconnect ${platform.charAt(0).toUpperCase() + platform.slice(1)}`,
+        message: `Are you sure you want to unlink your ${platform} account from your profile?`,
+        actionText: "Disconnect",
+        isDanger: true,
+        onConfirm: async () => {
+            setSaving(true);
+            try {
+                const userRef = doc(db, "users", user.id);
+                if (platform === 'steam') {
+                    await updateDoc(userRef, { steamId: "" });
+                    setUser((prev: any) => ({ ...prev, steamId: "" }));
+                }
+                if (platform === 'discord') {
+                    await updateDoc(userRef, { 
+                      "socials.discord": "", 
+                      "socials.discordId": "", 
+                      "socials.discord_avatar": "", 
+                      "socials.discord_decoration": "", 
+                      "socials.discord_verified": false 
+                    });
+                    setSocials(prev => ({ 
+                      ...prev, 
+                      discord: "", 
+                      discordId: "", 
+                      discord_avatar: "", 
+                      discord_decoration: "", 
+                      discord_verified: false 
+                    }));
+                }
+                showAlert(`${platform.charAt(0).toUpperCase() + platform.slice(1)} unlinked successfully.`, "success");
+            } catch (e) {
+                console.error(e);
+                showAlert(`Failed to disconnect ${platform}.`, "error");
+            } finally { setSaving(false); }
         }
-        if (platform === 'discord') {
-            await updateDoc(userRef, { 
-              "socials.discord": "", 
-              "socials.discordId": "", 
-              "socials.discord_avatar": "", 
-              "socials.discord_decoration": "", 
-              "socials.discord_verified": false 
-            });
-            setSocials(prev => ({ 
-              ...prev, 
-              discord: "", 
-              discordId: "", 
-              discord_avatar: "", 
-              discord_decoration: "", 
-              discord_verified: false 
-            }));
-        }
-    } catch (e) {
-        console.error(e);
-    } finally { setSaving(false); }
+    });
   };
 
   const COOLDOWN_MS = 12 * 60 * 60 * 1000;
@@ -386,44 +412,51 @@ function DashboardContent() {
   const handleChangeUsername = async () => {
     if (!newUsername || newUsername === user.username) return;
     if (isOnCooldown) {
-      alert(`You can only change your username once every 12 hours. Please try again in ${hoursLeft} hours.`);
+      showAlert(`You can only change your username once every 12 hours. Please try again in ${hoursLeft} hours.`, "error", "Cooldown Active");
       return;
     }
-    if (!confirm(`Change handle to @${newUsername}? This will change your profile URL and delete old ones.`)) return;
-    const validationError = validateHandle(newUsername.toLowerCase());
-    if (validationError) { alert(validationError); return; }
-    if (isProfane(newUsername)) { alert("⚠️ This handle contains inappropriate language."); return; }
+    
+    setConfirmContent({
+        title: "Change Handle",
+        message: `Change handle to @${newUsername}? This will change your profile URL immediately and delete your old one.`,
+        actionText: "Change Handle",
+        isDanger: true,
+        onConfirm: async () => {
+            const validationError = validateHandle(newUsername.toLowerCase());
+            if (validationError) { showAlert(validationError, "error"); return; }
 
-    setSaving(true);
-    try {
-      const newRef = doc(db, "users", newUsername.toLowerCase());
-      const snap = await getDoc(newRef);
-      if (snap.exists() && snap.data().owner_uid !== auth.currentUser?.uid) {
-        alert("Username is already taken.");
-        setSaving(false);
-        return;
-      }
-      const userDataToSave = { ...user };
-      userDataToSave.username = newUsername.toLowerCase();
-      userDataToSave.lastUsernameChange = Date.now();
-      delete userDataToSave.id; 
+            setSaving(true);
+            try {
+              const newRef = doc(db, "users", newUsername.toLowerCase());
+              const snap = await getDoc(newRef);
+              if (snap.exists() && snap.data().owner_uid !== auth.currentUser?.uid) {
+                showAlert("Username is already taken.", "error");
+                setSaving(false);
+                return;
+              }
+              const userDataToSave = { ...user };
+              userDataToSave.username = newUsername.toLowerCase();
+              userDataToSave.lastUsernameChange = Date.now();
+              delete userDataToSave.id; 
 
-      await setDoc(newRef, userDataToSave);
+              await setDoc(newRef, userDataToSave);
 
-      const q = query(collection(db, "users"), where("owner_uid", "==", auth.currentUser?.uid));
-      const allMyDocs = await getDocs(q);
+              const q = query(collection(db, "users"), where("owner_uid", "==", auth.currentUser?.uid));
+              const allMyDocs = await getDocs(q);
 
-      const cleanupPromises = allMyDocs.docs
-        .filter(docSnap => docSnap.id !== newUsername.toLowerCase()) 
-        .map(docSnap => deleteDoc(doc(db, "users", docSnap.id)));
+              const cleanupPromises = allMyDocs.docs
+                .filter(docSnap => docSnap.id !== newUsername.toLowerCase()) 
+                .map(docSnap => deleteDoc(doc(db, "users", docSnap.id)));
 
-      await Promise.all(cleanupPromises);
-      alert("Username changed! Reloading...");
-      window.location.href = `/dashboard`;
-    } catch (e: any) {
-      console.error(e);
-      alert("Failed to change username: " + e.message);
-    } finally { setSaving(false); }
+              await Promise.all(cleanupPromises);
+              showAlert("Username changed! Reloading...", "success");
+              setTimeout(() => { window.location.href = `/dashboard`; }, 1500);
+            } catch (e: any) {
+              console.error(e);
+              showAlert("Failed to change username: " + e.message, "error");
+            } finally { setSaving(false); }
+        }
+    });
   };
 
   const handleUpdateAccount = async () => {
@@ -435,10 +468,10 @@ function DashboardContent() {
             await updateDoc(doc(db, "users", user.id), { email: newEmail });
         }
         if (newPass) await updatePassword(auth.currentUser, newPass);
-        alert("Credentials updated!");
+        showAlert("Credentials updated!", "success");
         setNewEmail(""); setNewPass("");
     } catch (e: any) {
-        alert("Error: " + e.message);
+        showAlert("Error: " + e.message, "error");
     } finally { setSaving(false); }
   };
 
@@ -446,7 +479,7 @@ function DashboardContent() {
     if (!user || deleteConfirmText !== user.id) return;
     if (!auth.currentUser) return;
     if (myCommunities.length > 0) {
-        alert(`⚠️ Action Required: You currently own ${myCommunities.length} community(s).\n\nYou must delete them from the "Communities" tab before deleting your account to prevent abandoned data.`);
+        showAlert(`You currently own ${myCommunities.length} community(s).\n\nYou must delete them from the "Communities" tab before deleting your account to prevent abandoned data.`, "error", "Action Required");
         setIsDeletingAccount(false);
         return;
     }
@@ -454,14 +487,14 @@ function DashboardContent() {
     try {
       await deleteDoc(doc(db, "users", user.id));
       await deleteUser(auth.currentUser);
-      alert("Account permanently deleted. We're sorry to see you go!");
-      window.location.href = "/";
+      showAlert("Account permanently deleted. We're sorry to see you go!", "success");
+      setTimeout(() => { window.location.href = "/"; }, 1500);
     } catch (e: any) {
       console.error(e);
       if (e.code === 'auth/requires-recent-login') {
-        alert("For your security, please log out and log back in before deleting your account.");
+        showAlert("For your security, please log out and log back in before deleting your account.", "error");
       } else {
-        alert("Failed to delete account: " + e.message);
+        showAlert("Failed to delete account: " + e.message, "error");
       }
     } finally {
       setSaving(false);
@@ -469,7 +502,6 @@ function DashboardContent() {
     }
   };
 
-  // Base input style to keep things extremely clean and uniform
   const inputStyle = "w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all";
   const cardStyle = "bg-white/[0.02] border border-white/[0.05] backdrop-blur-md rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden";
 
@@ -484,7 +516,6 @@ function DashboardContent() {
          <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[120px] mix-blend-screen opacity-50"></div>
       </div>
 
-      {/* LIVE CURSOR PREVIEW FOR DASHBOARD (ULTRA-SAFE PNG SYNC) */}
       {(theme.customCursor || theme.customCursorHover) && (
         <style dangerouslySetInnerHTML={{ __html: `
           html, body, *, .min-h-screen { cursor: url('${theme.customCursor}') 0 0, auto !important; }
@@ -492,7 +523,7 @@ function DashboardContent() {
         `}} />
       )}
 
-      {/* Account Deletion Modal */}
+      {/* Modals... */}
       {isDeletingAccount && (
          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-[#121214] border border-red-500/30 rounded-[32px] p-8 w-full max-w-md shadow-2xl shadow-red-500/10">
@@ -518,7 +549,6 @@ function DashboardContent() {
          </div>
       )}
 
-      {/* Creation Modal */}
       {isCreatingCommunity && (
          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-[#121214] border border-white/10 rounded-[32px] p-8 w-full max-w-lg shadow-2xl">
@@ -550,7 +580,6 @@ function DashboardContent() {
          </div>
       )}
 
-      {/* Edit Community Modal */}
       {editingCommunity && (
          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-[#121214] border border-white/10 rounded-[32px] p-8 w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]">
@@ -621,12 +650,13 @@ function DashboardContent() {
                 { id: 'communities', icon: Users, label: 'Communities' },
                 { id: 'gear', icon: Cpu, label: 'Hardware Setup' },
                 { id: 'layout', icon: Palette, label: 'Layout & Theme' },
+                { id: 'premium', icon: Diamond, label: 'Pulse Pro' },
                 { id: 'settings', icon: Settings, label: 'Settings' },
               ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-medium transition-all mb-1 ${activeTab === tab.id ? 'bg-indigo-600 text-white shadow-[0_0_20px_rgba(99,102,241,0.3)]' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`}
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-medium transition-all mb-1 ${activeTab === tab.id ? 'bg-indigo-600 text-white shadow-[0_0_20px_rgba(99,102,241,0.3)]' : 'text-zinc-400 hover:text-white hover:bg-white/5'} ${tab.id === 'premium' && activeTab !== 'premium' ? 'text-indigo-300 hover:text-indigo-200' : ''}`}
                 >
                   <tab.icon className="w-4 h-4" /> {tab.label}
                 </button>
@@ -636,6 +666,55 @@ function DashboardContent() {
 
         {/* Main Content Area */}
         <main className="lg:col-span-9 space-y-6">
+
+          {/* --- PULSE PRO / PREMIUM TAB --- */}
+          {activeTab === 'premium' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+               <section className="bg-gradient-to-br from-indigo-900/40 via-purple-900/40 to-black border border-indigo-500/30 rounded-3xl p-8 lg:p-12 relative overflow-hidden shadow-2xl">
+                  <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/20 blur-[100px] rounded-full -mr-40 -mt-40 pointer-events-none"></div>
+
+                  <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+                     <div className="flex-1">
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold uppercase tracking-widest mb-6">
+                           <Diamond className="w-4 h-4" /> Pulse Pro
+                        </div>
+                        <h2 className="text-4xl md:text-5xl font-black text-white mb-4 tracking-tight">Level up your legacy.</h2>
+                        <p className="text-indigo-200/70 text-lg mb-8 max-w-xl">
+                           Unlock god-tier cosmetics, advanced analytics, custom backgrounds, and priority support. Stand out from the crowd.
+                        </p>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                           {[
+                              "Animated Avatar Frames",
+                              "Premium Background Shaders",
+                              "Custom Profile Cursors",
+                              "Unlimited Links & Clips",
+                              "Pro Profile Badge",
+                              "Priority Support"
+                           ].map(feat => (
+                              <div key={feat} className="flex items-center gap-3">
+                                 <div className="w-5 h-5 rounded-full bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30 shrink-0">
+                                    <Shield className="w-3 h-3 text-indigo-400" />
+                                 </div>
+                                 <span className="text-sm font-bold text-zinc-300">{feat}</span>
+                              </div>
+                           ))}
+                        </div>
+
+                        <button onClick={() => showAlert("Stripe Integration coming soon! Your profile is currently free during beta.", "info", "Pulse Pro")} className="px-8 py-4 bg-white text-black hover:bg-zinc-200 font-black rounded-2xl transition flex items-center gap-2 shadow-[0_0_30px_rgba(255,255,255,0.2)] hover:scale-105 active:scale-95">
+                           Upgrade to Pro <ArrowRight className="w-5 h-5" />
+                        </button>
+                     </div>
+
+                     <div className="hidden lg:flex shrink-0 w-72 h-72 bg-black/40 border border-white/10 rounded-full items-center justify-center relative shadow-inner">
+                         <div className="absolute inset-0 rounded-full border border-indigo-500/30 animate-[spin_10s_linear_infinite]"></div>
+                         <div className="absolute inset-4 rounded-full border border-purple-500/20 animate-[spin_15s_linear_infinite_reverse]"></div>
+                         <Diamond className="w-32 h-32 text-indigo-400 drop-shadow-[0_0_30px_rgba(99,102,241,0.5)]" />
+                     </div>
+                  </div>
+               </section>
+            </div>
+          )}
 
           {/* --- ANALYTICS TAB --- */}
           {activeTab === 'analytics' && (
@@ -1109,7 +1188,7 @@ function DashboardContent() {
                       <h3 className="text-sm font-bold text-white mb-2 flex items-center gap-2"><Layers className="w-4 h-4 text-indigo-400" /> Background Shaders</h3>
                       <p className="text-xs text-zinc-500 mb-6">Add a premium animated background effect (Highly recommended for Simple Mode).</p>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                         {['none', 'aurora', 'cyber-grid', 'dots', 'noise', 'shader-animation', 'mesh-gradient', 'paper-shader', 'spooky-smoke', 'red-smoke', 'thermodynamic'].map(shader => (
+                         {['none', 'aurora', 'cyber-grid', 'dots', 'noise', 'shader-animation', 'mesh-gradient', 'paper-shader', 'spooky-smoke', 'red-smoke', 'thermodynamic', 'liquid'].map(shader => (
                             <button 
                                key={shader} 
                                onClick={() => setTheme({...theme, shader})} 
@@ -1177,6 +1256,7 @@ function DashboardContent() {
                        </div>
                    </div>
 
+                   {/* === NEW: Background Music and Video Section === */}
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                           <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Primary Accent Color</label>
@@ -1186,8 +1266,16 @@ function DashboardContent() {
                           </div>
                       </div>
                       <div>
-                          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Background Image</label>
-                          <input type="text" value={theme.background} onChange={e => setTheme({...theme, background: e.target.value})} className={inputStyle} placeholder="Image URL (Unsplash/Imgur)" />
+                          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 flex items-center gap-1.5"><Music className="w-3 h-3 text-indigo-400"/> Background Music (MP3 or YouTube)</label>
+                          <input type="text" value={theme.bgm} onChange={e => setTheme({...theme, bgm: e.target.value})} className={inputStyle} placeholder="https://youtube.com/watch?v=..." />
+                      </div>
+                      <div>
+                          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Background Image URL</label>
+                          <input type="text" value={theme.background} onChange={e => setTheme({...theme, background: e.target.value})} className={inputStyle} placeholder="Static Image (Unsplash/Imgur)" />
+                      </div>
+                      <div>
+                          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 flex items-center gap-1.5"><Video className="w-3 h-3 text-indigo-400"/> Background Video URL (.mp4)</label>
+                          <input type="text" value={theme.backgroundVideo} onChange={e => setTheme({...theme, backgroundVideo: e.target.value})} className={inputStyle} placeholder="Overrides Image if provided" />
                       </div>
                       <div>
                           <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Profile Banner</label>
@@ -1199,9 +1287,10 @@ function DashboardContent() {
                           {socials.discord_avatar && (
                              <button 
                                 onClick={() => setTheme({...theme, avatar: socials.discord_avatar})}
-                                className="mt-3 w-full py-2 bg-[#5865F2]/10 hover:bg-[#5865F2]/20 border border-[#5865F2]/30 text-[#5865F2] text-xs font-bold rounded-xl transition flex items-center justify-center gap-2"
+                                className="mt-3 w-full py-2 bg-[#5865F2]/10 hover:bg-[#5865F2]/20 border border-[#5865F2]/30 text-[#5865F2] text-[10px] font-bold uppercase tracking-widest rounded-xl transition flex items-center justify-center gap-2"
                              >
-                                <User className="w-3.5 h-3.5" /> Use Discord Profile Pic
+                                <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
+                               Sync Discord Avatar & Frame
                              </button>
                           )}
                       </div>
@@ -1211,6 +1300,24 @@ function DashboardContent() {
 
                    {/* Cosmetics */}
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                       
+                       {/* LIVE AVATAR PREVIEW ADDED HERE */}
+                       <div className="col-span-full flex flex-col items-center justify-center bg-black/20 p-6 rounded-2xl border border-white/5 shadow-inner mb-4">
+                           <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-6">Live Avatar Preview</h3>
+                           <div className="relative w-32 h-32 shrink-0">
+                             <AvatarDecoration type={theme.avatarDecoration}>
+                               <div className="w-32 h-32 rounded-full p-1 bg-[#1e1f22] relative z-10">
+                                  <div className="relative w-full h-full rounded-full z-10">
+                                     <img src={theme.avatar || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"} alt="Avatar" className="w-full h-full rounded-full object-cover bg-zinc-900" />
+                                     {theme.discordDecoration && (
+                                        <img src={theme.discordDecoration} alt="Decoration" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] max-w-none z-30 pointer-events-none object-contain" />
+                                     )}
+                                  </div>
+                               </div>
+                             </AvatarDecoration>
+                           </div>
+                       </div>
+
                        <div>
                           <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Avatar Decoration Frame</label>
                           <select value={theme.avatarDecoration} onChange={e => setTheme({...theme, avatarDecoration: e.target.value, discordDecoration: ""})} className={`${inputStyle} cursor-pointer`}>
@@ -1271,6 +1378,7 @@ function DashboardContent() {
                              <option value="sparkle">Sparkles</option>
                              <option value="pulse">Pulse Rings</option>
                              <option value="coins">Falling Coins</option>
+                             <option value="oneko">Cat Follow (Oneko)</option>
                           </select>
                        </div>
                    </div>
@@ -1328,12 +1436,42 @@ function DashboardContent() {
                    </div>
 
                 </section>
+
+                {/* --- DRAG AND DROP LAYOUT BUILDER --- */}
+                <section className={cardStyle}>
+                  <LayoutBuilder 
+                    initialLayout={layout} 
+                    onSave={handleSaveLayout} 
+                    isSaving={saving} 
+                  />
+                </section>
+
              </div>
           )}
 
           {/* --- SETTINGS TAB --- */}
           {activeTab === 'settings' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              
+              {/* BRAND NEW SUPPORT SECTION */}
+              <section className={cardStyle}>
+                <h2 className="text-xl font-bold text-white mb-6">Support & Contact</h2>
+                <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                   <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+                         <Mail className="w-6 h-6" />
+                      </div>
+                      <div>
+                         <h3 className="font-bold text-white">Need help?</h3>
+                         <p className="text-xs text-zinc-400">Reach out to our support team for inquiries or assistance.</p>
+                      </div>
+                   </div>
+                   <a href="mailto:contact@pulsegg.in" className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-xl transition whitespace-nowrap shadow-lg shadow-indigo-500/20">
+                      contact@pulsegg.in
+                   </a>
+                </div>
+              </section>
+
               <section className={cardStyle}>
                 <h2 className="text-xl font-bold text-white mb-6">Profile Settings</h2>
                 <div className="space-y-4">
@@ -1383,6 +1521,39 @@ function DashboardContent() {
 
         </main>
       </div>
+
+      {/* --- CUSTOM GLOBAL MODALS --- */}
+      {/* Alert Modal */}
+      {alertContent && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-[#121214] border border-white/10 rounded-[24px] p-6 w-full max-w-sm shadow-2xl flex flex-col items-center text-center">
+             <div className={`w-12 h-12 rounded-full mb-4 flex items-center justify-center shadow-inner border ${alertContent.type === 'error' ? 'bg-red-500/20 text-red-500 border-red-500/20' : alertContent.type === 'success' ? 'bg-emerald-500/20 text-emerald-500 border-emerald-500/20' : 'bg-indigo-500/20 text-indigo-400 border-indigo-500/20'}`}>
+                {alertContent.type === 'error' ? <AlertTriangle className="w-6 h-6" /> : alertContent.type === 'success' ? <CheckCircle2 className="w-6 h-6" /> : <Info className="w-6 h-6" />}
+             </div>
+             <h3 className="text-xl font-black text-white mb-2 tracking-tight">{alertContent.title || (alertContent.type === 'error' ? 'Error' : alertContent.type === 'success' ? 'Success' : 'Notice')}</h3>
+             <p className="text-zinc-400 text-sm mb-6 leading-relaxed whitespace-pre-wrap">{alertContent.message}</p>
+             <button onClick={() => setAlertContent(null)} className="w-full py-3 bg-white text-black font-bold rounded-xl hover:bg-zinc-200 transition active:scale-[0.98]">OK</button>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Modal */}
+      {confirmContent && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-[#121214] border border-white/10 rounded-[24px] p-6 w-full max-w-sm shadow-2xl flex flex-col items-center text-center">
+             <div className={`w-12 h-12 rounded-full mb-4 flex items-center justify-center shadow-inner border ${confirmContent.isDanger ? 'bg-red-500/20 text-red-500 border-red-500/20' : 'bg-indigo-500/20 text-indigo-400 border-indigo-500/20'}`}>
+                {confirmContent.isDanger ? <AlertTriangle className="w-6 h-6" /> : <Info className="w-6 h-6" />}
+             </div>
+             <h3 className="text-xl font-black text-white mb-2 tracking-tight">{confirmContent.title || 'Confirm Action'}</h3>
+             <p className="text-zinc-400 text-sm mb-6 leading-relaxed">{confirmContent.message}</p>
+             <div className="flex gap-3 w-full">
+                <button onClick={() => setConfirmContent(null)} className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition active:scale-[0.98]">Cancel</button>
+                <button onClick={() => { confirmContent.onConfirm(); setConfirmContent(null); }} className={`flex-1 py-3 font-bold rounded-xl transition active:scale-[0.98] ${confirmContent.isDanger ? 'bg-red-600 hover:bg-red-500 text-white shadow-[0_0_15px_rgba(220,38,38,0.4)]' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]'}`}>{confirmContent.actionText || 'Confirm'}</button>
+             </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

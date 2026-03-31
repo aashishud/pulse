@@ -14,15 +14,6 @@ import PulseLogo from "@/components/PulseLogo";
 import AvatarDecoration from "@/components/AvatarDecoration";
 import LayoutBuilder, { LayoutItem } from "@/components/LayoutBuilder";
 
-import { Filter } from 'bad-words';
-
-const filter = new Filter();
-
-const isProfane = (text: any) => {
-  if (!text || typeof text !== 'string') return false;
-  return filter.isProfane(text);
-};
-
 function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -35,11 +26,12 @@ function DashboardContent() {
   const [newUsername, setNewUsername] = useState("");
   const [bio, setBio] = useState("");
   
+  // ADDED bgm, backgroundVideo, and enterText to initial state
   const [theme, setTheme] = useState({ 
     color: "indigo", mode: "dark", banner: "", background: "", avatar: "", avatarDecoration: "none",
     cursorTrail: "none", customCursor: "", customCursorHover: "", nameEffect: "solid",
     nameColor: "white", primary: "#1e1f22", font: "inter", cardOpacity: 0.8, cardBlur: 10, 
-    layoutStyle: "bento", shader: "none", discordDecoration: ""
+    layoutStyle: "bento", shader: "none", discordDecoration: "", bgm: "", backgroundVideo: "", enterText: ""
   });
   
   const [gear, setGear] = useState({ cpu: "", gpu: "", ram: "", mouse: "", keyboard: "", headset: "", monitor: "" });
@@ -188,7 +180,10 @@ function DashboardContent() {
             cardBlur: userData.theme?.cardBlur ?? 10,
             layoutStyle: userData.theme?.layoutStyle || "bento",
             shader: userData.theme?.shader || "none",
-            discordDecoration: userData.theme?.discordDecoration || ""
+            discordDecoration: userData.theme?.discordDecoration || "",
+            bgm: userData.theme?.bgm || "",
+            backgroundVideo: userData.theme?.backgroundVideo || "",
+            enterText: userData.theme?.enterText || ""
         });
 
         setSocials({ 
@@ -232,17 +227,6 @@ function DashboardContent() {
   const handleSave = async () => {
     if (!user) return;
 
-    const hasProfanity = 
-      isProfane(displayName) || isProfane(bio) || Object.values(gear).some(isProfane) || Object.values(socials).some(isProfane) ||
-      isProfane(gaming.xbox) || isProfane(gaming.epic) || isProfane(gaming.valorant?.name) || isProfane(gaming.valorant?.tag) ||
-      isProfane(theme.customCursor) || isProfane(theme.customCursorHover) || 
-      customLinks.some(link => isProfane(link.label)) || clips.some(clip => isProfane(clip.title));
-
-    if (hasProfanity) {
-      showAlert("We detected inappropriate language in your profile settings. Please remove it before saving.", "error", "Inappropriate Content");
-      return;
-    }
-
     setSaving(true);
     try {
       const userRef = doc(db, "users", user.id);
@@ -285,7 +269,6 @@ function DashboardContent() {
   const handleCreateCommunity = async () => {
     if (myCommunities.length >= 3) { showAlert("You can only create a maximum of 3 communities per account.", "error"); return; }
     if (!commName || !commHandle) return;
-    if (isProfane(commName) || isProfane(commHandle) || isProfane(commDesc)) { showAlert("We detected inappropriate language in your community details.", "error", "Inappropriate Content"); return; }
     setSaving(true);
     try {
         const cleanHandle = commHandle.toLowerCase().replace(/[^a-z0-9-]/g, '');
@@ -325,7 +308,6 @@ function DashboardContent() {
   const handleUpdateCommunity = async () => {
      if (!editingCommunity) return;
      if (!editCommName) { showAlert("Community name cannot be empty.", "error"); return; }
-     if (isProfane(editCommName) || isProfane(editCommDesc)) { showAlert("We detected inappropriate language in your community details.", "error", "Inappropriate Content"); return; }
      setSaving(true);
      try {
          const commRef = doc(db, "communities", editingCommunity.handle);
@@ -443,7 +425,6 @@ function DashboardContent() {
         onConfirm: async () => {
             const validationError = validateHandle(newUsername.toLowerCase());
             if (validationError) { showAlert(validationError, "error"); return; }
-            if (isProfane(newUsername)) { showAlert("This handle contains inappropriate language.", "error", "Inappropriate Content"); return; }
 
             setSaving(true);
             try {
@@ -1276,6 +1257,7 @@ function DashboardContent() {
                        </div>
                    </div>
 
+                   {/* === Background Music and Video Section === */}
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                           <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Primary Accent Color</label>
@@ -1285,25 +1267,24 @@ function DashboardContent() {
                           </div>
                       </div>
                       <div>
-                          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Background Image</label>
-                          <input type="text" value={theme.background} onChange={e => setTheme({...theme, background: e.target.value})} className={inputStyle} placeholder="Image URL (Unsplash/Imgur)" />
+                          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 flex items-center gap-1.5"><Music className="w-3 h-3 text-indigo-400"/> Background Music (MP3 or YouTube)</label>
+                          <input type="text" value={theme.bgm} onChange={e => setTheme({...theme, bgm: e.target.value})} className={inputStyle} placeholder="https://youtube.com/watch?v=..." />
+                      </div>
+                      <div>
+                          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">"Click to Enter" Text</label>
+                          <input type="text" value={theme.enterText} onChange={e => setTheme({...theme, enterText: e.target.value})} className={inputStyle} placeholder="CLICK TO ENTER" />
+                      </div>
+                      <div>
+                          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Background Image URL</label>
+                          <input type="text" value={theme.background} onChange={e => setTheme({...theme, background: e.target.value})} className={inputStyle} placeholder="Static Image (Unsplash/Imgur)" />
+                      </div>
+                      <div>
+                          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 flex items-center gap-1.5"><Video className="w-3 h-3 text-indigo-400"/> Background Video URL (.mp4)</label>
+                          <input type="text" value={theme.backgroundVideo} onChange={e => setTheme({...theme, backgroundVideo: e.target.value})} className={inputStyle} placeholder="Overrides Image if provided" />
                       </div>
                       <div>
                           <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Profile Banner</label>
                           <input type="text" value={theme.banner} onChange={e => setTheme({...theme, banner: e.target.value})} className={inputStyle} placeholder="Image URL" />
-                      </div>
-                      <div>
-                          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Custom Avatar</label>
-                          <input type="text" value={theme.avatar} onChange={e => setTheme({...theme, avatar: e.target.value})} className={inputStyle} placeholder="Image URL" />
-                          {socials.discord_avatar && (
-                             <button 
-                                onClick={() => setTheme({...theme, avatar: socials.discord_avatar})}
-                                className="mt-3 w-full py-2 bg-[#5865F2]/10 hover:bg-[#5865F2]/20 border border-[#5865F2]/30 text-[#5865F2] text-[10px] font-bold uppercase tracking-widest rounded-xl transition flex items-center justify-center gap-2"
-                             >
-                                <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
-                               Sync Discord Avatar & Frame
-                             </button>
-                          )}
                       </div>
                    </div>
 
@@ -1330,6 +1311,11 @@ function DashboardContent() {
                        </div>
 
                        <div>
+                          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Custom Avatar URL</label>
+                          <input type="text" value={theme.avatar} onChange={e => setTheme({...theme, avatar: e.target.value})} className={inputStyle} placeholder="Image URL" />
+                       </div>
+
+                       <div>
                           <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Avatar Decoration Frame</label>
                           <select value={theme.avatarDecoration} onChange={e => setTheme({...theme, avatarDecoration: e.target.value, discordDecoration: ""})} className={`${inputStyle} cursor-pointer`}>
                              <optgroup label="Standard">
@@ -1347,41 +1333,50 @@ function DashboardContent() {
                                <option value="cherry_god">Cherry Blossoms 🌸</option>
                              </optgroup>
                           </select>
+                       </div>
 
-                          {/* NEW: Discord Nitro Integration Box */}
-                          <div className="mt-4 p-4 bg-[#5865F2]/10 border border-[#5865F2]/20 rounded-2xl">
-                             <div className="flex items-center gap-2 mb-2">
-                                <svg className="w-4 h-4 text-[#5865F2] fill-current" viewBox="0 0 24 24"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
-                                <h4 className="font-bold text-[#5865F2] text-xs">Nitro Frame Sync</h4>
+                       {/* Discord Nitro Integration Box */}
+                       <div className="col-span-full mt-4 p-6 bg-[#5865F2]/10 border border-[#5865F2]/20 rounded-2xl">
+                          <div className="flex items-center gap-2 mb-2">
+                             <svg className="w-5 h-5 text-[#5865F2] fill-current" viewBox="0 0 24 24"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
+                                <h4 className="font-bold text-[#5865F2] text-sm">Nitro Avatar & Frame Sync</h4>
                              </div>
-                             <p className="text-[10px] text-zinc-400 mb-3 leading-relaxed">
-                                We can pull your active Avatar Decoration from Discord. Equip it on Discord first, then click Sync.
+                             <p className="text-xs text-zinc-400 mb-4 leading-relaxed">
+                                We can pull your active Avatar and Decoration from Discord. Equip it on Discord first, then click Sync.
                              </p>
-                             <div className="flex flex-col gap-2">
-                                <button onClick={connectDiscord} className="w-full py-2 bg-[#5865F2] hover:bg-[#4752c4] text-white text-[10px] font-bold uppercase tracking-wider rounded-lg transition">
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <button onClick={connectDiscord} className="w-full py-3 bg-[#5865F2] hover:bg-[#4752c4] text-white text-[10px] font-bold uppercase tracking-wider rounded-xl transition">
                                    1. Fetch Latest from Discord
                                 </button>
+                                {socials.discord_avatar && (
+                                   <button 
+                                      onClick={() => setTheme({...theme, avatar: socials.discord_avatar})}
+                                      className="w-full py-3 bg-white/10 hover:bg-white/20 text-white text-[10px] font-bold uppercase tracking-wider rounded-xl transition border border-white/10"
+                                   >
+                                      2. Apply Nitro Avatar
+                                   </button>
+                                )}
                                 {socials.discord_decoration && (
                                    <button 
                                       onClick={() => setTheme({...theme, discordDecoration: socials.discord_decoration, avatarDecoration: 'none'})}
-                                      className="w-full py-2 bg-white text-black hover:bg-zinc-200 text-[10px] font-bold uppercase tracking-wider rounded-lg transition"
+                                      className="w-full py-3 bg-white text-black hover:bg-zinc-200 text-[10px] font-bold uppercase tracking-wider rounded-xl transition"
                                    >
-                                      2. Apply Nitro Frame
+                                      3. Apply Nitro Frame
                                    </button>
                                 )}
                                 {theme.discordDecoration && (
                                    <button 
                                       onClick={() => setTheme({...theme, discordDecoration: ""})}
-                                      className="w-full py-2 mt-1 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 text-[10px] font-bold uppercase tracking-wider rounded-lg transition"
+                                      className="w-full py-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 text-[10px] font-bold uppercase tracking-wider rounded-xl transition"
                                    >
                                       Remove Frame
                                    </button>
                                 )}
                              </div>
                           </div>
-                       </div>
                        
-                       <div>
+                       {/* Cursor Effects */}
+                       <div className="col-span-full">
                           <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Cursor Trail Effects</label>
                           <select value={theme.cursorTrail} onChange={e => setTheme({...theme, cursorTrail: e.target.value})} className={`${inputStyle} cursor-pointer`}>
                              <option value="none">Default (None)</option>
@@ -1534,7 +1529,6 @@ function DashboardContent() {
       </div>
 
       {/* --- CUSTOM GLOBAL MODALS --- */}
-      
       {/* Alert Modal */}
       {alertContent && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
