@@ -13,6 +13,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@lottiefiles/react-lottie-player": "^3.6.0",
+    "@supabase/supabase-js": "^2.101.1",
     "@vercel/analytics": "^1.6.1",
     "@visx/curve": "^3.12.0",
     "@visx/event": "^3.12.0",
