@@ -70,6 +70,9 @@ export default function NetworkDashboard() {
   const [livePortfolioValue, setLivePortfolioValue] = useState(0);
   useEffect(() => {
      const fetchPortfolioValue = async () => {
+        // SMART POLLING: Pause fetching if the tab is inactive
+        if (document.hidden) return;
+
         if (Object.keys(portfolio).length === 0) {
            setLivePortfolioValue(0);
            return;
@@ -94,7 +97,8 @@ export default function NetworkDashboard() {
      };
      
      fetchPortfolioValue();
-     const int = setInterval(fetchPortfolioValue, 3000);
+     // MMO SCALING: Increased from 3s to 10s
+     const int = setInterval(fetchPortfolioValue, 10000);
      return () => clearInterval(int);
   }, [portfolio]);
 
@@ -355,8 +359,13 @@ export default function NetworkDashboard() {
   useEffect(() => {
     if (playerPath !== 'corporate' && playerPath !== 'founder') return;
     const saveInterval = setInterval(() => {
+        // SMART POLLING: Only save to Supabase if they are actively looking at the page.
+        // If they close the tab, it's fine, the offline math will catch them up next time!
+        if (document.hidden) return;
+
         saveGameState({ pending_salary: displaySalaryRef.current, startup_data: startupDataRef.current, last_salary_sync: new Date().toISOString() });
-    }, 15000);
+    // MMO SCALING: Save every 60 seconds instead of 15 seconds to protect Database limits
+    }, 60000);
     return () => clearInterval(saveInterval);
   }, [playerPath]);
 

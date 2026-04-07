@@ -143,10 +143,10 @@ export default function OverviewTab({
     
     const netProfit = grossRev - totalCost;
     
-    // === NEW OVERWORK PENALTY MATH (Updated to 50%) ===
+    // === OVERWORK PENALTY MATH (Stable only at <= 50% workload) ===
     let moraleTrend = (payroll - workload) * 0.5;
     if (workload > 50) {
-        // If they push past 50%, apply a heavy penalty. 
+        // If they push past 50%, apply a heavy penalty to the trend. 
         moraleTrend -= (workload - 50) * 1.0; 
     }
     
