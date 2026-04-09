@@ -1,165 +1,280 @@
 "use client";
 
-import React, { useState } from 'react';
-// FIX: Added the missing Briefcase icon here!
-import { Landmark, Building2, PiggyBank, Shield, CreditCard, ArrowRightLeft, Briefcase } from 'lucide-react';
+import React from 'react';
+import { Landmark, Shield, ArrowUpRight, ArrowDownRight, Wifi, Lock } from 'lucide-react';
+
+const BANKS = [
+  { 
+     id: 'pulse_reserve', 
+     name: 'Pulse Reserve', 
+     gradient: 'from-zinc-800 via-zinc-900 to-[#0a0a0a]', 
+     glow: 'bg-zinc-500/20', border: 'border-zinc-700/50', logo: 'text-zinc-100',
+     perk: 'Standard Rates & High Stability', cardType: 'OmniCard'
+  },
+  { 
+     id: 'capital_none', 
+     name: 'Capital None', 
+     gradient: 'from-red-900/80 via-red-950 to-[#0a0a0a]', 
+     glow: 'bg-red-500/20', border: 'border-red-800/50', logo: 'text-red-400',
+     perk: '2x Credit Limit Multiplier', cardType: 'Bisa'
+  },
+  { 
+     id: 'robin_hoodlum', 
+     name: 'RobinHoodlum', 
+     gradient: 'from-emerald-800/80 via-emerald-950 to-[#0a0a0a]', 
+     glow: 'bg-emerald-500/20', border: 'border-emerald-700/50', logo: 'text-emerald-500',
+     perk: '0% Stock Trading Fees', cardType: 'Bisa'
+  },
+  { 
+     id: 'swells_cargo', 
+     name: 'Swells Cargo', 
+     gradient: 'from-yellow-700/80 via-yellow-900 to-[#0a0a0a]', 
+     glow: 'bg-yellow-500/20', border: 'border-yellow-600/50', logo: 'text-yellow-500',
+     perk: '1.5x Savings Vault APY', cardType: 'Discoverer'
+  },
+  { 
+     id: 'chased', 
+     name: 'Chased Bank', 
+     gradient: 'from-blue-800/80 via-blue-950 to-[#0a0a0a]', 
+     glow: 'bg-blue-500/20', border: 'border-blue-700/50', logo: 'text-blue-400',
+     perk: '5% Cashback on Lifestyle', cardType: 'Sapphire'
+  },
+  { 
+     id: 'bank_of_avarice', 
+     name: 'Bank of Avarice', 
+     gradient: 'from-rose-900/80 via-rose-950 to-[#0a0a0a]', 
+     glow: 'bg-rose-500/20', border: 'border-rose-800/50', logo: 'text-rose-400',
+     perk: 'Offshore Security & Privacy', cardType: 'Americash'
+  },
+  { 
+     id: 'pity_bank', 
+     name: 'PityBank', 
+     gradient: 'from-cyan-900/80 via-cyan-950 to-[#0a0a0a]', 
+     glow: 'bg-cyan-500/20', border: 'border-cyan-800/50', logo: 'text-cyan-400',
+     perk: 'Zero Transfer Fees', cardType: 'OmniCard'
+  }
+];
+
+// --- Custom Parody Card Brands ---
+const CardBrand = ({ type, size = 'lg' }: { type: string, size?: 'sm' | 'lg' }) => {
+  const scale = size === 'sm' ? 'scale-75 origin-right' : 'scale-100';
+  
+  if (type === 'OmniCard') return (
+    <div className={`flex ${scale} opacity-90 drop-shadow-md`}>
+       <div className="w-6 h-6 rounded-full bg-red-500/90 mix-blend-screen"></div>
+       <div className="w-6 h-6 rounded-full bg-orange-500/90 mix-blend-screen -ml-3"></div>
+    </div>
+  );
+  if (type === 'Bisa') return <div className={`text-blue-400 font-black italic tracking-widest drop-shadow-md ${size === 'sm' ? 'text-sm' : 'text-xl'} ${scale}`}>BISA</div>;
+  if (type === 'Americash') return <div className={`bg-blue-500/20 border border-blue-400/50 text-blue-200 font-black uppercase px-2 py-0.5 rounded drop-shadow-md ${size === 'sm' ? 'text-[8px]' : 'text-xs'} ${scale}`}>Americash</div>;
+  if (type === 'Discoverer') return <div className={`flex items-center text-orange-400 font-black uppercase tracking-wider drop-shadow-md ${size === 'sm' ? 'text-[9px]' : 'text-sm'} ${scale}`}>DISC<span className={`${size === 'sm' ? 'w-2 h-2' : 'w-3 h-3'} rounded-full bg-orange-500 mx-[1px] inline-block`}></span>VERER</div>;
+  if (type === 'Sapphire') return <div className={`text-blue-300 font-serif font-bold italic tracking-wider drop-shadow-md ${size === 'sm' ? 'text-xs' : 'text-lg'} ${scale}`}>Sapphire</div>;
+  
+  return null;
+}
 
 export default function BankingTab({ 
-  balance, savingsBalance, loanBalance, loanAccountBalance, fico, selectedBank, accountNumber,
-  transferAmount, setTransferAmount, handleBankSelect, handleTransfer, handleTakeLoan, handleRepayLoan 
+  balance, savingsBalance, loanBalance, loanAccountBalance, fico, 
+  selectedBank, accountNumber, transferAmount, setTransferAmount, 
+  handleBankSelect, handleTransfer, handleTakeLoan, handleRepayLoan,
+  displayName, showPrompt, showConfirm
 }: any) {
-  
-  const [loanInput, setLoanInput] = useState("");
 
-  if (!selectedBank) {
-    return (
-      <div className="max-w-5xl mx-auto">
-        <div className="text-center mb-10">
-            <h2 className="text-3xl md:text-4xl font-black text-white mb-4 tracking-tight">Select a Financial Institution</h2>
-            <p className="text-zinc-400 max-w-xl mx-auto">To store your wealth and earn interest, you must open an account. Choose wisely, as your bank dictates your financial perks.</p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <button onClick={() => handleBankSelect('bop')} className="bg-[#121214] border border-white/10 hover:border-blue-500/50 p-8 rounded-3xl text-left flex flex-col group transition-all shadow-xl hover:shadow-[0_0_30px_rgba(59,130,246,0.15)]">
-              <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-400 mb-6 border border-blue-500/20 group-hover:scale-110 transition-transform"><Landmark className="w-6 h-6" /></div>
-              <h3 className="text-xl font-black text-white mb-2">Bank of Pulse (BoP)</h3>
-              <p className="text-sm text-zinc-400 mb-6">Beginner-friendly. No hidden account fees, straightforward banking.</p>
-              <div className="mt-auto space-y-2 text-xs font-mono">
-                  <div className="flex justify-between border-b border-white/5 pb-2"><span className="text-zinc-500">Account Fee</span><span className="text-emerald-400">$0 / day</span></div>
-                  <div className="flex justify-between pt-1"><span className="text-zinc-500">Savings APY</span><span className="text-zinc-300">0.0%</span></div>
-              </div>
-            </button>
-            <button onClick={() => handleBankSelect('maze')} className="bg-[#121214] border border-white/10 hover:border-red-500/50 p-8 rounded-3xl text-left flex flex-col group transition-all shadow-xl hover:shadow-[0_0_30px_rgba(239,68,68,0.15)]">
-              <div className="w-12 h-12 bg-red-500/10 rounded-2xl flex items-center justify-center text-red-400 mb-6 border border-red-500/20 group-hover:scale-110 transition-transform"><Building2 className="w-6 h-6" /></div>
-              <h3 className="text-xl font-black text-white mb-2">Maze Bank</h3>
-              <p className="text-sm text-zinc-400 mb-6">The Investor's choice. High account fees, but free stock trading included.</p>
-              <div className="mt-auto space-y-2 text-xs font-mono">
-                  <div className="flex justify-between border-b border-white/5 pb-2"><span className="text-zinc-500">Account Fee</span><span className="text-red-400">-$50 / day</span></div>
-                  <div className="flex justify-between pt-1"><span className="text-zinc-500">Trading Fee</span><span className="text-emerald-400">0%</span></div>
-              </div>
-            </button>
-            <button onClick={() => handleBankSelect('swells')} className="bg-[#121214] border border-white/10 hover:border-emerald-500/50 p-8 rounded-3xl text-left flex flex-col group transition-all shadow-xl hover:shadow-[0_0_30px_rgba(16,185,129,0.15)]">
-              <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 mb-6 border border-emerald-500/20 group-hover:scale-110 transition-transform"><PiggyBank className="w-6 h-6" /></div>
-              <h3 className="text-xl font-black text-white mb-2">Swells Cargo</h3>
-              <p className="text-sm text-zinc-400 mb-6">The Saver's choice. Highest APY on savings, but brutal interest rates on loans.</p>
-              <div className="mt-auto space-y-2 text-xs font-mono">
-                  <div className="flex justify-between border-b border-white/5 pb-2"><span className="text-zinc-500">Savings APY</span><span className="text-emerald-400">5.0% Daily</span></div>
-                  <div className="flex justify-between pt-1"><span className="text-zinc-500">Loan Interest</span><span className="text-red-400">25% Brutal</span></div>
-              </div>
-            </button>
-            <button onClick={() => handleBankSelect('capital_none')} className="bg-[#121214] border border-white/10 hover:border-indigo-500/50 p-8 rounded-3xl text-left flex flex-col group transition-all shadow-xl hover:shadow-[0_0_30px_rgba(99,102,241,0.15)]">
-              <div className="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-indigo-400 mb-6 border border-indigo-500/20 group-hover:scale-110 transition-transform"><Shield className="w-6 h-6" /></div>
-              <h3 className="text-xl font-black text-white mb-2">Capital None</h3>
-              <p className="text-sm text-zinc-400 mb-6">The Credit builder. Easiest bank to raise your FICO score and get high-limit loans.</p>
-              <div className="mt-auto space-y-2 text-xs font-mono">
-                  <div className="flex justify-between border-b border-white/5 pb-2"><span className="text-zinc-500">Credit Growth</span><span className="text-emerald-400">2x Speed</span></div>
-                  <div className="flex justify-between pt-1"><span className="text-zinc-500">Loan Limit</span><span className="text-emerald-400">High</span></div>
-              </div>
-            </button>
-        </div>
-      </div>
-    );
-  }
-
-  const maxLoan = selectedBank === 'capital_none' ? fico * 200 : fico * 50;
-  const availableCredit = Math.max(0, maxLoan - loanBalance);
+  // Get active bank details
+  const currentBank = BANKS.find(b => b.id === selectedBank);
+  const displayCardNumber = accountNumber ? `•••• •••• •••• ${accountNumber.slice(-4)}` : '•••• •••• •••• ••••';
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in duration-500">
-      <div className="bg-[#121214] border border-white/10 rounded-3xl p-8 flex flex-col justify-between shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-8 opacity-5"><Landmark className="w-48 h-48" /></div>
-          
-          <div className="relative z-10 w-full flex items-center justify-between mb-4">
-            <div>
-              <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-1">Active Institution</p>
-              <h2 className="text-3xl font-black text-white capitalize">{selectedBank.replace('_', ' ')}</h2>
-            </div>
-            <button onClick={() => handleBankSelect(null)} className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl transition border border-white/10 backdrop-blur-md">Switch Bank</button>
-          </div>
-          
-          <div className="relative z-10 w-full bg-black/40 p-4 rounded-2xl border border-white/5 flex justify-between items-center">
-             <div>
-                <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold mb-1">Secure Account Number</p>
-                <p className="font-mono text-sm tracking-widest text-indigo-300">
-                   {accountNumber ? accountNumber.match(/.{1,5}/g)?.join('-') : 'Generating...'}
-                </p>
-             </div>
-             <Shield className="w-5 h-5 text-zinc-600" />
-          </div>
+    <div className="max-w-6xl mx-auto animate-in fade-in duration-500">
+      <div className="mb-8 border-b border-white/5 pb-6">
+         <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight flex items-center gap-3">
+            <Landmark className="text-emerald-400 w-8 h-8"/> Central Banking
+         </h2>
+         <p className="text-zinc-400 text-sm mt-2">Manage your liquidity, secure assets, and leverage your credit.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-[#121214] border border-white/10 rounded-3xl p-8 shadow-2xl relative overflow-hidden group hover:border-emerald-500/30 transition-colors">
-            <div className="flex justify-between items-start mb-8">
-                <div>
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2"><CreditCard className="w-4 h-4 text-emerald-400"/> Current Account</h3>
-                  <p className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">Liquid Cash</p>
-                </div>
+      {!selectedBank ? (
+         <div className="mb-12">
+            <div className="text-center mb-8">
+               <h3 className="text-xl font-bold text-white mb-2">Select a Financial Institution</h3>
+               <p className="text-sm text-zinc-500">Choose a bank to open your primary checking account.</p>
+               <div className="inline-block mt-3 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-bold px-3 py-1.5 rounded-lg uppercase tracking-widest">
+                  ⚠️ Unbanked Cash Limit: $50,000
+               </div>
             </div>
-            <h2 className="text-3xl font-black font-mono tracking-tighter text-white">
-                ${Number(balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </h2>
-          </div>
-          <div className="bg-[#121214] border border-white/10 rounded-3xl p-8 shadow-2xl relative overflow-hidden group hover:border-indigo-500/30 transition-colors">
-            <div className="flex justify-between items-start mb-8">
-                <div>
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2"><PiggyBank className="w-4 h-4 text-indigo-400"/> Savings Vault</h3>
-                  <p className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">Earning Interest</p>
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 max-w-7xl mx-auto">
+               {BANKS.map((bank) => (
+                  <div 
+                     key={bank.id} 
+                     onClick={() => handleBankSelect(bank.id)}
+                     className={`relative w-full aspect-[1.586/1] rounded-[24px] p-5 text-white flex flex-col justify-between cursor-pointer transition-all duration-500 overflow-hidden bg-gradient-to-br ${bank.gradient} border ${bank.border} hover:scale-105 hover:shadow-[0_0_40px_rgba(255,255,255,0.1)] group`}
+                  >
+                     <div className={`absolute top-0 right-0 w-32 h-32 ${bank.glow} blur-[50px] rounded-full group-hover:opacity-100 transition-opacity opacity-50`}></div>
+                     
+                     <div className="relative z-10 flex justify-between items-start">
+                        <svg className="w-8 h-8 opacity-90 drop-shadow-md" viewBox="0 0 40 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+                           <rect width="40" height="30" rx="4" fill="url(#paint0_linear)"/>
+                           <path d="M10 0V30M30 0V30M0 15H40M15 0V15M25 30V15" stroke="#B8860B" strokeWidth="0.5" strokeOpacity="0.5"/>
+                           <defs><linearGradient id="paint0_linear" x1="0" y1="0" x2="40" y2="30" gradientUnits="userSpaceOnUse"><stop stopColor="#F9D423"/><stop offset="1" stopColor="#B8860B"/></linearGradient></defs>
+                        </svg>
+                        <Wifi className="w-5 h-5 opacity-50 rotate-90" />
+                     </div>
+                     
+                     <div className="relative z-10 text-center -mt-2">
+                        <h4 className={`text-lg font-black tracking-widest truncate ${bank.logo}`}>{bank.name}</h4>
+                        <p className="text-[8px] font-bold text-white/70 uppercase tracking-widest mt-1 bg-black/20 px-2 py-0.5 rounded inline-block border border-white/5">{bank.perk}</p>
+                     </div>
+                     
+                     <div className="relative z-10 flex justify-between items-end opacity-60">
+                        <div>
+                           <p className="font-mono text-xs tracking-widest">•••• ••••</p>
+                           <p className="text-[7px] uppercase tracking-widest mt-1">Pulse Network</p>
+                        </div>
+                        <CardBrand type={bank.cardType} size="sm" />
+                     </div>
+                  </div>
+               ))}
             </div>
-            <h2 className="text-3xl font-black font-mono tracking-tighter text-white">
-                ${Number(savingsBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </h2>
-          </div>
-          <div className="bg-[#121214] border border-white/10 rounded-3xl p-8 shadow-2xl relative overflow-hidden group hover:border-orange-500/30 transition-colors">
-            <div className="flex justify-between items-start mb-8">
-                <div>
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2"><Briefcase className="w-4 h-4 text-orange-400"/> Loan Account</h3>
-                  <p className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">Borrowed Funds</p>
-                </div>
-            </div>
-            <h2 className="text-3xl font-black font-mono tracking-tighter text-white">
-                ${Number(loanAccountBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </h2>
-          </div>
-      </div>
+         </div>
+      ) : (
+         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            {/* LEFT COLUMN: Physical Card UI */}
+            <div className="lg:col-span-5 flex flex-col items-center md:items-start">
+               <div className="w-full max-w-[420px] flex justify-between items-center mb-4">
+                  <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Primary Account</h3>
+                  <button onClick={async () => {
+                     const confirm = await showConfirm("Switch Bank", "Are you sure you want to switch to a different financial institution?");
+                     if(confirm) handleBankSelect(null);
+                  }} className="text-[9px] font-bold text-zinc-500 hover:text-white uppercase tracking-widest bg-white/5 hover:bg-white/10 px-2 py-1 rounded transition-colors">
+                     Switch Bank
+                  </button>
+               </div>
+               
+               <div className={`relative w-full max-w-[420px] aspect-[1.586/1] rounded-[24px] p-6 md:p-8 text-white flex flex-col justify-between overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] border ${currentBank?.border} bg-gradient-to-br ${currentBank?.gradient}`}>
+                  <div className={`absolute top-0 right-0 w-48 h-48 ${currentBank?.glow} blur-[60px] rounded-full opacity-80`}></div>
+                  <div className={`absolute bottom-0 left-0 w-32 h-32 ${currentBank?.glow} blur-[40px] rounded-full opacity-40`}></div>
+                  
+                  <div className="relative z-10 flex justify-between items-start">
+                     <svg className="w-10 h-10 md:w-12 md:h-12 opacity-90 drop-shadow-md" viewBox="0 0 40 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="40" height="30" rx="4" fill="url(#paint0_linear)"/>
+                        <path d="M10 0V30M30 0V30M0 15H40M15 0V15M25 30V15" stroke="#B8860B" strokeWidth="0.5" strokeOpacity="0.5"/>
+                        <defs><linearGradient id="paint0_linear" x1="0" y1="0" x2="40" y2="30" gradientUnits="userSpaceOnUse"><stop stopColor="#F9D423"/><stop offset="1" stopColor="#B8860B"/></linearGradient></defs>
+                     </svg>
+                     <div className="flex flex-col items-end">
+                        <h4 className={`text-sm md:text-base font-black tracking-widest uppercase ${currentBank?.logo}`}>{currentBank?.name}</h4>
+                        <Wifi className="w-5 h-5 opacity-50 rotate-90 mt-1" />
+                     </div>
+                  </div>
+                  
+                  <div className="relative z-10 my-4">
+                     <p className="text-[10px] uppercase tracking-[0.2em] text-white/50 mb-1">Available Balance</p>
+                     <h2 className="text-4xl md:text-5xl font-mono font-black tracking-tighter drop-shadow-lg">
+                        ${Number(balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                     </h2>
+                  </div>
+                  
+                  <div className="relative z-10 flex justify-between items-end">
+                     <div>
+                        <p className="font-mono text-sm md:text-base tracking-[0.15em] opacity-80 drop-shadow-sm">{displayCardNumber}</p>
+                        <div className="flex gap-4 mt-2">
+                           <p className="text-[9px] uppercase tracking-widest opacity-60">{displayName || 'Pulse User'}</p>
+                           <p className="text-[9px] uppercase tracking-widest opacity-60 font-mono">12/28</p>
+                        </div>
+                     </div>
+                     <CardBrand type={currentBank?.cardType || 'OmniCard'} />
+                  </div>
+               </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
-          <div className="bg-black/40 border border-white/5 rounded-3xl p-8 shadow-inner">
-            <h3 className="text-lg font-black text-white mb-6 text-center">Transfer Funds</h3>
-            <p className="text-xs text-zinc-500 text-center mb-4">Move money between Current and Savings. Loan funds cannot be transferred to prevent network abuse.</p>
-            <div className="flex flex-col items-center gap-6">
-                <div className="relative w-full max-w-xs">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-400 font-mono">$</div>
-                  <input type="number" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} className="w-full bg-[#121214] border border-white/10 rounded-2xl py-3.5 pl-8 pr-4 text-white font-mono text-sm focus:outline-none focus:border-indigo-500 transition-colors" placeholder="0.00" />
-                </div>
-                <div className="flex w-full gap-3">
-                  <button onClick={() => handleTransfer('to_savings')} className="flex-1 bg-white/5 hover:bg-indigo-500/20 text-white font-bold py-3.5 rounded-xl border border-white/10 hover:border-indigo-500/30 transition-all text-xs flex items-center justify-center gap-2"><ArrowRightLeft className="w-4 h-4" /> To Savings</button>
-                  <button onClick={() => handleTransfer('to_current')} className="flex-1 bg-white/5 hover:bg-emerald-500/20 text-white font-bold py-3.5 rounded-xl border border-white/10 hover:border-emerald-500/30 transition-all text-xs flex items-center justify-center gap-2"><ArrowRightLeft className="w-4 h-4" /> To Current</button>
-                </div>
+               <div className="w-full max-w-[420px] mt-6 bg-[#121214] border border-white/5 rounded-[24px] p-5 flex items-center justify-between shadow-inner">
+                  <div className="flex items-center gap-3">
+                     <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/10"><Shield className="w-4 h-4 text-emerald-400" /></div>
+                     <div>
+                        <p className="text-sm font-bold text-white mb-0.5">Active Bank Perks</p>
+                        <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">{currentBank?.perk}</p>
+                     </div>
+                  </div>
+               </div>
             </div>
-          </div>
 
-          <div className="bg-black/40 border border-white/5 rounded-3xl p-8 shadow-inner">
-            <h3 className="text-lg font-black text-white mb-2 text-center">Credit Line & Loans</h3>
-            <p className="text-[10px] text-zinc-500 text-center mb-6 uppercase tracking-widest font-bold">Available Credit: <span className="text-emerald-400">${availableCredit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></p>
-            <div className="flex justify-between items-center mb-6 bg-white/5 p-4 rounded-2xl border border-white/10">
-                <div>
-                  <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold mb-1">Outstanding Balance</p>
-                  <p className="text-xl font-black text-red-400 font-mono">${Number(loanBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                </div>
+            {/* RIGHT COLUMN: Bank Operations */}
+            <div className="lg:col-span-7 flex flex-col gap-6">
+               
+               {/* SAVINGS VAULT & TRANSFERS (Original Clean UI) */}
+               <div className="bg-[#121214] border border-white/5 rounded-[24px] p-6 md:p-8 shadow-xl relative overflow-hidden group hover:border-white/10 transition-colors">
+                  <div className="absolute top-0 right-0 p-8 opacity-5"><Lock className="w-32 h-32" /></div>
+                  
+                  <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8 border-b border-white/5 pb-6">
+                     <div>
+                        <h3 className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-1 flex items-center gap-2"><Lock className="w-3 h-3"/> High-Yield Savings</h3>
+                        <p className="text-3xl font-black font-mono text-white">${Number(savingsBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                     </div>
+                     <div className="w-full md:w-auto">
+                        <div className="bg-black/40 border border-white/10 rounded-xl flex overflow-hidden p-1 shadow-inner focus-within:border-emerald-500/50 transition-colors">
+                           <span className="text-zinc-500 font-mono font-bold pl-4 py-3">$</span>
+                           <input 
+                              type="number" 
+                              value={transferAmount}
+                              onChange={(e) => setTransferAmount(e.target.value)}
+                              placeholder="0.00" 
+                              className="bg-transparent border-none text-white font-mono font-bold focus:ring-0 w-full md:w-32 px-2 py-3 outline-none placeholder:text-zinc-700" 
+                           />
+                        </div>
+                     </div>
+                  </div>
+                  
+                  <div className="relative z-10 flex flex-col sm:flex-row gap-3">
+                     <button onClick={() => handleTransfer('to_savings')} className="flex-1 flex items-center justify-center gap-2 py-4 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-bold uppercase tracking-widest transition-colors shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+                        <ArrowUpRight className="w-4 h-4" /> Deposit to Vault
+                     </button>
+                     <button onClick={() => handleTransfer('to_current')} className="flex-1 flex items-center justify-center gap-2 py-4 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-xl text-xs font-bold uppercase tracking-widest transition-colors">
+                        <ArrowDownRight className="w-4 h-4" /> Withdraw Cash
+                     </button>
+                  </div>
+               </div>
+
+               {/* CREDIT & LOANS */}
+               <div className="bg-[#121214] border border-white/5 rounded-[24px] p-6 md:p-8 shadow-xl relative overflow-hidden group hover:border-white/10 transition-colors">
+                  <div className="absolute top-0 right-0 p-8 opacity-5"><Landmark className="w-32 h-32" /></div>
+                  <div className="relative z-10 flex flex-col md:flex-row md:items-start justify-between gap-6 mb-6">
+                     <div>
+                        <h3 className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-1">Credit Department</h3>
+                        <p className="text-sm font-medium text-zinc-400 mb-2">Active Loan Balance</p>
+                        <p className="text-3xl font-black font-mono text-red-400 drop-shadow-md">-${Number(loanBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                     </div>
+                     <div className="text-left md:text-right bg-black/30 p-4 rounded-xl border border-white/5">
+                        <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Locked Loan Account</p>
+                        <p className="text-lg font-mono font-bold text-orange-400">${Number(loanAccountBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                        <p className="text-[9px] text-zinc-600 mt-1 max-w-[150px] leading-tight">Funds restricted for large asset purchases.</p>
+                     </div>
+                  </div>
+
+                  <div className="relative z-10 flex flex-col sm:flex-row gap-3">
+                     <button 
+                        onClick={async () => {
+                           const amtStr = await showPrompt("Apply for Loan", "Enter amount to borrow. This will be deposited to your locked Loan Account:", "50000");
+                           if (amtStr) handleTakeLoan(amtStr);
+                        }} 
+                        className="flex-1 py-4 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded-xl text-xs font-bold uppercase tracking-widest transition-colors shadow-[0_0_15px_rgba(249,115,22,0.1)]"
+                     >
+                        Apply For Loan
+                     </button>
+                     <button 
+                        onClick={async () => {
+                           const amtStr = await showPrompt("Make Payment", "Enter amount to repay:", "10000");
+                           if (amtStr) handleRepayLoan(amtStr);
+                        }} 
+                        disabled={loanBalance === 0} 
+                        className="flex-1 py-4 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed text-white border border-white/10 rounded-xl text-xs font-bold uppercase tracking-widest transition-colors"
+                     >
+                        Make Payment
+                     </button>
+                  </div>
+               </div>
+
             </div>
-            <div className="flex flex-col items-center gap-4">
-                <div className="relative w-full max-w-xs">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-400 font-mono">$</div>
-                  <input type="number" value={loanInput} onChange={(e) => setLoanInput(e.target.value)} className="w-full bg-[#121214] border border-white/10 rounded-2xl py-3.5 pl-8 pr-4 text-white font-mono text-sm focus:outline-none focus:border-indigo-500 transition-colors" placeholder="0.00" />
-                </div>
-                <div className="flex w-full gap-3">
-                  <button onClick={() => { handleTakeLoan(loanInput); setLoanInput(''); }} className="flex-1 bg-white/5 hover:bg-orange-500/20 text-white font-bold py-3.5 rounded-xl border border-white/10 hover:border-orange-500/30 transition-all text-xs">Take Loan</button>
-                  <button onClick={() => { handleRepayLoan(loanInput); setLoanInput(''); }} className="flex-1 bg-white/5 hover:bg-emerald-500/20 text-white font-bold py-3.5 rounded-xl border border-white/10 hover:border-emerald-500/30 transition-all text-xs">Repay</button>
-                </div>
-            </div>
-          </div>
-      </div>
+         </div>
+      )}
     </div>
   );
 }

@@ -10,13 +10,14 @@ export default function OverviewTab({
   playerPath, netWorthHistory, currentLocName, energy, ownedVehicles, setBalance, 
   setEnergy, setActiveJob, saveGameState, handleSwitchPathClick, corporateLevel, 
   currentRole, displaySalary, pendingSalary, monthlySalaryTarget, salaryProgressPercentage, 
-  handleClaimSalary, currentLocation, ownedProperties, startupData, setStartupData, locMultiplier
+  handleClaimSalary, currentLocation, ownedProperties, startupData, setStartupData, locMultiplier,
+  showAlert, showConfirm, showPrompt
 }: any) {
 
   const HustlerPath = () => {
     const hasCar = ownedVehicles && ownedVehicles.length > 0;
-    const handleStartJob = (job: any) => {
-        if (energy < job.energyCost) return alert(`Not enough energy! You need ${job.energyCost}⚡.`);
+    const handleStartJob = async (job: any) => {
+        if (energy < job.energyCost) return await showAlert("Energy Depleted", `Not enough energy! You need ${job.energyCost}⚡ to do this job.`);
         const newEnergy = Number(energy) - job.energyCost;
         setEnergy(newEnergy);
         saveGameState({ energy: newEnergy });
@@ -52,7 +53,7 @@ export default function OverviewTab({
                <div><h4 className="font-bold text-sm text-white">Personal Trainer</h4><p className="text-[10px] font-mono text-zinc-500">Pays <span className="text-emerald-400">$80</span> • Costs <span className="text-yellow-400">50⚡</span></p></div>
              </button>
              <button 
-               onClick={() => hasCar ? handleStartJob({ title: "Ride-Sharing", basePay: 120, clicksRequired: 80, timeLimit: 20, energyCost: 60 }) : alert("You need to buy a car in the Lifestyle tab first!")} 
+               onClick={async () => hasCar ? handleStartJob({ title: "Ride-Sharing", basePay: 120, clicksRequired: 80, timeLimit: 20, energyCost: 60 }) : await showAlert("Access Denied", "You need to buy a car in the Lifestyle tab first!")} 
                className={`flex items-center gap-3 bg-black/40 border border-white/5 p-4 rounded-xl transition-all group text-left ${hasCar ? 'hover:bg-emerald-500/10 hover:border-emerald-500/30' : 'opacity-50 grayscale cursor-not-allowed'}`}
              >
                <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 group-hover:scale-110 transition-transform"><Car className="w-5 h-5 text-emerald-400" /></div>
@@ -65,8 +66,8 @@ export default function OverviewTab({
                 <p className="text-3xl font-black text-yellow-400 font-mono">{energy}⚡</p>
               </div>
               <button 
-                 onClick={() => {
-                     if (balance < 5) return alert("Not enough money!");
+                 onClick={async () => {
+                     if (balance < 5) return await showAlert("Insufficient Funds", "You don't have enough money for coffee!");
                      const newBal = Number(balance) - 5;
                      const newEnergy = Math.min(100, Number(energy) + 25);
                      setBalance(newBal); setEnergy(newEnergy); saveGameState({ bank_balance: newBal, energy: newEnergy });
@@ -99,8 +100,8 @@ export default function OverviewTab({
             <p className="text-xs font-mono text-emerald-400 flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> Salary: ${currentRole.payPerMinute.toFixed(2)} / min</p>
           </div>
           <button 
-            onClick={() => {
-                if (energy < 50) return alert("You need 50 energy to ask for a raise!");
+            onClick={async () => {
+                if (energy < 50) return await showAlert("Energy Depleted", "You need 50 energy to ask the boss for a raise!");
                 const newEnergy = Number(energy) - 50;
                 setEnergy(newEnergy);
                 saveGameState({ energy: newEnergy });
@@ -143,10 +144,8 @@ export default function OverviewTab({
     
     const netProfit = grossRev - totalCost;
     
-    // === OVERWORK PENALTY MATH (Stable only at <= 50% workload) ===
     let moraleTrend = (payroll - workload) * 0.5;
     if (workload > 50) {
-        // If they push past 50%, apply a heavy penalty to the trend. 
         moraleTrend -= (workload - 50) * 1.0; 
     }
     
@@ -183,8 +182,8 @@ export default function OverviewTab({
                     <p className="text-xl font-black text-white font-mono leading-none">Lv. {level}</p>
                  </div>
                  <button 
-                    onClick={() => {
-                       if (energy < 60) return alert("You need 60 energy to run an expansion campaign!");
+                    onClick={async () => {
+                       if (energy < 60) return await showAlert("Energy Depleted", "You need 60 energy to run an expansion campaign!");
                        const newEnergy = Number(energy) - 60;
                        setEnergy(newEnergy);
                        saveGameState({ energy: newEnergy });
@@ -298,12 +297,20 @@ export default function OverviewTab({
             </h2>
           </div>
         </div>
+        
         <div className="relative z-10 mt-6 flex flex-col gap-3">
-          <div className="flex items-center">
+          {/* UPDATED: Splits Cash and Savings Vault visually */}
+          <div className="flex flex-wrap items-center gap-3">
             <span className="text-emerald-400 font-black text-xl md:text-2xl bg-emerald-500/10 px-4 py-2 rounded-xl border border-emerald-500/20 drop-shadow-md">
-              Cash: ${(Number(balance) + Number(savingsBalance)).toLocaleString('en-US')}
+              Cash: ${Number(balance).toLocaleString('en-US')}
             </span>
+            {Number(savingsBalance) > 0 && (
+               <span className="text-emerald-500 font-black text-lg md:text-xl bg-emerald-900/30 px-4 py-2 rounded-xl border border-emerald-500/20 drop-shadow-md flex items-center gap-2">
+                  <Lock className="w-4 h-4" /> Vault: ${Number(savingsBalance).toLocaleString('en-US')}
+               </span>
+            )}
           </div>
+          
           <div className="flex items-center gap-4 text-xs md:text-sm font-mono font-bold pl-2 opacity-80 flex-wrap">
             <span className="text-indigo-400 flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5"/> Assets: ${Number(assetValue).toLocaleString('en-US')}</span>
             {loanAccountBalance > 0 && <span className="text-orange-400 flex items-center gap-1.5"><Briefcase className="w-3.5 h-3.5"/> Loan Acc: ${Number(loanAccountBalance).toLocaleString('en-US')}</span>}

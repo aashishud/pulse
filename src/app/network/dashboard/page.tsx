@@ -5,15 +5,73 @@ import { useRouter } from 'next/navigation';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { Activity, Globe, MapPin, Zap, ChevronDown, Loader2, LogOut, X, Landmark, TrendingUp, ShoppingBag, Briefcase, Lock, Building2, RefreshCw } from 'lucide-react';
+import { Activity, Globe, MapPin, Zap, ChevronDown, Loader2, LogOut, X, Landmark, TrendingUp, ShoppingBag, Briefcase, Lock, Building2, RefreshCw, AlertCircle, Check } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
-import { LOCATIONS, REAL_ESTATE, VEHICLES, CRYPTO_ASSETS } from '@/lib/network-data';
+import { LOCATIONS, REAL_ESTATE, VEHICLES, CRYPTO_ASSETS, STOCK_ASSETS } from '@/lib/network-data';
 import { PulseNetworkLogo, ActiveJobModal } from '@/components/network/SharedUI';
 import OverviewTab from '@/components/network/OverviewTab';
 import BankingTab from '@/components/network/BankingTab';
 import RealEstateTab from '@/components/network/RealEstateTab';
 import LifestyleTab from '@/components/network/LifestyleTab';
 import MarketsTab from '@/components/network/MarketsTab';
+
+// --- CUSTOM COMPONENT: Account Selector UI ---
+const AccountSelectorUI = ({ modal, closeModal }: { modal: any, closeModal: (result: any) => void }) => {
+   const [selectedId, setSelectedId] = useState(modal.accounts?.[0]?.id);
+
+   return (
+       <div className="bg-[#121214] border border-white/10 rounded-[32px] w-full max-w-sm p-6 sm:p-8 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col space-y-6 animate-in zoom-in-95 duration-200">
+           <div className="text-center">
+               <p className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-2">{modal.title}</p>
+               <p className="mt-1 text-4xl font-black tracking-tight text-white sm:text-5xl">
+                 ${modal.amount?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+               </p>
+               <p className="text-sm text-zinc-400 mt-2">{modal.message}</p>
+           </div>
+
+           <div className="flex-grow">
+               <p className="mb-4 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Choose Account</p>
+               <div className="space-y-3">
+                  {modal.accounts?.map((acc: any) => {
+                     const isSelected = selectedId === acc.id;
+                     return (
+                        <div key={acc.id} onClick={() => setSelectedId(acc.id)} className={`relative flex cursor-pointer items-center space-x-4 rounded-2xl p-4 transition-all duration-300 ${isSelected ? 'text-white' : 'bg-black/20 hover:bg-black/40 text-zinc-400 border border-white/5 hover:border-white/10'}`}>
+                           {isSelected && (
+                              <motion.div layoutId="sel-bg" className="absolute inset-0 z-0 rounded-2xl bg-indigo-600 shadow-[0_0_20px_rgba(99,102,241,0.3)]" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{type:"spring", stiffness:300, damping:30}} />
+                           )}
+                           <div className={`relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold text-sm border shadow-sm ${isSelected ? 'bg-indigo-500/20 border-indigo-400/30 text-white' : 'bg-white/5 border-white/10 text-zinc-500'}`}>
+                              {acc.initials}
+                           </div>
+                           <div className="relative z-10 flex-grow">
+                              <p className={`font-bold text-sm ${isSelected ? 'text-white' : 'text-zinc-300'}`}>{acc.name}</p>
+                              <p className={`text-xs ${isSelected ? 'text-indigo-200' : 'text-zinc-500'}`}>{acc.details}</p>
+                           </div>
+                           <div className="relative z-10 h-6 w-6">
+                              <AnimatePresence>
+                                 {isSelected && (
+                                    <motion.div initial={{scale:0.5, opacity:0}} animate={{scale:1, opacity:1}} exit={{scale:0.5, opacity:0}} transition={{type:'spring', stiffness:400, damping:20}} className="flex h-full w-full items-center justify-center rounded-full bg-white text-indigo-600 shadow-md">
+                                       <Check className="h-4 w-4" strokeWidth={3} />
+                                    </motion.div>
+                                 )}
+                              </AnimatePresence>
+                              {!isSelected && <div className="h-6 w-6 rounded-full border-2 border-white/10" />}
+                           </div>
+                        </div>
+                     )
+                  })}
+               </div>
+           </div>
+
+           <div className="flex gap-3">
+               <button onClick={() => closeModal(null)} className="w-1/3 rounded-xl py-4 text-xs font-bold text-zinc-400 hover:text-white hover:bg-white/5 transition-colors border border-transparent hover:border-white/10">Cancel</button>
+               <button onClick={() => closeModal(selectedId)} className="w-2/3 rounded-xl py-4 text-sm font-black tracking-widest uppercase bg-white text-black hover:bg-zinc-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.1)]">Confirm</button>
+           </div>
+       </div>
+   );
+};
+// ----------------------------------------------
+
 
 export default function NetworkDashboard() {
   const router = useRouter();
@@ -50,6 +108,43 @@ export default function NetworkDashboard() {
   const [showPathSelection, setShowPathSelection] = useState(false);
   const [transferAmount, setTransferAmount] = useState("");
 
+  // === CUSTOM MODAL SYSTEM ===
+  const [modal, setModal] = useState<{isOpen: boolean, type: 'alert'|'confirm'|'prompt'|'account-select', title: string, message: string, placeholder: string, resolve: any, accounts?: any[], amount?: number}>({
+     isOpen: false, type: 'alert', title: '', message: '', placeholder: '', resolve: null
+  });
+  const [modalInput, setModalInput] = useState("");
+
+  const showAlert = (title: string, message: string) => {
+     return new Promise<void>((resolve) => {
+        setModal({ isOpen: true, type: 'alert', title, message, placeholder: '', resolve });
+     });
+  };
+
+  const showConfirm = (title: string, message: string) => {
+     return new Promise<boolean>((resolve) => {
+        setModal({ isOpen: true, type: 'confirm', title, message, placeholder: '', resolve });
+     });
+  };
+
+  const showPrompt = (title: string, message: string, placeholder = "") => {
+     return new Promise<string | null>((resolve) => {
+        setModalInput("");
+        setModal({ isOpen: true, type: 'prompt', title, message, placeholder, resolve });
+     });
+  };
+
+  const showAccountSelect = (title: string, message: string, amount: number, accounts: any[]) => {
+      return new Promise<string | null>((resolve) => {
+         setModal({ isOpen: true, type: 'account-select', title, message, placeholder: '', resolve, accounts, amount });
+      });
+  };
+
+  const closeModal = (result: any) => {
+     if (modal.resolve) modal.resolve(result);
+     setModal(prev => ({ ...prev, isOpen: false }));
+  };
+  // ==========================
+
   const displaySalaryRef = useRef(pendingSalary);
   const startupDataRef = useRef(startupData);
   useEffect(() => { displaySalaryRef.current = pendingSalary; }, [pendingSalary]);
@@ -68,28 +163,41 @@ export default function NetworkDashboard() {
   const vehicleValue = ownedVehicles.reduce((sum, vId) => sum + (VEHICLES[vId]?.price || 0) * 0.8, 0); 
   
   const [livePortfolioValue, setLivePortfolioValue] = useState(0);
+  
   useEffect(() => {
      const fetchPortfolioValue = async () => {
-        // SMART POLLING: Pause fetching if the tab is inactive
         if (document.hidden) return;
 
         if (Object.keys(portfolio).length === 0) {
            setLivePortfolioValue(0);
            return;
         }
+        
         try {
-           const res = await fetch(`/api/crypto`);
-           const data = await res.json();
+           const [cryptoRes, stockRes] = await Promise.all([
+               fetch(`/api/crypto`),
+               fetch(`/api/stocks`)
+           ]);
+           
+           const cryptoData = cryptoRes.ok ? await cryptoRes.json() : [];
+           const stockData = stockRes.ok ? await stockRes.json() : [];
+           
+           const combinedData = [
+               ...(Array.isArray(cryptoData) ? cryptoData : []),
+               ...(Array.isArray(stockData) ? stockData : [])
+           ];
+
            let val = 0;
            
-           Object.entries(CRYPTO_ASSETS).forEach(([ticker, crypto]) => {
+           [...Object.entries(CRYPTO_ASSETS), ...Object.entries(STOCK_ASSETS)].forEach(([ticker, asset]) => {
               if (portfolio[ticker]?.shares) {
-                 const item = data.find((d: any) => d.symbol === crypto.symbol);
+                 const item = combinedData.find((d: any) => d.symbol === asset.symbol);
                  if (item && !isNaN(parseFloat(item.price))) {
                     val += portfolio[ticker].shares * parseFloat(item.price);
                  }
               }
            });
+           
            setLivePortfolioValue(val);
         } catch(e) {
            console.error("Portfolio sync error:", e);
@@ -97,7 +205,6 @@ export default function NetworkDashboard() {
      };
      
      fetchPortfolioValue();
-     // MMO SCALING: Increased from 3s to 10s
      const int = setInterval(fetchPortfolioValue, 10000);
      return () => clearInterval(int);
   }, [portfolio]);
@@ -190,8 +297,6 @@ export default function NetworkDashboard() {
                      const locMulti = LOCATIONS[dbData.data.location || 'bali'].multiplier;
                      const baseOpCost = 100 * locMulti * levelMult;
                      
-                     // === OFFLINE MORALE PENALTY CHECK ===
-                     // If you log off with >50% Workload, you WILL trigger a strike while offline!
                      let moraleChangePerMin = (sData.payroll - sData.workload) * 0.5;
                      if (sData.workload > 50) moraleChangePerMin -= (sData.workload - 50) * 1.0;
                      
@@ -212,7 +317,6 @@ export default function NetworkDashboard() {
                         const cost = (sData.payroll * 10 * locMulti * levelMult) + baseOpCost;
                         offlineEarnings = minutesOffline * (gross - cost);
                      } else {
-                        // If they struck offline, punish them for the whole duration to prevent cheating
                         const strikeCost = (sData.payroll * 20 * locMulti * levelMult) + baseOpCost;
                         offlineEarnings = minutesOffline * -strikeCost;
                      }
@@ -323,7 +427,6 @@ export default function NetworkDashboard() {
                 netEarnings = secondsPassed * (-strikeCost / 60); 
              }
              
-             // === NEW OVERWORK PENALTY MATH (LIVE TICKER) ===
              let moraleChangePerMin = (sData.payroll - sData.workload) * 0.5;
              if (sData.workload > 50) {
                  moraleChangePerMin -= (sData.workload - 50) * 1.0; 
@@ -336,10 +439,10 @@ export default function NetworkDashboard() {
              let newStrike = sData.is_strike;
              if (newMorale <= 0 && !newStrike) {
                 newStrike = true;
-                alert("🚨 WORKER STRIKE! 🚨 Your employees have walked out due to low morale! Production has halted, but you are still bleeding rent and payroll expenses!");
+                showAlert("🚨 WORKER STRIKE! 🚨", "Your employees have walked out due to low morale! Production has halted, but you are still bleeding rent and payroll expenses!");
              } else if (newMorale >= 50 && newStrike) {
                 newStrike = false;
-                alert("✅ Strike Resolved! Your employees have returned to work.");
+                showAlert("✅ Strike Resolved", "Your employees have returned to work.");
              }
 
              if (newMorale !== sData.morale || newStrike !== sData.is_strike) {
@@ -359,17 +462,13 @@ export default function NetworkDashboard() {
   useEffect(() => {
     if (playerPath !== 'corporate' && playerPath !== 'founder') return;
     const saveInterval = setInterval(() => {
-        // SMART POLLING: Only save to Supabase if they are actively looking at the page.
-        // If they close the tab, it's fine, the offline math will catch them up next time!
         if (document.hidden) return;
-
         saveGameState({ pending_salary: displaySalaryRef.current, startup_data: startupDataRef.current, last_salary_sync: new Date().toISOString() });
-    // MMO SCALING: Save every 60 seconds instead of 15 seconds to protect Database limits
     }, 60000);
     return () => clearInterval(saveInterval);
   }, [playerPath]);
 
-  const handleBankSelect = (bankId: string | null) => {
+  const handleBankSelect = async (bankId: string | null) => {
      setSelectedBank(bankId);
      const updates: any = { selected_bank: bankId };
      if (bankId && !accountNumber) {
@@ -378,25 +477,25 @@ export default function NetworkDashboard() {
         updates.account_number = newAccNum;
      }
      saveGameState(updates);
-     if(bankId) alert("Account successfully opened! Welcome to " + bankId.toUpperCase());
+     if(bankId) await showAlert("Account Opened", "Account successfully opened! Welcome to " + bankId.toUpperCase());
   };
 
-  const handleTransfer = (direction: 'to_savings' | 'to_current') => {
+  const handleTransfer = async (direction: 'to_savings' | 'to_current') => {
      const amount = parseFloat(transferAmount);
-     if (isNaN(amount) || amount <= 0) return alert("Please enter a valid amount.");
+     if (isNaN(amount) || amount <= 0) return await showAlert("Error", "Please enter a valid amount.");
 
      const currentLiquid = Number(balance);
      const currentSav = Number(savingsBalance);
 
      if (direction === 'to_savings') {
-        if (currentLiquid < amount) return alert("Insufficient liquid funds.");
+        if (currentLiquid < amount) return await showAlert("Error", "Insufficient liquid funds.");
         const newBal = currentLiquid - amount;
         const newSav = currentSav + amount;
         setBalance(newBal);
         setSavingsBalance(newSav);
         saveGameState({ bank_balance: newBal, savings_balance: newSav });
      } else {
-        if (currentSav < amount) return alert("Insufficient savings funds.");
+        if (currentSav < amount) return await showAlert("Error", "Insufficient savings funds.");
         const newBal = currentLiquid + amount;
         const newSav = currentSav - amount;
         setBalance(newBal);
@@ -406,14 +505,14 @@ export default function NetworkDashboard() {
      setTransferAmount("");
   };
 
-  const handleTakeLoan = (amountStr: string) => {
+  const handleTakeLoan = async (amountStr: string) => {
      const amount = parseFloat(amountStr);
-     if (isNaN(amount) || amount <= 0) return alert("Invalid amount.");
+     if (isNaN(amount) || amount <= 0) return await showAlert("Error", "Invalid amount.");
      
-     const maxLoan = selectedBank === 'capital_none' ? fico * 200 : fico * 50;
+     const maxLoan = selectedBank === 'summit_one' ? fico * 200 : fico * 100;
      const availableCredit = Math.max(0, maxLoan - loanBalance);
      
-     if (amount > availableCredit) return alert(`Credit limit exceeded. You can only borrow up to $${availableCredit.toLocaleString('en-US')}.`);
+     if (amount > availableCredit) return await showAlert("Credit Limit Exceeded", `You can only borrow up to $${availableCredit.toLocaleString('en-US')}.`);
      
      const newLoanAccBal = Number(loanAccountBalance) + amount;
      const newLoanDebt = Number(loanBalance) + amount;
@@ -421,26 +520,38 @@ export default function NetworkDashboard() {
      setLoanAccountBalance(newLoanAccBal);
      setLoanBalance(newLoanDebt);
      saveGameState({ loan_account_balance: newLoanAccBal, loan_balance: newLoanDebt });
-     alert(`Loan approved! $${amount.toLocaleString('en-US')} has been deposited to your locked Loan Account.`);
+     await showAlert("Loan Approved", `$${amount.toLocaleString('en-US')} has been deposited to your locked Loan Account.`);
   };
 
-  const handleRepayLoan = (amountStr: string) => {
+  const handleRepayLoan = async (amountStr: string) => {
      const amount = parseFloat(amountStr);
-     if (isNaN(amount) || amount <= 0) return alert("Invalid amount.");
+     if (isNaN(amount) || amount <= 0) return await showAlert("Error", "Invalid amount.");
      
      const actualRepayment = Math.min(amount, loanBalance);
-     if (actualRepayment <= 0) return alert("You don't owe any money!");
+     if (actualRepayment <= 0) return await showAlert("Notice", "You don't owe any money!");
 
-     const accountChoice = prompt(`Repay $${actualRepayment.toLocaleString()} from which account?\n\n1: Current Account\n2: Loan Account (Return unused funds)`, "1");
+     const accounts = [
+        { id: "1", initials: "CA", name: "Current Account", details: `Available: $${balance.toLocaleString('en-US', {maximumFractionDigits: 2})}` },
+        { id: "2", initials: "LA", name: "Loan Account", details: `Available: $${loanAccountBalance.toLocaleString('en-US', {maximumFractionDigits: 2})}` }
+     ];
+
+     const accountChoice = await showAccountSelect(
+         "Repay Loan", 
+         `Choose source account to repay funds.`,
+         actualRepayment,
+         accounts
+     );
+     
+     if (!accountChoice) return; 
      
      let newBal = Number(balance);
      let newLoanAccBal = Number(loanAccountBalance);
 
      if (accountChoice === "1") {
-         if (actualRepayment > newBal) return alert("Insufficient liquid funds in Current Account.");
+         if (actualRepayment > newBal) return await showAlert("Error", "Insufficient liquid funds in Current Account.");
          newBal -= actualRepayment;
      } else if (accountChoice === "2") {
-         if (actualRepayment > newLoanAccBal) return alert("Insufficient funds in Loan Account.");
+         if (actualRepayment > newLoanAccBal) return await showAlert("Error", "Insufficient funds in Loan Account.");
          newLoanAccBal -= actualRepayment;
      } else {
          return; 
@@ -456,21 +567,23 @@ export default function NetworkDashboard() {
      setFico(newFico);
      saveGameState({ bank_balance: newBal, loan_account_balance: newLoanAccBal, loan_balance: newLoanDebt, fico_score: newFico });
      
-     alert(`Successfully repaid $${actualRepayment.toLocaleString('en-US')}! Your FICO score increased by ${ficoBoost > 0 ? ficoBoost : 1} points.`);
+     await showAlert("Repayment Successful", `Successfully repaid $${actualRepayment.toLocaleString('en-US')}! Your FICO score increased by ${ficoBoost > 0 ? ficoBoost : 1} points.`);
   };
 
-  const handleRelocate = (cityId: string) => {
+  const handleRelocate = async (cityId: string) => {
     const flightCost = 500;
-    if (Number(balance) < flightCost) return alert(`Insufficient liquid funds to relocate. You need $${flightCost} for a ticket.`);
+    if (Number(balance) < flightCost) return await showAlert("Error", `Insufficient liquid funds to relocate. You need $${flightCost} for a ticket.`);
     
     const newBal = Number(balance) - flightCost;
     setBalance(newBal);
     setCurrentLocation(cityId);
     saveGameState({ bank_balance: newBal, location: cityId });
-    alert(`Flight landed! Welcome to ${LOCATIONS[cityId].name}.`);
+    await showAlert("Flight Landed", `Welcome to ${LOCATIONS[cityId].name}.`);
   };
 
-  const handleBuyProperty = (propertyId: string) => {
+  const handleBuyProperty = async (propertyId: string) => {
+    if (!selectedBank) return await showAlert("Bank Account Required", "You must open a bank account in the Banking tab before purchasing real estate.");
+
     let propertyInfo: any = null;
     let cityInfo: any = null;
     for (const [cId, props] of Object.entries(REAL_ESTATE)) {
@@ -480,28 +593,37 @@ export default function NetworkDashboard() {
     if (!propertyInfo) return;
 
     const price = propertyInfo.price;
-    const accountChoice = prompt(
-      `Purchasing ${propertyInfo.name} for $${price.toLocaleString()}.\n\nType '1' for Current Account\nType '2' for Savings Vault\nType '3' for Loan Account`, 
-      "1"
+    
+    const accounts = [
+        { id: "1", initials: "CA", name: "Current Account", details: `Available: $${balance.toLocaleString('en-US', {maximumFractionDigits: 2})}` },
+        { id: "2", initials: "SV", name: "Savings Vault", details: `Available: $${savingsBalance.toLocaleString('en-US', {maximumFractionDigits: 2})}` },
+        { id: "3", initials: "LA", name: "Loan Account", details: `Available: $${loanAccountBalance.toLocaleString('en-US', {maximumFractionDigits: 2})}` }
+    ];
+
+    const accountChoice = await showAccountSelect(
+      "Purchase Property",
+      `Purchasing ${propertyInfo.name}`, 
+      price,
+      accounts
     );
 
-    if (!["1", "2", "3"].includes(accountChoice as string)) return;
+    if (!accountChoice) return;
 
     const newProps = [...ownedProperties, propertyInfo.id];
     let updates: any = { owned_properties: newProps };
 
     if (accountChoice === "1") {
-       if (Number(balance) < price) return alert(`Insufficient liquid funds in Current Account. You need $${price.toLocaleString()}.`);
+       if (Number(balance) < price) return await showAlert("Error", `Insufficient liquid funds in Current Account. You need $${price.toLocaleString()}.`);
        const newBal = Number(balance) - price;
        setBalance(newBal);
        updates.bank_balance = newBal;
     } else if (accountChoice === "2") {
-       if (Number(savingsBalance) < price) return alert(`Insufficient funds in Savings Vault. You need $${price.toLocaleString()}.`);
+       if (Number(savingsBalance) < price) return await showAlert("Error", `Insufficient funds in Savings Vault. You need $${price.toLocaleString()}.`);
        const newSav = Number(savingsBalance) - price;
        setSavingsBalance(newSav);
        updates.savings_balance = newSav;
     } else if (accountChoice === "3") {
-       if (Number(loanAccountBalance) < price) return alert(`Insufficient funds in Loan Account. You need $${price.toLocaleString()}.`);
+       if (Number(loanAccountBalance) < price) return await showAlert("Error", `Insufficient funds in Loan Account. You need $${price.toLocaleString()}.`);
        const newLoanAcc = Number(loanAccountBalance) - price;
        setLoanAccountBalance(newLoanAcc);
        updates.loan_account_balance = newLoanAcc;
@@ -509,10 +631,10 @@ export default function NetworkDashboard() {
 
     setOwnedProperties(newProps);
     saveGameState(updates);
-    alert(`Congratulations! You are the proud new owner of the ${propertyInfo.name} in ${cityInfo.name}! Rent is now permanently waived here.`);
+    await showAlert("Purchase Successful", `Congratulations! You are the proud new owner of the ${propertyInfo.name} in ${cityInfo.name}! Rent is now permanently waived here.`);
   };
 
-  const handleSellProperty = (propertyId: string) => {
+  const handleSellProperty = async (propertyId: string) => {
     let propertyInfo: any = null;
     for (const [cId, props] of Object.entries(REAL_ESTATE)) {
        const found = props.find(p => p.id === propertyId);
@@ -521,7 +643,7 @@ export default function NetworkDashboard() {
     if (!propertyInfo) return;
 
     const price = propertyInfo.price;
-    const confirmSell = confirm(`Are you sure you want to sell the ${propertyInfo.name} for $${price.toLocaleString()}?\n\nThe funds will be deposited into your Current Account.`);
+    const confirmSell = await showConfirm("Sell Property", `Are you sure you want to sell the ${propertyInfo.name} for $${price.toLocaleString()}?\n\nThe funds will be deposited into your Current Account.`);
     if (!confirmSell) return;
 
     const newBal = Number(balance) + price;
@@ -529,52 +651,62 @@ export default function NetworkDashboard() {
     setBalance(newBal);
     setOwnedProperties(newProps);
     saveGameState({ bank_balance: newBal, owned_properties: newProps });
-    alert(`Property sold! $${price.toLocaleString()} has been deposited to your Current Account.`);
+    await showAlert("Property Sold", `$${price.toLocaleString()} has been deposited to your Current Account.`);
   };
 
-  const handleClaimSalary = () => {
+  const handleClaimSalary = async () => {
     const currentSalary = Number(pendingSalary);
     
     if (playerPath === 'corporate') {
-       if (currentSalary < monthlySalaryTarget) return alert(`You haven't completed a full month of work yet! You need $${monthlySalaryTarget.toLocaleString()} accumulated.`);
+       if (currentSalary < monthlySalaryTarget) return await showAlert("Error", `You haven't completed a full month of work yet! You need $${monthlySalaryTarget.toLocaleString()} accumulated.`);
        const taxAmount = currentSalary * locStats.tax;
        const netAmount = currentSalary - taxAmount;
+       
+       if (!selectedBank && Number(balance) + netAmount > 50000) {
+          return await showAlert("Wallet Full!", "You cannot hold more than $50,000 without a secure bank account. Please open an account in the Banking tab to receive this transfer.");
+       }
+       
        const newBalance = Number(balance) + netAmount;
        setBalance(newBalance);
        setPendingSalary(0);
        setLastLocalSync(Date.now());
        saveGameState({ bank_balance: newBalance, pending_salary: 0, last_salary_sync: new Date().toISOString() });
-       alert(`Payday! 🏢\n\nGross Salary: $${currentSalary.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\nIncome Tax (${(locStats.tax * 100).toFixed(0)}%): -$${taxAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n\nNet Added to Account: $${netAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+       await showAlert("Payday! 🏢", `Gross Salary: $${currentSalary.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\nIncome Tax (${(locStats.tax * 100).toFixed(0)}%): -$${taxAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n\nNet Added to Account: $${netAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
     } 
     else if (playerPath === 'founder') {
        if (currentSalary >= 0) {
           const taxAmount = currentSalary * locStats.tax;
           const netAmount = currentSalary - taxAmount;
+          
+          if (!selectedBank && Number(balance) + netAmount > 50000) {
+             return await showAlert("Wallet Full!", "You cannot hold more than $50,000 without a secure bank account. Please open an account in the Banking tab to receive this transfer.");
+          }
+          
           const newBalance = Number(balance) + netAmount;
           setBalance(newBalance);
           setPendingSalary(0);
           setLastLocalSync(Date.now());
           saveGameState({ bank_balance: newBalance, pending_salary: 0, last_salary_sync: new Date().toISOString() });
-          alert(`Dividend Claimed! 📈\n\nGross Revenue: $${currentSalary.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\nCorporate Tax (${(locStats.tax * 100).toFixed(0)}%): -$${taxAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n\nNet Deposited: $${netAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+          await showAlert("Dividend Claimed! 📈", `Gross Revenue: $${currentSalary.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\nCorporate Tax (${(locStats.tax * 100).toFixed(0)}%): -$${taxAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n\nNet Deposited: $${netAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
        } else {
           const debt = Math.abs(currentSalary);
-          if (balance < debt) return alert(`Your company is in $${debt.toLocaleString()} of debt, and you don't have enough liquid cash to cover it! Your FICO score will take a massive hit!`);
+          if (balance < debt) return await showAlert("Warning", `Your company is in $${debt.toLocaleString()} of debt, and you don't have enough liquid cash to cover it! Your FICO score will take a massive hit!`);
           const newBalance = Number(balance) - debt;
           setBalance(newBalance);
           setPendingSalary(0);
           setLastLocalSync(Date.now());
           saveGameState({ bank_balance: newBalance, pending_salary: 0, last_salary_sync: new Date().toISOString() });
-          alert(`Company Debt Paid 📉\n\nYou wired $${debt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} from your personal account to keep the startup afloat.`);
+          await showAlert("Company Debt Paid 📉", `You wired $${debt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} from your personal account to keep the startup afloat.`);
        }
     }
   };
 
-  const handleSwitchPathClick = () => {
+  const handleSwitchPathClick = async () => {
     if (pathUpdatedAt) {
       const lastUpdate = new Date(pathUpdatedAt).getTime();
       const now = new Date().getTime();
       const hoursSince = (now - lastUpdate) / (1000 * 60 * 60);
-      if (hoursSince < 24) return alert(`ACCESS DENIED: You must wait ${Math.ceil(24 - hoursSince)} more hours before switching your career path.`);
+      if (hoursSince < 24) return await showAlert("Access Denied", `You must wait ${Math.ceil(24 - hoursSince)} more hours before switching your career path.`);
     }
     setShowPathSelection(true);
   };
@@ -586,11 +718,11 @@ export default function NetworkDashboard() {
     if (newPath === 'corporate') { setPendingSalary(0); setLastLocalSync(Date.now()); }
   };
 
-  const handleDevBypass = () => {
-     const input = prompt("Enter amount of cash to add (use negative to remove):", "1000000");
+  const handleDevBypass = async () => {
+     const input = await showPrompt("God Mode", "Enter amount of cash to add (use negative to remove):", "1000000");
      if (input === null) return;
      const amountToAdd = parseFloat(input);
-     if (isNaN(amountToAdd)) return alert("Invalid number entered.");
+     if (isNaN(amountToAdd)) return await showAlert("Error", "Invalid number entered.");
 
      const newBal = Number(balance) + amountToAdd;
      const newStartupData = { workload: 50, payroll: 50, morale: 100, is_strike: false, level: 1 };
@@ -616,11 +748,11 @@ export default function NetworkDashboard() {
        last_energy_sync: new Date().toISOString(),
        startup_data: newStartupData
      });
-     alert(`God Mode Activated: Added $${amountToAdd.toLocaleString()}, FICO 850, Loans Cleared, Strikes Resolved.`);
+     await showAlert("God Mode Activated", `Added $${amountToAdd.toLocaleString()}, FICO 850, Loans Cleared, Strikes Resolved.`);
   };
 
-  const handleResetState = () => {
-     const confirmReset = confirm("Are you sure you want to hard reset your entire game state? This will wipe your money, level, assets, and startup data back to 0.");
+  const handleResetState = async () => {
+     const confirmReset = await showConfirm("Hard Reset", "Are you sure you want to hard reset your entire game state? This will wipe your money, level, assets, and startup data back to 0.");
      if (!confirmReset) return;
 
      const defaultStartup = { workload: 50, payroll: 50, morale: 100, is_strike: false, level: 1 };
@@ -657,7 +789,7 @@ export default function NetworkDashboard() {
          last_energy_sync: new Date().toISOString()
      });
 
-     alert("Game state successfully hard reset.");
+     await showAlert("Success", "Game state successfully hard reset.");
   };
 
   if (loading) {
@@ -669,49 +801,6 @@ export default function NetworkDashboard() {
     );
   }
 
-  // --- PATH SELECTION OVERLAY ---
-  if (!playerPath || showPathSelection) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#050505]/95 backdrop-blur-2xl p-4 overflow-y-auto">
-         {playerPath && (
-           <button onClick={() => setShowPathSelection(false)} className="absolute top-8 right-8 text-zinc-500 hover:text-white transition-colors bg-white/5 p-2 rounded-full">
-             <X className="w-6 h-6" />
-           </button>
-         )}
-         <div className="max-w-5xl w-full py-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
-            <div className="text-center mb-12">
-               <h1 className="text-5xl md:text-6xl font-black tracking-tighter text-white mb-4">Choose Your Path</h1>
-               <p className="text-zinc-400 text-lg max-w-xl mx-auto">Your choice determines your gameplay mechanics, income style, and risks.</p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-               <button onClick={() => handlePathSelect('hustler')} className={`group border rounded-3xl p-8 text-left transition-all flex flex-col justify-between min-h-[400px] cursor-pointer ${playerPath === 'hustler' ? 'bg-emerald-500/10 border-emerald-500/50 shadow-[0_0_40px_rgba(16,185,129,0.15)]' : 'bg-[#121214] border-white/10 hover:border-emerald-500/50 hover:-translate-y-2'}`}>
-                  <div>
-                     <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center border border-emerald-500/20 mb-6"><Zap className="w-7 h-7 text-emerald-400" /></div>
-                     <h3 className="text-2xl font-black text-white mb-2">The Street Hustler</h3>
-                     <p className="text-zinc-400 text-sm leading-relaxed mb-6">Active gameplay. Take on gig economy jobs. Click to complete tasks. Finish fast for bonuses.</p>
-                  </div>
-               </button>
-               <button onClick={() => handlePathSelect('corporate')} className={`group border rounded-3xl p-8 text-left transition-all flex flex-col justify-between min-h-[400px] cursor-pointer ${playerPath === 'corporate' ? 'bg-indigo-500/10 border-indigo-500/50 shadow-[0_0_40px_rgba(99,102,241,0.15)]' : 'bg-[#121214] border-white/10 hover:border-indigo-500/50 hover:-translate-y-2'}`}>
-                  <div>
-                     <div className="w-14 h-14 bg-indigo-500/10 rounded-2xl flex items-center justify-center border border-indigo-500/20 mb-6"><Briefcase className="w-7 h-7 text-indigo-400" /></div>
-                     <h3 className="text-2xl font-black text-white mb-2">Corporate Worker</h3>
-                     <p className="text-zinc-400 text-sm leading-relaxed mb-6">Stable passive income. Accrue salary per minute and claim monthly. Perform "Boss Tasks" to earn promotions.</p>
-                  </div>
-               </button>
-               <button disabled={balance < 50000} onClick={() => handlePathSelect('founder')} className={`group border rounded-3xl p-8 text-left transition-all flex flex-col justify-between min-h-[400px] cursor-pointer relative overflow-hidden ${balance < 50000 ? 'bg-[#121214]/50 border-white/5 opacity-70 cursor-not-allowed' : 'bg-[#121214] border-white/10 hover:border-orange-500/50 hover:-translate-y-2'} ${playerPath === 'founder' ? 'bg-orange-500/10 border-orange-500/50 shadow-[0_0_40px_rgba(249,115,22,0.15)]' : ''}`}>
-                  {balance < 50000 && <div className="absolute inset-0 bg-black/40 backdrop-blur-sm z-10 flex flex-col items-center justify-center"><Lock className="w-8 h-8 text-zinc-500 mb-2" /><p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Requires $50k Bank</p></div>}
-                  <div className={balance < 50000 ? "blur-sm" : ""}>
-                     <div className="w-14 h-14 bg-orange-500/10 rounded-2xl flex items-center justify-center border border-orange-500/20 mb-6"><Building2 className="w-7 h-7 text-orange-400" /></div>
-                     <h3 className="text-2xl font-black text-white mb-2">The Founder</h3>
-                     <p className="text-zinc-400 text-sm leading-relaxed mb-6">Manage a global startup. Balance workload and payroll. Highly volatile income, massive upside potential, but strikes can bankrupt you.</p>
-                  </div>
-               </button>
-            </div>
-         </div>
-      </div>
-    );
-  }
-
   const displayName = pulseProfile?.username || pulseProfile?.displayName || "PlayerOne";
   const avatarUrl = pulseProfile?.theme?.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=Fallback";
 
@@ -719,11 +808,98 @@ export default function NetworkDashboard() {
     <div className="flex h-screen bg-[#050505] text-zinc-300 font-sans selection:bg-indigo-500/30 overflow-hidden relative">
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none z-0"></div>
 
+      {/* --- CUSTOM MODAL UI OVERLAY --- */}
+      {modal.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#050505]/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          
+          {modal.type === 'account-select' ? (
+             <AccountSelectorUI modal={modal} closeModal={closeModal} />
+          ) : (
+             <div className="bg-[#121214] border border-white/10 rounded-[24px] w-full max-w-md overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-200 flex flex-col">
+                <div className="p-6">
+                   <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
+                         <AlertCircle className="w-5 h-5 text-indigo-400" />
+                      </div>
+                      <h3 className="text-xl font-black text-white">{modal.title}</h3>
+                   </div>
+                   
+                   <p className="text-zinc-400 text-sm mb-6 whitespace-pre-wrap leading-relaxed">{modal.message}</p>
+
+                   {modal.type === 'prompt' && (
+                      <input
+                         type="text"
+                         autoFocus
+                         value={modalInput}
+                         onChange={(e) => setModalInput(e.target.value)}
+                         placeholder={modal.placeholder}
+                         className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-white placeholder:text-zinc-600 focus:outline-none focus:border-indigo-500 transition-colors mb-6 font-mono text-sm shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]"
+                         onKeyDown={(e) => { if(e.key === 'Enter') closeModal(modalInput); }}
+                      />
+                   )}
+
+                   <div className="flex gap-3 justify-end mt-2">
+                      {(modal.type === 'confirm' || modal.type === 'prompt') && (
+                         <button onClick={() => closeModal(modal.type === 'prompt' ? null : false)} className="px-5 py-2.5 rounded-xl font-bold text-xs text-zinc-400 hover:text-white hover:bg-white/5 transition-colors border border-transparent hover:border-white/10">
+                            Cancel
+                         </button>
+                      )}
+                      <button onClick={() => closeModal(modal.type === 'prompt' ? modalInput : (modal.type === 'confirm' ? true : undefined))} className="px-6 py-2.5 rounded-xl font-bold text-xs bg-indigo-600 hover:bg-indigo-500 text-white transition-colors shadow-[0_0_20px_rgba(79,70,229,0.3)]">
+                         {modal.type === 'alert' ? 'Acknowledge' : 'Confirm'}
+                      </button>
+                   </div>
+                </div>
+             </div>
+          )}
+        </div>
+      )}
+
+      {/* --- PATH SELECTION OVERLAY --- */}
+      {(!playerPath || showPathSelection) && !modal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#050505]/95 backdrop-blur-2xl p-4 overflow-y-auto">
+           {playerPath && (
+             <button onClick={() => setShowPathSelection(false)} className="absolute top-8 right-8 text-zinc-500 hover:text-white transition-colors bg-white/5 p-2 rounded-full">
+               <X className="w-6 h-6" />
+             </button>
+           )}
+           <div className="max-w-5xl w-full py-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
+              <div className="text-center mb-12">
+                 <h1 className="text-5xl md:text-6xl font-black tracking-tighter text-white mb-4">Choose Your Path</h1>
+                 <p className="text-zinc-400 text-lg max-w-xl mx-auto">Your choice determines your gameplay mechanics, income style, and risks.</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                 <button onClick={() => handlePathSelect('hustler')} className={`group border rounded-3xl p-8 text-left transition-all flex flex-col justify-between min-h-[400px] cursor-pointer ${playerPath === 'hustler' ? 'bg-emerald-500/10 border-emerald-500/50 shadow-[0_0_40px_rgba(16,185,129,0.15)]' : 'bg-[#121214] border-white/10 hover:border-emerald-500/50 hover:-translate-y-2'}`}>
+                    <div>
+                       <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center border border-emerald-500/20 mb-6"><Zap className="w-7 h-7 text-emerald-400" /></div>
+                       <h3 className="text-2xl font-black text-white mb-2">The Street Hustler</h3>
+                       <p className="text-zinc-400 text-sm leading-relaxed mb-6">Active gameplay. Take on gig economy jobs. Click to complete tasks. Finish fast for bonuses.</p>
+                    </div>
+                 </button>
+                 <button onClick={() => handlePathSelect('corporate')} className={`group border rounded-3xl p-8 text-left transition-all flex flex-col justify-between min-h-[400px] cursor-pointer ${playerPath === 'corporate' ? 'bg-indigo-500/10 border-indigo-500/50 shadow-[0_0_40px_rgba(99,102,241,0.15)]' : 'bg-[#121214] border-white/10 hover:border-indigo-500/50 hover:-translate-y-2'}`}>
+                    <div>
+                       <div className="w-14 h-14 bg-indigo-500/10 rounded-2xl flex items-center justify-center border border-indigo-500/20 mb-6"><Briefcase className="w-7 h-7 text-indigo-400" /></div>
+                       <h3 className="text-2xl font-black text-white mb-2">Corporate Worker</h3>
+                       <p className="text-zinc-400 text-sm leading-relaxed mb-6">Stable passive income. Accrue salary per minute and claim monthly. Perform "Boss Tasks" to earn promotions.</p>
+                    </div>
+                 </button>
+                 <button disabled={balance < 50000} onClick={() => handlePathSelect('founder')} className={`group border rounded-3xl p-8 text-left transition-all flex flex-col justify-between min-h-[400px] cursor-pointer relative overflow-hidden ${balance < 50000 ? 'bg-[#121214]/50 border-white/5 opacity-70 cursor-not-allowed' : 'bg-[#121214] border-white/10 hover:border-orange-500/50 hover:-translate-y-2'} ${playerPath === 'founder' ? 'bg-orange-500/10 border-orange-500/50 shadow-[0_0_40px_rgba(249,115,22,0.15)]' : ''}`}>
+                    {balance < 50000 && <div className="absolute inset-0 bg-black/40 backdrop-blur-sm z-10 flex flex-col items-center justify-center"><Lock className="w-8 h-8 text-zinc-500 mb-2" /><p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Requires $50k Bank</p></div>}
+                    <div className={balance < 50000 ? "blur-sm" : ""}>
+                       <div className="w-14 h-14 bg-orange-500/10 rounded-2xl flex items-center justify-center border border-orange-500/20 mb-6"><Building2 className="w-7 h-7 text-orange-400" /></div>
+                       <h3 className="text-2xl font-black text-white mb-2">The Founder</h3>
+                       <p className="text-zinc-400 text-sm leading-relaxed mb-6">Manage a global startup. Balance workload and payroll. Highly volatile income, massive upside potential, but strikes can bankrupt you.</p>
+                    </div>
+                 </button>
+              </div>
+           </div>
+        </div>
+      )}
+
       {activeJob && (
         <ActiveJobModal 
            job={activeJob} 
            onClose={() => setActiveJob(null)} 
-           onComplete={(success, timeRemaining) => {
+           onComplete={async (success, timeRemaining) => {
              setActiveJob(null);
              let newBalance = Number(balance);
 
@@ -731,9 +907,9 @@ export default function NetworkDashboard() {
                 if (success) {
                    const newLevel = corporateLevel + 1;
                    setCorporateLevel(newLevel);
-                   alert(`Promotion Earned! You are now a ${getCorporateRole(newLevel).title}!`);
+                   await showAlert("Promotion Earned!", `You are now a ${getCorporateRole(newLevel).title}!`);
                    saveGameState({ corporate_level: newLevel });
-                } else { alert(`Time's up! The boss wasn't impressed. No promotion this time.`); }
+                } else { await showAlert("Failed", `Time's up! The boss wasn't impressed. No promotion this time.`); }
                 return;
              }
              
@@ -744,22 +920,35 @@ export default function NetworkDashboard() {
                    const newSData = { ...sData, level: newLevel };
                    setStartupData(newSData);
                    saveGameState({ startup_data: newSData });
-                   alert(`Expansion Successful! Your startup is now Level ${newLevel}. Your revenue and costs have scaled up!`);
+                   await showAlert("Expansion Successful!", `Your startup is now Level ${newLevel}. Your revenue and costs have scaled up!`);
                 } else {
-                   alert(`Time's up! The expansion failed. Better luck next time.`);
+                   await showAlert("Expansion Failed", `Time's up! The expansion failed. Better luck next time.`);
                 }
                 return;
              }
 
              if (success) {
                 const bonus = timeRemaining * 0.50; 
-                const totalEarned = activeJob.basePay + bonus;
+                let totalEarned = activeJob.basePay + bonus;
+                
+                if (!selectedBank && newBalance + totalEarned > 50000) {
+                   const allowed = 50000 - newBalance;
+                   if (allowed <= 0) {
+                      await showAlert("Wallet Full!", "Your pockets are full! You cannot hold more than $50,000 without a bank account. Job payout discarded.");
+                      totalEarned = 0;
+                   } else {
+                      await showAlert("Wallet Full!", `You can only hold $50,000 without a bank account. You earned $${totalEarned.toFixed(2)}, but could only keep $${allowed.toFixed(2)}.`);
+                      totalEarned = allowed;
+                   }
+                } else {
+                   await showAlert("Job Complete!", `You earned $${activeJob.basePay} + $${bonus.toFixed(2)} speed bonus!`);
+                }
+                
                 newBalance += totalEarned;
-                alert(`Job Complete! You earned $${activeJob.basePay} + $${bonus.toFixed(2)} speed bonus!`);
              } else {
                 const penalty = activeJob.basePay * 0.20;
                 newBalance -= penalty;
-                alert(`Time's up! You failed the job. The client was angry and fined you $${penalty.toFixed(2)}!`);
+                await showAlert("Job Failed", `Time's up! You failed the job. The client was angry and fined you $${penalty.toFixed(2)}!`);
              }
              setBalance(newBalance); saveGameState({ bank_balance: newBalance });
            }} 
@@ -844,12 +1033,14 @@ export default function NetworkDashboard() {
           {activeTab === 'overview' && (
              <OverviewTab 
                 netWorth={totalNetWorth} balance={balance} savingsBalance={savingsBalance} loanAccountBalance={loanAccountBalance} assetValue={assetValue} loanBalance={loanBalance} fico={fico} playerPath={playerPath} netWorthHistory={netWorthHistory} currentLocName={locStats.name} energy={energy} ownedVehicles={ownedVehicles} setBalance={setBalance} setEnergy={setEnergy} setActiveJob={setActiveJob} saveGameState={saveGameState} handleSwitchPathClick={handleSwitchPathClick} corporateLevel={corporateLevel} currentRole={currentRole} displaySalary={displaySalaryRef.current} pendingSalary={pendingSalary} monthlySalaryTarget={monthlySalaryTarget} salaryProgressPercentage={Math.min(100, (Number(pendingSalary) / monthlySalaryTarget) * 100)} handleClaimSalary={handleClaimSalary} currentLocation={currentLocation} ownedProperties={ownedProperties} startupData={startupData} setStartupData={setStartupData} locMultiplier={locStats.multiplier}
+                showAlert={showAlert} showConfirm={showConfirm} showPrompt={showPrompt}
              />
           )}
           {activeTab === 'banking' && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                <BankingTab 
                  balance={balance} savingsBalance={savingsBalance} loanBalance={loanBalance} loanAccountBalance={loanAccountBalance} fico={fico} selectedBank={selectedBank} accountNumber={accountNumber} transferAmount={transferAmount} setTransferAmount={setTransferAmount} handleBankSelect={handleBankSelect} handleTransfer={handleTransfer} handleTakeLoan={handleTakeLoan} handleRepayLoan={handleRepayLoan}
+                 displayName={displayName} showPrompt={showPrompt} showAlert={showAlert} showConfirm={showConfirm} showAccountSelect={showAccountSelect}
                />
             </div>
           )}
@@ -860,12 +1051,12 @@ export default function NetworkDashboard() {
           )}
           {activeTab === 'lifestyle' && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-               <LifestyleTab balance={balance} energy={energy} ownedVehicles={ownedVehicles} setBalance={setBalance} setEnergy={setEnergy} setOwnedVehicles={setOwnedVehicles} saveGameState={saveGameState} />
+               <LifestyleTab balance={balance} energy={energy} ownedVehicles={ownedVehicles} setBalance={setBalance} setEnergy={setEnergy} setOwnedVehicles={setOwnedVehicles} saveGameState={saveGameState} showAlert={showAlert} showConfirm={showConfirm} selectedBank={selectedBank} />
             </div>
           )}
           {activeTab === 'markets' && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-               <MarketsTab balance={balance} portfolio={portfolio} setBalance={setBalance} setPortfolio={setPortfolio} saveGameState={saveGameState} />
+               <MarketsTab balance={balance} portfolio={portfolio} setBalance={setBalance} setPortfolio={setPortfolio} saveGameState={saveGameState} showAlert={showAlert} showConfirm={showConfirm} showPrompt={showPrompt} selectedBank={selectedBank} />
             </div>
           )}
         </div>

@@ -4,25 +4,55 @@ import React from 'react';
 import { Utensils, Coffee, Trophy, Car } from 'lucide-react';
 import { VEHICLES } from '@/lib/network-data';
 
-export default function LifestyleTab({ balance, energy, ownedVehicles, setBalance, setEnergy, setOwnedVehicles, saveGameState }: any) {
-   const handleBuyFood = (item: string, cost: number, regen: number) => {
-      if (balance < cost) return alert("Insufficient liquid funds for this meal.");
-      if (energy >= 100) return alert("You are already full of energy!");
+export default function LifestyleTab({ balance, energy, ownedVehicles, setBalance, setEnergy, setOwnedVehicles, saveGameState, showAlert, showConfirm, selectedBank }: any) {
+   
+   const handleBuyFood = async (item: string, cost: number, regen: number) => {
+      if (balance < cost) return await showAlert("Insufficient Funds", "You don't have enough liquid funds for this meal.");
+      if (energy >= 100) return await showAlert("Energy Full", "You are already full of energy!");
+      
       const newBal = balance - cost;
       const newEnergy = Math.min(100, energy + regen);
-      setBalance(newBal); setEnergy(newEnergy);
+      setBalance(newBal); 
+      setEnergy(newEnergy);
       saveGameState({ bank_balance: newBal, energy: newEnergy });
    };
 
-   const handleBuyCar = (id: string) => {
+   const handleBuyCar = async (id: string) => {
+      if (!selectedBank) return await showAlert("Bank Account Required", "You must open a bank account in the Banking tab before purchasing luxury vehicles.");
+
       const car = VEHICLES[id];
-      if (balance < car.price) return alert(`Insufficient liquid funds to buy the ${car.name}.`);
-      if (ownedVehicles.includes(id)) return alert("You already own this vehicle!");
+      if (balance < car.price) return await showAlert("Insufficient Funds", `Insufficient liquid funds to buy the ${car.name}.`);
+      if (ownedVehicles.includes(id)) return await showAlert("Already Owned", "You already own this vehicle!");
+      
+      const confirm = await showConfirm("Confirm Purchase", `Are you sure you want to buy the ${car.name} for $${car.price.toLocaleString('en-US')}?`);
+      if (!confirm) return;
+
       const newBal = balance - car.price;
       const newVehicles = [...ownedVehicles, id];
-      setBalance(newBal); setOwnedVehicles(newVehicles);
+      setBalance(newBal); 
+      setOwnedVehicles(newVehicles);
       saveGameState({ bank_balance: newBal, owned_vehicles: newVehicles });
-      alert(`Keys acquired! You are the new owner of a ${car.name}.`);
+      
+      await showAlert("Keys Acquired!", `Congratulations! You are the proud new owner of a ${car.name}.`);
+   };
+
+   const handleSellCar = async (id: string) => {
+      const car = VEHICLES[id];
+      if (!ownedVehicles.includes(id)) return;
+
+      const sellPrice = car.price * 0.8; // 20% depreciation
+
+      const confirm = await showConfirm("Sell Vehicle", `Are you sure you want to sell your ${car.name} for $${sellPrice.toLocaleString('en-US')}?\n\nA 20% depreciation fee is applied to all vehicle sales.`);
+      if (!confirm) return;
+
+      const newBal = balance + sellPrice;
+      const newVehicles = ownedVehicles.filter((vId: string) => vId !== id);
+      
+      setBalance(newBal); 
+      setOwnedVehicles(newVehicles);
+      saveGameState({ bank_balance: newBal, owned_vehicles: newVehicles });
+      
+      await showAlert("Vehicle Sold", `You successfully sold the ${car.name} for $${sellPrice.toLocaleString('en-US')}. The funds have been deposited into your Current Account.`);
    };
 
    return (
@@ -58,10 +88,29 @@ export default function LifestyleTab({ balance, energy, ownedVehicles, setBalanc
                   return (
                      <div key={id} className="bg-[#121214] border border-white/5 rounded-2xl p-5 flex flex-col justify-between group relative overflow-hidden">
                         <div className="absolute -right-4 -top-4 opacity-5"><Car className="w-24 h-24" /></div>
-                        <div className="relative z-10 mb-6"><h4 className="text-xl font-black text-white">{car.name}</h4><p className="text-xs text-zinc-400 mt-1">{car.desc}</p><p className="font-mono font-bold text-indigo-400 mt-2">${car.price.toLocaleString()}</p></div>
-                        <button onClick={() => handleBuyCar(id)} disabled={isOwned} className={`w-full py-3 rounded-xl font-bold text-sm transition-all ${isOwned ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-white text-black hover:bg-zinc-200'}`}>
-                           {isOwned ? 'Parked in Garage' : 'Purchase Vehicle'}
-                        </button>
+                        <div className="relative z-10 mb-6">
+                           <h4 className="text-xl font-black text-white">{car.name}</h4>
+                           <p className="text-xs text-zinc-400 mt-1">{car.desc}</p>
+                           <p className="font-mono font-bold text-indigo-400 mt-2">${car.price.toLocaleString('en-US')}</p>
+                        </div>
+                        
+                        <div className="relative z-10 mt-auto">
+                           {isOwned ? (
+                              <button 
+                                 onClick={() => handleSellCar(id)} 
+                                 className="w-full py-3 rounded-xl font-bold text-sm transition-all bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)]"
+                              >
+                                 Sell Vehicle (${(car.price * 0.8).toLocaleString('en-US')})
+                              </button>
+                           ) : (
+                              <button 
+                                 onClick={() => handleBuyCar(id)} 
+                                 className="w-full py-3 rounded-xl font-bold text-sm transition-all bg-white text-black hover:bg-zinc-200 shadow-[0_0_20px_rgba(255,255,255,0.1)]"
+                              >
+                                 Purchase Vehicle
+                              </button>
+                           )}
+                        </div>
                      </div>
                   );
                })}

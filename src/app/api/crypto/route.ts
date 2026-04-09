@@ -1,23 +1,31 @@
 import { NextResponse } from 'next/server';
 
-// We cache this for 2 seconds to prevent rate-limiting our own server
-export const revalidate = 2;
+export const revalidate = 5;
 
 export async function GET() {
   try {
-    // We use MEXC's API here. It returns the EXACT same JSON format as Binance
-    // (e.g., [{ symbol: "BTCUSDT", price: "65000" }]), but it does NOT geo-block US servers!
-    const res = await fetch('https://api.mexc.com/api/v3/ticker/price');
+    // KuCoin API is completely open, doesn't geo-block US, and updates instantly
+    const res = await fetch('https://api.kucoin.com/api/v1/market/allTickers');
+    const json = await res.json();
     
-    if (!res.ok) {
-      throw new Error(`API returned status: ${res.status}`);
-    }
+    if (json.code !== "200000") throw new Error("KuCoin API Error");
+
+    // KuCoin uses symbols like "BTC-USDT", we format it to match our "BTCUSDT" format
+    const formatted = json.data.ticker.map((t: any) => ({
+        symbol: t.symbol.replace('-', ''), 
+        price: t.last
+    }));
     
-    const data = await res.json();
-    return NextResponse.json(data);
-    
+    return NextResponse.json(formatted);
   } catch (error) {
-    console.error('Crypto Proxy Error:', error);
-    return NextResponse.json({ error: 'Failed to fetch crypto prices' }, { status: 500 });
+     console.error('KuCoin failed, falling back to MEXC...');
+     // Indestructible Fallback
+     try {
+        const res = await fetch('https://api.mexc.com/api/v3/ticker/price');
+        const data = await res.json();
+        return NextResponse.json(data);
+     } catch(e) {
+        return NextResponse.json({ error: 'Failed to fetch crypto' }, { status: 500 });
+     }
   }
 }
