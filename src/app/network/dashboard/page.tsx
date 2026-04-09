@@ -72,7 +72,6 @@ const AccountSelectorUI = ({ modal, closeModal }: { modal: any, closeModal: (res
 };
 // ----------------------------------------------
 
-
 export default function NetworkDashboard() {
   const router = useRouter();
   
@@ -90,6 +89,7 @@ export default function NetworkDashboard() {
   const [fico, setFico] = useState(700);
   const [playerPath, setPlayerPath] = useState<string | null>(null);
   const [pathUpdatedAt, setPathUpdatedAt] = useState<string | null>(null);
+  const [freePathSwitchUsed, setFreePathSwitchUsed] = useState<boolean>(false);
   const [selectedBank, setSelectedBank] = useState<string | null>(null);
   const [corporateLevel, setCorporateLevel] = useState(1);
   
@@ -258,6 +258,7 @@ export default function NetworkDashboard() {
           setFico(dbData.data.fico_score != null ? Number(dbData.data.fico_score) : 700);
           setPlayerPath(dbData.data.player_path || null);
           setPathUpdatedAt(dbData.data.path_updated_at || null);
+          setFreePathSwitchUsed(dbData.data.free_path_switch_used || false);
           setSelectedBank(dbData.data.selected_bank || null);
           setAccountNumber(dbData.data.account_number || null);
           setSavingsBalance(dbData.data.savings_balance != null ? Number(dbData.data.savings_balance) : 0);
@@ -363,6 +364,7 @@ export default function NetworkDashboard() {
       if (safeUpdates.loan_balance !== undefined) safeUpdates.loan_balance = Math.floor(Number(safeUpdates.loan_balance));
       if (safeUpdates.fico_score !== undefined) safeUpdates.fico_score = Math.floor(Number(safeUpdates.fico_score));
       if (safeUpdates.pending_salary !== undefined) safeUpdates.pending_salary = Number(Number(safeUpdates.pending_salary).toFixed(2));
+      if (safeUpdates.free_path_switch_used !== undefined) safeUpdates.free_path_switch_used = Boolean(safeUpdates.free_path_switch_used);
       
       if (safeUpdates.owned_properties !== undefined) safeUpdates.owned_properties = JSON.stringify(safeUpdates.owned_properties);
       if (safeUpdates.owned_vehicles !== undefined) safeUpdates.owned_vehicles = JSON.stringify(safeUpdates.owned_vehicles);
@@ -480,7 +482,15 @@ export default function NetworkDashboard() {
      if(bankId) await showAlert("Account Opened", "Account successfully opened! Welcome to " + bankId.toUpperCase());
   };
 
-  const handleTransfer = async (direction: 'to_savings' | 'to_current') => {
+  const handleTransfer = async (direction: 'to_savings' | 'to_current', newBal?: number, newSav?: number) => {
+     if (newBal !== undefined && newSav !== undefined) {
+         // Direct update via proxy child component
+         setBalance(newBal);
+         setSavingsBalance(newSav);
+         saveGameState({ bank_balance: newBal, savings_balance: newSav });
+         return;
+     }
+
      const amount = parseFloat(transferAmount);
      if (isNaN(amount) || amount <= 0) return await showAlert("Error", "Please enter a valid amount.");
 
@@ -489,18 +499,18 @@ export default function NetworkDashboard() {
 
      if (direction === 'to_savings') {
         if (currentLiquid < amount) return await showAlert("Error", "Insufficient liquid funds.");
-        const newBal = currentLiquid - amount;
-        const newSav = currentSav + amount;
-        setBalance(newBal);
-        setSavingsBalance(newSav);
-        saveGameState({ bank_balance: newBal, savings_balance: newSav });
+        const nextBal = currentLiquid - amount;
+        const nextSav = currentSav + amount;
+        setBalance(nextBal);
+        setSavingsBalance(nextSav);
+        saveGameState({ bank_balance: nextBal, savings_balance: nextSav });
      } else {
         if (currentSav < amount) return await showAlert("Error", "Insufficient savings funds.");
-        const newBal = currentLiquid + amount;
-        const newSav = currentSav - amount;
-        setBalance(newBal);
-        setSavingsBalance(newSav);
-        saveGameState({ bank_balance: newBal, savings_balance: newSav });
+        const nextBal = currentLiquid + amount;
+        const nextSav = currentSav - amount;
+        setBalance(nextBal);
+        setSavingsBalance(nextSav);
+        saveGameState({ bank_balance: nextBal, savings_balance: nextSav });
      }
      setTransferAmount("");
   };
@@ -706,16 +716,93 @@ export default function NetworkDashboard() {
       const lastUpdate = new Date(pathUpdatedAt).getTime();
       const now = new Date().getTime();
       const hoursSince = (now - lastUpdate) / (1000 * 60 * 60);
-      if (hoursSince < 24) return await showAlert("Access Denied", `You must wait ${Math.ceil(24 - hoursSince)} more hours before switching your career path.`);
+      if (hoursSince < 24) {
+         if (!freePathSwitchUsed) {
+            const confirm = await showConfirm("Free Switch Available", `You normally have to wait 24 hours to switch careers, but you have 1 free switch available! Use it now?`);
+            if (!confirm) return;
+         } else {
+            return await showAlert("Access Denied", `You must wait ${Math.ceil(24 - hoursSince)} more hours before switching your career path.`);
+         }
+      }
     }
     setShowPathSelection(true);
   };
 
-  const handlePathSelect = (newPath: string) => {
-    const now = new Date().toISOString();
-    setPlayerPath(newPath); setPathUpdatedAt(now); setShowPathSelection(false);
-    saveGameState({ player_path: newPath, path_updated_at: now, last_salary_sync: now, last_energy_sync: lastEnergySyncState ? new Date(lastEnergySyncState).toISOString() : now });
-    if (newPath === 'corporate') { setPendingSalary(0); setLastLocalSync(Date.now()); }
+  const handlePathSelect = async (newPath: string) => {
+    let finalBal = balance;
+    let finalSav = savingsBalance;
+    let finalLoan = loanAccountBalance;
+
+    if (newPath === 'founder') {
+        const accounts = [
+            { id: "1", initials: "CA", name: "Current Account", details: `Available: $${balance.toLocaleString('en-US', {maximumFractionDigits: 2})}` },
+            { id: "2", initials: "SV", name: "Savings Vault", details: `Available: $${savingsBalance.toLocaleString('en-US', {maximumFractionDigits: 2})}` },
+            { id: "3", initials: "LA", name: "Loan Account", details: `Available: $${loanAccountBalance.toLocaleString('en-US', {maximumFractionDigits: 2})}` }
+        ];
+
+        const accountChoice = await showAccountSelect(
+            "Startup Investment",
+            "Starting a business requires a $50,000 initial investment. Where should we pull the funds from?",
+            50000,
+            accounts
+        );
+
+        if (!accountChoice) return;
+
+        if (accountChoice === "1") {
+            if (balance < 50000) return await showAlert("Error", "Insufficient liquid funds in Current Account.");
+            finalBal -= 50000;
+        } else if (accountChoice === "2") {
+            if (savingsBalance < 50000) return await showAlert("Error", "Insufficient funds in Savings Vault.");
+            finalSav -= 50000;
+        } else if (accountChoice === "3") {
+            if (loanAccountBalance < 50000) return await showAlert("Error", "Insufficient funds in Loan Account.");
+            finalLoan -= 50000;
+        }
+
+        setBalance(finalBal);
+        setSavingsBalance(finalSav);
+        setLoanAccountBalance(finalLoan);
+    }
+
+    let usedFreeSwitch = freePathSwitchUsed;
+    if (pathUpdatedAt) {
+      const lastUpdate = new Date(pathUpdatedAt).getTime();
+      const now = new Date().getTime();
+      const hoursSince = (now - lastUpdate) / (1000 * 60 * 60);
+      if (hoursSince < 24 && !freePathSwitchUsed) {
+          usedFreeSwitch = true;
+          setFreePathSwitchUsed(true);
+      }
+    }
+
+    const nowStr = new Date().toISOString();
+    setPlayerPath(newPath); 
+    setPathUpdatedAt(nowStr); 
+    setShowPathSelection(false);
+    
+    const updates: any = { 
+        player_path: newPath, 
+        path_updated_at: nowStr, 
+        free_path_switch_used: usedFreeSwitch,
+        last_salary_sync: nowStr, 
+        last_energy_sync: lastEnergySyncState ? new Date(lastEnergySyncState).toISOString() : nowStr 
+    };
+
+    if (newPath === 'founder') {
+        updates.bank_balance = finalBal;
+        updates.savings_balance = finalSav;
+        updates.loan_account_balance = finalLoan;
+        
+        const defaultStartup = { workload: 50, payroll: 50, morale: 100, is_strike: false, level: 1 };
+        setStartupData(defaultStartup);
+        updates.startup_data = defaultStartup;
+    } else if (newPath === 'corporate') { 
+        setPendingSalary(0); 
+        setLastLocalSync(Date.now()); 
+    }
+
+    saveGameState(updates);
   };
 
   const handleDevBypass = async () => {
@@ -731,7 +818,8 @@ export default function NetworkDashboard() {
      setEnergy(100); 
      setFico(850); 
      setLoanBalance(0); 
-     setPathUpdatedAt(null); 
+     setPathUpdatedAt(null);
+     setFreePathSwitchUsed(false);
      setPendingSalary(playerPath === 'corporate' ? monthlySalaryTarget : 0); 
      setLastLocalSync(Date.now()); 
      setLastEnergySyncState(Date.now());
@@ -743,6 +831,7 @@ export default function NetworkDashboard() {
        fico_score: 850, 
        loan_balance: 0, 
        path_updated_at: null, 
+       free_path_switch_used: false,
        pending_salary: playerPath === 'corporate' ? monthlySalaryTarget : 0, 
        last_salary_sync: new Date().toISOString(), 
        last_energy_sync: new Date().toISOString(),
@@ -785,6 +874,8 @@ export default function NetworkDashboard() {
          portfolio: {},
          startup_data: defaultStartup,
          corporate_level: 1,
+         path_updated_at: null,
+         free_path_switch_used: false,
          last_salary_sync: new Date().toISOString(),
          last_energy_sync: new Date().toISOString()
      });
@@ -882,12 +973,14 @@ export default function NetworkDashboard() {
                        <p className="text-zinc-400 text-sm leading-relaxed mb-6">Stable passive income. Accrue salary per minute and claim monthly. Perform "Boss Tasks" to earn promotions.</p>
                     </div>
                  </button>
-                 <button disabled={balance < 50000} onClick={() => handlePathSelect('founder')} className={`group border rounded-3xl p-8 text-left transition-all flex flex-col justify-between min-h-[400px] cursor-pointer relative overflow-hidden ${balance < 50000 ? 'bg-[#121214]/50 border-white/5 opacity-70 cursor-not-allowed' : 'bg-[#121214] border-white/10 hover:border-orange-500/50 hover:-translate-y-2'} ${playerPath === 'founder' ? 'bg-orange-500/10 border-orange-500/50 shadow-[0_0_40px_rgba(249,115,22,0.15)]' : ''}`}>
-                    {balance < 50000 && <div className="absolute inset-0 bg-black/40 backdrop-blur-sm z-10 flex flex-col items-center justify-center"><Lock className="w-8 h-8 text-zinc-500 mb-2" /><p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Requires $50k Bank</p></div>}
-                    <div className={balance < 50000 ? "blur-sm" : ""}>
+                 <button onClick={() => handlePathSelect('founder')} className={`group border rounded-3xl p-8 text-left transition-all flex flex-col justify-between min-h-[400px] cursor-pointer relative overflow-hidden bg-[#121214] border-white/10 hover:border-orange-500/50 hover:-translate-y-2 ${playerPath === 'founder' ? 'bg-orange-500/10 border-orange-500/50 shadow-[0_0_40px_rgba(249,115,22,0.15)]' : ''}`}>
+                    <div>
                        <div className="w-14 h-14 bg-orange-500/10 rounded-2xl flex items-center justify-center border border-orange-500/20 mb-6"><Building2 className="w-7 h-7 text-orange-400" /></div>
                        <h3 className="text-2xl font-black text-white mb-2">The Founder</h3>
                        <p className="text-zinc-400 text-sm leading-relaxed mb-6">Manage a global startup. Balance workload and payroll. Highly volatile income, massive upside potential, but strikes can bankrupt you.</p>
+                    </div>
+                    <div className="mt-auto pt-6">
+                       <p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest border border-orange-500/20 bg-orange-500/10 px-3 py-1.5 rounded-lg inline-block w-max">Requires $50,000 Investment</p>
                     </div>
                  </button>
               </div>
