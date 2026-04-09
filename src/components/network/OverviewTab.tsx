@@ -11,10 +11,35 @@ export default function OverviewTab({
   setEnergy, setActiveJob, saveGameState, handleSwitchPathClick, corporateLevel, 
   currentRole, displaySalary, pendingSalary, monthlySalaryTarget, salaryProgressPercentage, 
   handleClaimSalary, currentLocation, ownedProperties, startupData, setStartupData, locMultiplier,
-  showAlert, showConfirm, showPrompt
+  showAlert, showConfirm, showPrompt, nextTaxTime, taxCycleMinutes
 }: any) {
 
-  const HustlerPath = () => {
+  // --- LIFTED STATE ---
+  // The Daily Upkeep timer state MUST be lifted here so it doesn't get destroyed
+  // every single second when the pendingSalary triggers a re-render!
+  const [timeLeft, setTimeLeft] = useState("00:00");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const timer = setInterval(() => {
+      if (!nextTaxTime) return;
+      const now = Date.now();
+      const diff = nextTaxTime - now;
+      
+      if (diff <= 0) {
+         setTimeLeft("00:00");
+         return;
+      }
+      
+      const m = Math.floor((diff / 1000 / 60) % 60).toString().padStart(2, '0');
+      const s = Math.floor((diff / 1000) % 60).toString().padStart(2, '0');
+      setTimeLeft(`${m}:${s}`);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [nextTaxTime]);
+
+  const renderHustlerPath = () => {
     const hasCar = ownedVehicles && ownedVehicles.length > 0;
     const handleStartJob = async (job: any) => {
         if (energy < job.energyCost) return await showAlert("Energy Depleted", `Not enough energy! You need ${job.energyCost}⚡ to do this job.`);
@@ -83,7 +108,7 @@ export default function OverviewTab({
     );
   };
 
-  const CorporatePath = () => (
+  const renderCorporatePath = () => (
     <div className="lg:col-span-3 bg-[#121214] border border-indigo-500/20 rounded-[24px] p-6 shadow-[0_0_30px_rgba(99,102,241,0.05)] flex flex-col justify-between h-full">
       <div className="flex justify-between items-center mb-6">
         <div>
@@ -133,7 +158,7 @@ export default function OverviewTab({
     </div>
   );
 
-  const FounderPath = () => {
+  const renderFounderPath = () => {
     const { workload = 50, payroll = 50, morale = 100, is_strike = false, level = 1 } = startupData;
     
     const baseOpCost = 100 * locMultiplier * level;
@@ -236,24 +261,7 @@ export default function OverviewTab({
     );
   };
 
-  const DailyUpkeep = () => {
-    const [timeLeft, setTimeLeft] = useState("23:59:59");
-    const [mounted, setMounted] = useState(false);
-
-    useEffect(() => {
-      setMounted(true);
-      const timer = setInterval(() => {
-        const now = new Date();
-        const tomorrow = new Date(now); tomorrow.setHours(24, 0, 0, 0);
-        const diff = tomorrow.getTime() - now.getTime();
-        const h = Math.floor((diff / (1000 * 60 * 60)) % 24).toString().padStart(2, '0');
-        const m = Math.floor((diff / 1000 / 60) % 60).toString().padStart(2, '0');
-        const s = Math.floor((diff / 1000) % 60).toString().padStart(2, '0');
-        setTimeLeft(`${h}:${m}:${s}`);
-      }, 1000);
-      return () => clearInterval(timer);
-    }, []);
-
+  const renderDailyUpkeep = () => {
     const locStats = LOCATIONS[currentLocation] || LOCATIONS.bali;
     const ownsHome = ownedProperties.some((id: string) => REAL_ESTATE[currentLocation]?.find((p: any) => p.id === id));
     const rent = ownsHome ? 0 : locStats.rent;
@@ -270,8 +278,8 @@ export default function OverviewTab({
           <Clock className="w-4 h-4 text-zinc-500" />
         </div>
         <div className="text-center bg-black/40 border border-white/5 rounded-xl p-4 mb-4">
-          <span className="text-2xl font-black font-mono tracking-tighter text-white">{mounted ? timeLeft : "23:59:59"}</span>
-          <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mt-1">To Midnight Auto-Cut</p>
+          <span className="text-2xl font-black font-mono tracking-tighter text-white">{mounted ? timeLeft : "10:00"}</span>
+          <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mt-1">To Next Tax Cut</p>
         </div>
         <div className="space-y-2 text-xs font-mono">
            <div className="flex justify-between border-b border-white/5 pb-1"><span className="text-zinc-400">Rent ({locStats.name})</span>{ownsHome ? <span className="text-emerald-400 font-bold">Waived</span> : <span className="text-red-400">-${rent.toFixed(2)}</span>}</div>
@@ -299,7 +307,6 @@ export default function OverviewTab({
         </div>
         
         <div className="relative z-10 mt-6 flex flex-col gap-3">
-          {/* UPDATED: Splits Cash and Savings Vault visually */}
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-emerald-400 font-black text-xl md:text-2xl bg-emerald-500/10 px-4 py-2 rounded-xl border border-emerald-500/20 drop-shadow-md">
               Cash: ${Number(balance).toLocaleString('en-US')}
@@ -344,9 +351,9 @@ export default function OverviewTab({
         <FicoRadialChart score={fico} />
       </div>
 
-      {playerPath === 'hustler' && <HustlerPath />}
-      {playerPath === 'corporate' && <CorporatePath />}
-      {playerPath === 'founder' && <FounderPath />}
+      {playerPath === 'hustler' && renderHustlerPath()}
+      {playerPath === 'corporate' && renderCorporatePath()}
+      {playerPath === 'founder' && renderFounderPath()}
       {!playerPath && (
          <div className="lg:col-span-3 bg-[#121214] border border-white/5 rounded-[24px] p-6 shadow-2xl flex flex-col items-center justify-center text-center h-full">
             <Briefcase className="w-8 h-8 text-zinc-600 mb-2" />
@@ -356,7 +363,7 @@ export default function OverviewTab({
       )}
 
       {/* ROW 3 */}
-      <DailyUpkeep />
+      {renderDailyUpkeep()}
       
     </div>
   );

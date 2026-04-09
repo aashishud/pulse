@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { Activity, Globe, MapPin, Zap, ChevronDown, Loader2, LogOut, X, Landmark, TrendingUp, ShoppingBag, Briefcase, Lock, Building2, RefreshCw, AlertCircle, Check } from 'lucide-react';
+import { Activity, Globe, MapPin, Zap, ChevronDown, Loader2, LogOut, X, Landmark, TrendingUp, ShoppingBag, Briefcase, Lock, Building2, RefreshCw, AlertCircle, Check, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { LOCATIONS, REAL_ESTATE, VEHICLES, CRYPTO_ASSETS, STOCK_ASSETS } from '@/lib/network-data';
@@ -103,6 +103,11 @@ export default function NetworkDashboard() {
   const [lastLocalSync, setLastLocalSync] = useState<number | null>(null);
   const [lastEnergySyncState, setLastEnergySyncState] = useState<number | null>(null);
   
+  // TAX & SLEEP STATES
+  const [nextTaxTime, setNextTaxTime] = useState<number | null>(null);
+  const [taxCycleMinutes, setTaxCycleMinutes] = useState<number>(10);
+  const [lazinessPenaltyUntil, setLazinessPenaltyUntil] = useState<number>(0);
+
   const [activeTab, setActiveTab] = useState('overview');
   const [activeJob, setActiveJob] = useState<any>(null);
   const [showPathSelection, setShowPathSelection] = useState(false);
@@ -145,10 +150,26 @@ export default function NetworkDashboard() {
   };
   // ==========================
 
+  // REFS for intervals
   const displaySalaryRef = useRef(pendingSalary);
   const startupDataRef = useRef(startupData);
+  const balanceRef = useRef(balance);
+  const ficoRef = useRef(fico);
+  const ownedPropertiesRef = useRef(ownedProperties);
+  const currentLocationRef = useRef(currentLocation);
+  const nextTaxTimeRef = useRef(nextTaxTime);
+  const lazinessPenaltyUntilRef = useRef(lazinessPenaltyUntil);
+  const taxCycleMinutesRef = useRef(taxCycleMinutes);
+
   useEffect(() => { displaySalaryRef.current = pendingSalary; }, [pendingSalary]);
   useEffect(() => { startupDataRef.current = startupData; }, [startupData]);
+  useEffect(() => { balanceRef.current = balance; }, [balance]);
+  useEffect(() => { ficoRef.current = fico; }, [fico]);
+  useEffect(() => { ownedPropertiesRef.current = ownedProperties; }, [ownedProperties]);
+  useEffect(() => { currentLocationRef.current = currentLocation; }, [currentLocation]);
+  useEffect(() => { nextTaxTimeRef.current = nextTaxTime; }, [nextTaxTime]);
+  useEffect(() => { lazinessPenaltyUntilRef.current = lazinessPenaltyUntil; }, [lazinessPenaltyUntil]);
+  useEffect(() => { taxCycleMinutesRef.current = taxCycleMinutes; }, [taxCycleMinutes]);
 
   const locStats = LOCATIONS[currentLocation] || LOCATIONS.bali;
   
@@ -266,6 +287,14 @@ export default function NetworkDashboard() {
           setLoanBalance(dbData.data.loan_balance != null ? Number(dbData.data.loan_balance) : 0);
           setCurrentLocation(dbData.data.location || 'bali');
           
+          const dbNextTaxAt = dbData.data.next_tax_at != null ? Number(dbData.data.next_tax_at) : Date.now() + 10 * 60000;
+          const dbTaxCycle = dbData.data.tax_cycle_minutes != null ? Number(dbData.data.tax_cycle_minutes) : 10;
+          const dbLaziness = dbData.data.laziness_penalty_until != null ? Number(dbData.data.laziness_penalty_until) : 0;
+          
+          setNextTaxTime(dbNextTaxAt);
+          setTaxCycleMinutes(dbTaxCycle);
+          setLazinessPenaltyUntil(dbLaziness);
+
           const parseJSON = (data: any, fallback: any) => {
              if (!data) return fallback;
              return typeof data === 'string' ? JSON.parse(data) : data;
@@ -335,19 +364,7 @@ export default function NetworkDashboard() {
           setLastLocalSync(syncAnchor);
           if (offlineEarnings !== 0) saveGameState({ pending_salary: totalLoadedSalary, last_salary_sync: new Date(syncAnchor).toISOString() });
 
-          let energySyncAnchor = Date.now();
-          if (dbData.data.last_energy_sync) {
-              const lastEnergySync = new Date(dbData.data.last_energy_sync).getTime();
-              const minutesOffline = Math.floor((Date.now() - lastEnergySync) / 60000);
-              if (minutesOffline > 0 && loadedEnergy < 100) {
-                 const intervals = Math.floor(minutesOffline / 2);
-                 loadedEnergy = Math.min(100, loadedEnergy + (intervals * 5));
-                 energySyncAnchor = lastEnergySync + (intervals * 120000);
-              } else { energySyncAnchor = lastEnergySync; }
-          }
           setEnergy(loadedEnergy);
-          setLastEnergySyncState(energySyncAnchor);
-          if (loadedEnergy !== (dbData.data.energy != null ? Number(dbData.data.energy) : 100)) saveGameState({ energy: loadedEnergy, last_energy_sync: new Date(energySyncAnchor).toISOString() });
         }
       } catch (error) { console.error(error); } finally { setLoading(false); }
     });
@@ -365,6 +382,9 @@ export default function NetworkDashboard() {
       if (safeUpdates.fico_score !== undefined) safeUpdates.fico_score = Math.floor(Number(safeUpdates.fico_score));
       if (safeUpdates.pending_salary !== undefined) safeUpdates.pending_salary = Number(Number(safeUpdates.pending_salary).toFixed(2));
       if (safeUpdates.free_path_switch_used !== undefined) safeUpdates.free_path_switch_used = Boolean(safeUpdates.free_path_switch_used);
+      if (safeUpdates.next_tax_at !== undefined) safeUpdates.next_tax_at = Number(safeUpdates.next_tax_at);
+      if (safeUpdates.tax_cycle_minutes !== undefined) safeUpdates.tax_cycle_minutes = Number(safeUpdates.tax_cycle_minutes);
+      if (safeUpdates.laziness_penalty_until !== undefined) safeUpdates.laziness_penalty_until = Number(safeUpdates.laziness_penalty_until);
       
       if (safeUpdates.owned_properties !== undefined) safeUpdates.owned_properties = JSON.stringify(safeUpdates.owned_properties);
       if (safeUpdates.owned_vehicles !== undefined) safeUpdates.owned_vehicles = JSON.stringify(safeUpdates.owned_vehicles);
@@ -375,28 +395,49 @@ export default function NetworkDashboard() {
     } catch (error) { console.error("Failed to sync game state:", error); }
   };
 
+  // --- AUTOMATED 10-MINUTE TAX UPKEEP LOOP ---
   useEffect(() => {
-    if (!lastEnergySyncState) return;
-    let currentSync = lastEnergySyncState;
     const interval = setInterval(() => {
       const now = Date.now();
-      const minutesPassed = Math.floor((now - currentSync) / 60000);
-      if (minutesPassed >= 2) {
-          const intervals = Math.floor(minutesPassed / 2);
-          setEnergy(prev => {
-              const currentEnergy = Number(prev);
-              if (currentEnergy >= 100) return currentEnergy;
-              const newEnergy = Math.min(100, currentEnergy + (intervals * 5));
-              saveGameState({ energy: newEnergy, last_energy_sync: new Date(now).toISOString() });
-              return newEnergy;
-          });
-          currentSync += intervals * 120000;
-          setLastEnergySyncState(currentSync); 
-      }
-    }, 1000); 
-    return () => clearInterval(interval);
-  }, [lastEnergySyncState]);
+      if (nextTaxTimeRef.current && now >= nextTaxTimeRef.current) {
+         const locId = currentLocationRef.current;
+         const locStats = LOCATIONS[locId] || LOCATIONS.bali;
+         const ownsHome = ownedPropertiesRef.current.some((id: string) => REAL_ESTATE[locId]?.find((p: any) => p.id === id));
+         const rent = ownsHome ? 0 : locStats.rent;
+         const upkeepCost = rent + locStats.living;
 
+         let newBal = balanceRef.current - upkeepCost;
+         let newFico = ficoRef.current;
+         
+         if (newBal < 0) {
+             newFico = Math.max(300, newFico - 20); // Penalty
+             newBal = 0;
+             // Only alert if they are completely broke to avoid annoying idle popups
+             if (balanceRef.current <= 0) {
+                 showAlert("Upkeep Failed", `You couldn't afford your $${upkeepCost} living expenses. FICO score dropped by 20 points!`);
+             }
+         }
+         
+         setBalance(newBal);
+         setFico(newFico);
+         
+         const newNextTax = now + 10 * 60000; // Reset to standard 10 mins
+         nextTaxTimeRef.current = newNextTax; // <-- FIX: Update ref instantly to prevent double-firing
+         setTaxCycleMinutes(10);
+         setNextTaxTime(newNextTax);
+         
+         saveGameState({
+             bank_balance: newBal,
+             fico_score: newFico,
+             tax_cycle_minutes: 10,
+             next_tax_at: newNextTax
+         });
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // --- PASSIVE INCOME EARNINGS LOOP ---
   useEffect(() => {
     if ((playerPath !== 'corporate' && playerPath !== 'founder') || !lastLocalSync) return;
     
@@ -408,32 +449,36 @@ export default function NetworkDashboard() {
       
       if (secondsPassed >= 1) {
           let netEarnings = 0;
+          const isPenalized = now < lazinessPenaltyUntilRef.current;
           
-          if (playerPath === 'corporate') {
-             netEarnings = secondsPassed * (currentRole.payPerMinute / 60);
-          } 
-          else if (playerPath === 'founder') {
+          if (!isPenalized) {
+              if (playerPath === 'corporate') {
+                 netEarnings = secondsPassed * (currentRole.payPerMinute / 60);
+              } 
+              else if (playerPath === 'founder') {
+                 const sData = startupDataRef.current;
+                 const levelMult = sData.level || 1;
+                 const locMulti = LOCATIONS[currentLocation]?.multiplier || 1;
+                 const baseOpCost = 100 * locMulti * levelMult;
+
+                 if (!sData.is_strike) {
+                    const gross = sData.workload * 15 * locMulti * levelMult;
+                    const cost = (sData.payroll * 10 * locMulti * levelMult) + baseOpCost;
+                    netEarnings = secondsPassed * ((gross - cost) / 60);
+                 } else {
+                    const strikeCost = (sData.payroll * 20 * locMulti * levelMult) + baseOpCost;
+                    netEarnings = secondsPassed * (-strikeCost / 60); 
+                 }
+              }
+          }
+
+          if (!isPenalized && playerPath === 'founder') {
              const sData = startupDataRef.current;
-             const levelMult = sData.level || 1;
-             const locMulti = LOCATIONS[currentLocation]?.multiplier || 1;
-             let moraleChange = 0;
-
-             const baseOpCost = 100 * locMulti * levelMult;
-
-             if (!sData.is_strike) {
-                const gross = sData.workload * 15 * locMulti * levelMult;
-                const cost = (sData.payroll * 10 * locMulti * levelMult) + baseOpCost;
-                netEarnings = secondsPassed * ((gross - cost) / 60);
-             } else {
-                const strikeCost = (sData.payroll * 20 * locMulti * levelMult) + baseOpCost;
-                netEarnings = secondsPassed * (-strikeCost / 60); 
-             }
-             
              let moraleChangePerMin = (sData.payroll - sData.workload) * 0.5;
              if (sData.workload > 50) {
                  moraleChangePerMin -= (sData.workload - 50) * 1.0; 
              }
-             moraleChange = secondsPassed * (moraleChangePerMin / 60);
+             let moraleChange = secondsPassed * (moraleChangePerMin / 60);
              
              let newMorale = sData.morale + moraleChange;
              newMorale = Math.max(0, Math.min(100, newMorale));
@@ -470,6 +515,42 @@ export default function NetworkDashboard() {
     return () => clearInterval(saveInterval);
   }, [playerPath]);
 
+  // --- NEW: SLEEP SYSTEM ---
+  const handleSleep = async () => {
+     const now = Date.now();
+     if (now < lazinessPenaltyUntilRef.current) {
+         const minsLeft = Math.ceil((lazinessPenaltyUntilRef.current - now) / 60000);
+         return await showAlert("Laziness Penalty Active", `You slept too much! Your earnings are paused for another ${minsLeft} minute(s). Wake up!`);
+     }
+
+     let nextCycle = taxCycleMinutesRef.current;
+     if (nextCycle === 10) nextCycle = 7;
+     else if (nextCycle === 7) nextCycle = 5;
+     else if (nextCycle === 5) nextCycle = 3;
+     else if (nextCycle === 3) nextCycle = 1;
+     else if (nextCycle <= 1) {
+         // LAZINESS PENALTY APPLIED
+         const penaltyTime = now + 5 * 60000;
+         const newNextTax = now + 10 * 60000;
+         nextTaxTimeRef.current = newNextTax; // <-- FIX: Safely override ref
+         setLazinessPenaltyUntil(penaltyTime);
+         setTaxCycleMinutes(10); 
+         setEnergy(100);
+         setNextTaxTime(newNextTax);
+         saveGameState({ energy: 100, laziness_penalty_until: penaltyTime, tax_cycle_minutes: 10, next_tax_at: newNextTax });
+         return await showAlert("Laziness Penalty!", "You slept too much! Your passive income has been completely paused for 5 minutes, and your tax cycle has reset back to 10 minutes.");
+     }
+
+     // Apply successful sleep benefits
+     const newNextTax = now + nextCycle * 60000;
+     nextTaxTimeRef.current = newNextTax; // <-- FIX: Safely override ref
+     setEnergy(100);
+     setTaxCycleMinutes(nextCycle);
+     setNextTaxTime(newNextTax);
+     saveGameState({ energy: 100, tax_cycle_minutes: nextCycle, next_tax_at: newNextTax });
+     await showAlert("Well Rested", `You slept and restored 100 Energy!\n\nHowever, because you are sleeping through the day, your next tax cut will arrive in just ${nextCycle} minute(s).`);
+  };
+
   const handleBankSelect = async (bankId: string | null) => {
      setSelectedBank(bankId);
      const updates: any = { selected_bank: bankId };
@@ -484,7 +565,6 @@ export default function NetworkDashboard() {
 
   const handleTransfer = async (direction: 'to_savings' | 'to_current', newBal?: number, newSav?: number) => {
      if (newBal !== undefined && newSav !== undefined) {
-         // Direct update via proxy child component
          setBalance(newBal);
          setSavingsBalance(newSav);
          saveGameState({ bank_balance: newBal, savings_balance: newSav });
@@ -1098,9 +1178,24 @@ export default function NetworkDashboard() {
                  </div>
                </div>
             </div>
+            
+            {/* NEW SLEEP BUTTON */}
+            <div className="hidden md:flex mt-4">
+              <button 
+                onClick={handleSleep} 
+                className="flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-indigo-500/20 transition shadow-[0_0_15px_rgba(99,102,241,0.2)]"
+              >
+                <Moon className="w-3.5 h-3.5" /> Sleep (100⚡)
+              </button>
+            </div>
           </div>
           
           <div className="flex items-center gap-3">
+             {Date.now() < lazinessPenaltyUntil && (
+                <div className="hidden lg:flex items-center gap-2 bg-red-500/10 border border-red-500/30 text-red-500 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest mr-2 animate-pulse">
+                   [LAZY - PENALTY ACTIVE]
+                </div>
+             )}
              {displayName.toLowerCase() === 'sour' && (
                <div className="hidden md:flex items-center gap-2">
                  <button onClick={handleResetState} className="flex items-center gap-2 bg-orange-500/10 border border-orange-500/30 text-orange-500 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-orange-500/20 transition shadow-[0_0_15px_rgba(249,115,22,0.2)]">
@@ -1126,7 +1221,7 @@ export default function NetworkDashboard() {
           {activeTab === 'overview' && (
              <OverviewTab 
                 netWorth={totalNetWorth} balance={balance} savingsBalance={savingsBalance} loanAccountBalance={loanAccountBalance} assetValue={assetValue} loanBalance={loanBalance} fico={fico} playerPath={playerPath} netWorthHistory={netWorthHistory} currentLocName={locStats.name} energy={energy} ownedVehicles={ownedVehicles} setBalance={setBalance} setEnergy={setEnergy} setActiveJob={setActiveJob} saveGameState={saveGameState} handleSwitchPathClick={handleSwitchPathClick} corporateLevel={corporateLevel} currentRole={currentRole} displaySalary={displaySalaryRef.current} pendingSalary={pendingSalary} monthlySalaryTarget={monthlySalaryTarget} salaryProgressPercentage={Math.min(100, (Number(pendingSalary) / monthlySalaryTarget) * 100)} handleClaimSalary={handleClaimSalary} currentLocation={currentLocation} ownedProperties={ownedProperties} startupData={startupData} setStartupData={setStartupData} locMultiplier={locStats.multiplier}
-                showAlert={showAlert} showConfirm={showConfirm} showPrompt={showPrompt}
+                showAlert={showAlert} showConfirm={showConfirm} showPrompt={showPrompt} nextTaxTime={nextTaxTime} taxCycleMinutes={taxCycleMinutes}
              />
           )}
           {activeTab === 'banking' && (
