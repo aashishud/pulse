@@ -279,7 +279,6 @@ export default function NetworkDashboard() {
           setFico(dbData.data.fico_score != null ? Number(dbData.data.fico_score) : 700);
           setPlayerPath(dbData.data.player_path || null);
           setPathUpdatedAt(dbData.data.path_updated_at || null);
-          setFreePathSwitchUsed(dbData.data.free_path_switch_used || false);
           setSelectedBank(dbData.data.selected_bank || null);
           setAccountNumber(dbData.data.account_number || null);
           setSavingsBalance(dbData.data.savings_balance != null ? Number(dbData.data.savings_balance) : 0);
@@ -287,13 +286,18 @@ export default function NetworkDashboard() {
           setLoanBalance(dbData.data.loan_balance != null ? Number(dbData.data.loan_balance) : 0);
           setCurrentLocation(dbData.data.location || 'bali');
           
-          const dbNextTaxAt = dbData.data.next_tax_at != null ? Number(dbData.data.next_tax_at) : Date.now() + 10 * 60000;
-          const dbTaxCycle = dbData.data.tax_cycle_minutes != null ? Number(dbData.data.tax_cycle_minutes) : 10;
-          const dbLaziness = dbData.data.laziness_penalty_until != null ? Number(dbData.data.laziness_penalty_until) : 0;
+          // FIX: Load the un-migrated variables directly from LocalStorage to bypass Postgres Database Schema errors
+          const localTaxData = JSON.parse(localStorage.getItem('pulse_tax_state') || '{}');
           
+          const dbNextTaxAt = localTaxData.next_tax_at != null ? Number(localTaxData.next_tax_at) : Date.now() + 10 * 60000;
+          const dbTaxCycle = localTaxData.tax_cycle_minutes != null ? Number(localTaxData.tax_cycle_minutes) : 10;
+          const dbLaziness = localTaxData.laziness_penalty_until != null ? Number(localTaxData.laziness_penalty_until) : 0;
+          const dbFreeSwitch = localTaxData.free_path_switch_used != null ? Boolean(localTaxData.free_path_switch_used) : false;
+
           setNextTaxTime(dbNextTaxAt);
           setTaxCycleMinutes(dbTaxCycle);
           setLazinessPenaltyUntil(dbLaziness);
+          setFreePathSwitchUsed(dbFreeSwitch);
 
           const parseJSON = (data: any, fallback: any) => {
              if (!data) return fallback;
@@ -364,7 +368,19 @@ export default function NetworkDashboard() {
           setLastLocalSync(syncAnchor);
           if (offlineEarnings !== 0) saveGameState({ pending_salary: totalLoadedSalary, last_salary_sync: new Date(syncAnchor).toISOString() });
 
+          let energySyncAnchor = Date.now();
+          if (dbData.data.last_energy_sync) {
+              const lastEnergySync = new Date(dbData.data.last_energy_sync).getTime();
+              const minutesOffline = Math.floor((Date.now() - lastEnergySync) / 60000);
+              if (minutesOffline > 0 && loadedEnergy < 100) {
+                 const intervals = Math.floor(minutesOffline / 2);
+                 loadedEnergy = Math.min(100, loadedEnergy + (intervals * 5));
+                 energySyncAnchor = lastEnergySync + (intervals * 120000);
+              } else { energySyncAnchor = lastEnergySync; }
+          }
           setEnergy(loadedEnergy);
+          setLastEnergySyncState(energySyncAnchor);
+          if (loadedEnergy !== (dbData.data.energy != null ? Number(dbData.data.energy) : 100)) saveGameState({ energy: loadedEnergy, last_energy_sync: new Date(energySyncAnchor).toISOString() });
         }
       } catch (error) { console.error(error); } finally { setLoading(false); }
     });
@@ -381,11 +397,19 @@ export default function NetworkDashboard() {
       if (safeUpdates.loan_balance !== undefined) safeUpdates.loan_balance = Math.floor(Number(safeUpdates.loan_balance));
       if (safeUpdates.fico_score !== undefined) safeUpdates.fico_score = Math.floor(Number(safeUpdates.fico_score));
       if (safeUpdates.pending_salary !== undefined) safeUpdates.pending_salary = Number(Number(safeUpdates.pending_salary).toFixed(2));
-      if (safeUpdates.free_path_switch_used !== undefined) safeUpdates.free_path_switch_used = Boolean(safeUpdates.free_path_switch_used);
-      if (safeUpdates.next_tax_at !== undefined) safeUpdates.next_tax_at = Number(safeUpdates.next_tax_at);
-      if (safeUpdates.tax_cycle_minutes !== undefined) safeUpdates.tax_cycle_minutes = Number(safeUpdates.tax_cycle_minutes);
-      if (safeUpdates.laziness_penalty_until !== undefined) safeUpdates.laziness_penalty_until = Number(safeUpdates.laziness_penalty_until);
       
+      // FIX: Isolate the new variables into LocalStorage to prevent Postgres "Column Not Found" errors!
+      const localTaxUpdates: any = {};
+      if (safeUpdates.next_tax_at !== undefined) { localTaxUpdates.next_tax_at = Number(safeUpdates.next_tax_at); delete safeUpdates.next_tax_at; }
+      if (safeUpdates.tax_cycle_minutes !== undefined) { localTaxUpdates.tax_cycle_minutes = Number(safeUpdates.tax_cycle_minutes); delete safeUpdates.tax_cycle_minutes; }
+      if (safeUpdates.laziness_penalty_until !== undefined) { localTaxUpdates.laziness_penalty_until = Number(safeUpdates.laziness_penalty_until); delete safeUpdates.laziness_penalty_until; }
+      if (safeUpdates.free_path_switch_used !== undefined) { localTaxUpdates.free_path_switch_used = Boolean(safeUpdates.free_path_switch_used); delete safeUpdates.free_path_switch_used; }
+      
+      if (Object.keys(localTaxUpdates).length > 0) {
+          const currentLocalData = JSON.parse(localStorage.getItem('pulse_tax_state') || '{}');
+          localStorage.setItem('pulse_tax_state', JSON.stringify({ ...currentLocalData, ...localTaxUpdates }));
+      }
+
       if (safeUpdates.owned_properties !== undefined) safeUpdates.owned_properties = JSON.stringify(safeUpdates.owned_properties);
       if (safeUpdates.owned_vehicles !== undefined) safeUpdates.owned_vehicles = JSON.stringify(safeUpdates.owned_vehicles);
       if (safeUpdates.portfolio !== undefined) safeUpdates.portfolio = JSON.stringify(safeUpdates.portfolio);
@@ -412,7 +436,6 @@ export default function NetworkDashboard() {
          if (newBal < 0) {
              newFico = Math.max(300, newFico - 20); // Penalty
              newBal = 0;
-             // Only alert if they are completely broke to avoid annoying idle popups
              if (balanceRef.current <= 0) {
                  showAlert("Upkeep Failed", `You couldn't afford your $${upkeepCost} living expenses. FICO score dropped by 20 points!`);
              }
@@ -421,8 +444,8 @@ export default function NetworkDashboard() {
          setBalance(newBal);
          setFico(newFico);
          
-         const newNextTax = now + 10 * 60000; // Reset to standard 10 mins
-         nextTaxTimeRef.current = newNextTax; // <-- FIX: Update ref instantly to prevent double-firing
+         const newNextTax = now + 10 * 60000; 
+         nextTaxTimeRef.current = newNextTax; 
          setTaxCycleMinutes(10);
          setNextTaxTime(newNextTax);
          
@@ -939,6 +962,9 @@ export default function NetworkDashboard() {
      setPortfolio({});
      setStartupData(defaultStartup);
      setCorporateLevel(1);
+
+     // Wipe localStorage vars too!
+     localStorage.removeItem('pulse_tax_state');
 
      saveGameState({
          bank_balance: 0,
