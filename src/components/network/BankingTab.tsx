@@ -1,7 +1,8 @@
 "use client";
 
-import React from 'react';
-import { Landmark, Shield, ArrowUpRight, ArrowDownRight, Wifi, Lock } from 'lucide-react';
+import React, { useState } from 'react';
+import { Landmark, Shield, ArrowUpRight, ArrowDownRight, Wifi, Lock, Check } from 'lucide-react';
+import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from 'framer-motion';
 
 const BANKS = [
   { 
@@ -61,23 +62,110 @@ const CardBrand = ({ type, size = 'lg' }: { type: string, size?: 'sm' | 'lg' }) 
   
   if (type === 'OmniCard') return (
     <div className={`flex ${scale} opacity-90 drop-shadow-md`}>
-       <div className="w-6 h-6 rounded-full bg-red-500/90 mix-blend-screen"></div>
-       <div className="w-6 h-6 rounded-full bg-orange-500/90 mix-blend-screen -ml-3"></div>
+       <div className="w-6 h-6 rounded-full bg-red-500/90 mix-blend-screen shadow-lg"></div>
+       <div className="w-6 h-6 rounded-full bg-orange-500/90 mix-blend-screen -ml-3 shadow-lg"></div>
     </div>
   );
   if (type === 'Bisa') return <div className={`text-blue-400 font-black italic tracking-widest drop-shadow-md ${size === 'sm' ? 'text-sm' : 'text-xl'} ${scale}`}>BISA</div>;
   if (type === 'Americash') return <div className={`bg-blue-500/20 border border-blue-400/50 text-blue-200 font-black uppercase px-2 py-0.5 rounded drop-shadow-md ${size === 'sm' ? 'text-[8px]' : 'text-xs'} ${scale}`}>Americash</div>;
-  if (type === 'Discoverer') return <div className={`flex items-center text-orange-400 font-black uppercase tracking-wider drop-shadow-md ${size === 'sm' ? 'text-[9px]' : 'text-sm'} ${scale}`}>DISC<span className={`${size === 'sm' ? 'w-2 h-2' : 'w-3 h-3'} rounded-full bg-orange-500 mx-[1px] inline-block`}></span>VERER</div>;
+  if (type === 'Discoverer') return <div className={`flex items-center text-orange-400 font-black uppercase tracking-wider drop-shadow-md ${size === 'sm' ? 'text-[9px]' : 'text-sm'} ${scale}`}>DISC<span className={`${size === 'sm' ? 'w-2 h-2' : 'w-3 h-3'} rounded-full bg-orange-500 mx-[1px] inline-block shadow-md`}></span>VERER</div>;
   if (type === 'Sapphire') return <div className={`text-blue-300 font-serif font-bold italic tracking-wider drop-shadow-md ${size === 'sm' ? 'text-xs' : 'text-lg'} ${scale}`}>Sapphire</div>;
   
   return null;
 }
 
+// --- NEW: Interactive 3D Spatial Card ---
+const Interactive3DCard = ({ currentBank, balance, displayCardNumber, displayName }: any) => {
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+
+  const mouseXSpring = useSpring(x, { stiffness: 300, damping: 30 });
+  const mouseYSpring = useSpring(y, { stiffness: 300, damping: 30 });
+
+  const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], ["15deg", "-15deg"]);
+  const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], ["-15deg", "15deg"]);
+  const glareX = useTransform(mouseXSpring, [-0.5, 0.5], ["100%", "-100%"]);
+  const glareY = useTransform(mouseYSpring, [-0.5, 0.5], ["100%", "-100%"]);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    x.set(mouseX / width - 0.5);
+    y.set(mouseY / height - 0.5);
+  };
+
+  const handleMouseLeave = () => {
+    x.set(0);
+    y.set(0);
+  };
+
+  return (
+    <div 
+      style={{ perspective: 1200 }} 
+      className="w-full max-w-[420px] aspect-[1.586/1] mx-auto z-20 group cursor-pointer"
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+    >
+      <motion.div
+        style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
+        className={`relative w-full h-full rounded-[24px] p-6 md:p-8 text-white flex flex-col justify-between shadow-[0_30px_60px_rgba(0,0,0,0.6)] border border-white/20 bg-gradient-to-br ${currentBank?.gradient} overflow-hidden`}
+      >
+        {/* Dynamic Glare Effect */}
+        <motion.div 
+           style={{ x: glareX, y: glareY }}
+           className="absolute inset-0 w-[200%] h-[200%] -top-[50%] -left-[50%] bg-gradient-to-tr from-white/0 via-white/20 to-white/0 pointer-events-none rounded-full blur-2xl z-10 transition-opacity opacity-0 group-hover:opacity-100"
+        />
+
+        {/* Static Background Elements (No 3D Pop) */}
+        <div className={`absolute top-0 right-0 w-48 h-48 ${currentBank?.glow} blur-[60px] rounded-full opacity-80 z-0`}></div>
+        <div className={`absolute bottom-0 left-0 w-32 h-32 ${currentBank?.glow} blur-[40px] rounded-full opacity-40 z-0`}></div>
+        
+        {/* Top Header - Popped out 30px */}
+        <div style={{ transform: "translateZ(30px)" }} className="relative z-20 flex justify-between items-start">
+           <svg className="w-10 h-10 md:w-12 md:h-12 opacity-90 drop-shadow-lg" viewBox="0 0 40 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect width="40" height="30" rx="4" fill="url(#paint0_linear)"/>
+              <path d="M10 0V30M30 0V30M0 15H40M15 0V15M25 30V15" stroke="#B8860B" strokeWidth="0.5" strokeOpacity="0.5"/>
+              <defs><linearGradient id="paint0_linear" x1="0" y1="0" x2="40" y2="30" gradientUnits="userSpaceOnUse"><stop stopColor="#F9D423"/><stop offset="1" stopColor="#B8860B"/></linearGradient></defs>
+           </svg>
+           <div className="flex flex-col items-end">
+              <h4 className={`text-sm md:text-base font-black tracking-widest uppercase drop-shadow-md ${currentBank?.logo}`}>{currentBank?.name}</h4>
+              <Wifi className="w-5 h-5 opacity-70 rotate-90 mt-1" />
+           </div>
+        </div>
+        
+        {/* Middle Balance - Popped out 50px (Max Depth) */}
+        <div style={{ transform: "translateZ(50px)" }} className="relative z-20 my-4 drop-shadow-2xl">
+           <p className="text-[10px] uppercase tracking-[0.2em] text-white/70 mb-1 font-bold">Available Balance</p>
+           <h2 className="text-4xl md:text-5xl font-mono font-black tracking-tighter text-white">
+              ${Number(balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+           </h2>
+        </div>
+        
+        {/* Bottom Footer - Popped out 40px */}
+        <div style={{ transform: "translateZ(40px)" }} className="relative z-20 flex justify-between items-end drop-shadow-lg">
+           <div>
+              <p className="font-mono text-sm md:text-base tracking-[0.15em] opacity-90 font-bold">{displayCardNumber}</p>
+              <div className="flex gap-4 mt-2">
+                 <p className="text-[9px] uppercase tracking-widest opacity-80 font-bold">{displayName || 'Pulse User'}</p>
+                 <p className="text-[9px] uppercase tracking-widest opacity-80 font-mono font-bold">12/28</p>
+              </div>
+           </div>
+           <CardBrand type={currentBank?.cardType || 'OmniCard'} />
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+
 export default function BankingTab({ 
   balance, savingsBalance, loanBalance, loanAccountBalance, fico, 
   selectedBank, accountNumber, transferAmount, setTransferAmount, 
   handleBankSelect, handleTransfer, handleTakeLoan, handleRepayLoan,
-  displayName, showPrompt, showConfirm
+  displayName, showPrompt, showConfirm, showAlert
 }: any) {
 
   // Get active bank details
@@ -139,7 +227,7 @@ export default function BankingTab({
       ) : (
          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             
-            {/* LEFT COLUMN: Physical Card UI */}
+            {/* LEFT COLUMN: 3D Physical Card UI */}
             <div className="lg:col-span-5 flex flex-col items-center md:items-start">
                <div className="w-full max-w-[420px] flex justify-between items-center mb-4">
                   <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Primary Account</h3>
@@ -151,40 +239,13 @@ export default function BankingTab({
                   </button>
                </div>
                
-               <div className={`relative w-full max-w-[420px] aspect-[1.586/1] rounded-[24px] p-6 md:p-8 text-white flex flex-col justify-between overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] border ${currentBank?.border} bg-gradient-to-br ${currentBank?.gradient}`}>
-                  <div className={`absolute top-0 right-0 w-48 h-48 ${currentBank?.glow} blur-[60px] rounded-full opacity-80`}></div>
-                  <div className={`absolute bottom-0 left-0 w-32 h-32 ${currentBank?.glow} blur-[40px] rounded-full opacity-40`}></div>
-                  
-                  <div className="relative z-10 flex justify-between items-start">
-                     <svg className="w-10 h-10 md:w-12 md:h-12 opacity-90 drop-shadow-md" viewBox="0 0 40 30" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect width="40" height="30" rx="4" fill="url(#paint0_linear)"/>
-                        <path d="M10 0V30M30 0V30M0 15H40M15 0V15M25 30V15" stroke="#B8860B" strokeWidth="0.5" strokeOpacity="0.5"/>
-                        <defs><linearGradient id="paint0_linear" x1="0" y1="0" x2="40" y2="30" gradientUnits="userSpaceOnUse"><stop stopColor="#F9D423"/><stop offset="1" stopColor="#B8860B"/></linearGradient></defs>
-                     </svg>
-                     <div className="flex flex-col items-end">
-                        <h4 className={`text-sm md:text-base font-black tracking-widest uppercase ${currentBank?.logo}`}>{currentBank?.name}</h4>
-                        <Wifi className="w-5 h-5 opacity-50 rotate-90 mt-1" />
-                     </div>
-                  </div>
-                  
-                  <div className="relative z-10 my-4">
-                     <p className="text-[10px] uppercase tracking-[0.2em] text-white/50 mb-1">Available Balance</p>
-                     <h2 className="text-4xl md:text-5xl font-mono font-black tracking-tighter drop-shadow-lg">
-                        ${Number(balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                     </h2>
-                  </div>
-                  
-                  <div className="relative z-10 flex justify-between items-end">
-                     <div>
-                        <p className="font-mono text-sm md:text-base tracking-[0.15em] opacity-80 drop-shadow-sm">{displayCardNumber}</p>
-                        <div className="flex gap-4 mt-2">
-                           <p className="text-[9px] uppercase tracking-widest opacity-60">{displayName || 'Pulse User'}</p>
-                           <p className="text-[9px] uppercase tracking-widest opacity-60 font-mono">12/28</p>
-                        </div>
-                     </div>
-                     <CardBrand type={currentBank?.cardType || 'OmniCard'} />
-                  </div>
-               </div>
+               {/* 3D TILT CARD COMPONENT INJECTED HERE */}
+               <Interactive3DCard 
+                  currentBank={currentBank} 
+                  balance={balance} 
+                  displayCardNumber={displayCardNumber} 
+                  displayName={displayName} 
+               />
 
                <div className="w-full max-w-[420px] mt-6 bg-[#121214] border border-white/5 rounded-[24px] p-5 flex items-center justify-between shadow-inner">
                   <div className="flex items-center gap-3">
@@ -200,10 +261,17 @@ export default function BankingTab({
             {/* RIGHT COLUMN: Bank Operations */}
             <div className="lg:col-span-7 flex flex-col gap-6">
                
-               {/* SAVINGS VAULT & TRANSFERS (Original Clean UI) */}
+               {/* SAVINGS VAULT & TRANSFERS */}
                <div className="bg-[#121214] border border-white/5 rounded-[24px] p-6 md:p-8 shadow-xl relative overflow-hidden group hover:border-white/10 transition-colors">
-                  <div className="absolute top-0 right-0 p-8 opacity-5"><Lock className="w-32 h-32" /></div>
-                  
+                  {/* Floating ambient animation for the background lock */}
+                  <motion.div 
+                     animate={{ y: [0, -15, 0], rotate: [0, 5, 0] }} 
+                     transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }} 
+                     className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none"
+                  >
+                     <Lock className="w-32 h-32" />
+                  </motion.div>
+
                   <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8 border-b border-white/5 pb-6">
                      <div>
                         <h3 className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-1 flex items-center gap-2"><Lock className="w-3 h-3"/> High-Yield Savings</h3>
@@ -224,7 +292,7 @@ export default function BankingTab({
                   </div>
                   
                   <div className="relative z-10 flex flex-col sm:flex-row gap-3">
-                     <button onClick={() => handleTransfer('to_savings')} className="flex-1 flex items-center justify-center gap-2 py-4 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-bold uppercase tracking-widest transition-colors shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+                     <button onClick={() => handleTransfer('to_savings')} className="flex-1 flex items-center justify-center gap-2 py-4 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-bold uppercase tracking-widest transition-colors shadow-[0_0_15px_rgba(16,185,129,0.1)] hover:shadow-[0_0_25px_rgba(16,185,129,0.2)]">
                         <ArrowUpRight className="w-4 h-4" /> Deposit to Vault
                      </button>
                      <button onClick={() => handleTransfer('to_current')} className="flex-1 flex items-center justify-center gap-2 py-4 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-xl text-xs font-bold uppercase tracking-widest transition-colors">
@@ -235,7 +303,15 @@ export default function BankingTab({
 
                {/* CREDIT & LOANS */}
                <div className="bg-[#121214] border border-white/5 rounded-[24px] p-6 md:p-8 shadow-xl relative overflow-hidden group hover:border-white/10 transition-colors">
-                  <div className="absolute top-0 right-0 p-8 opacity-5"><Landmark className="w-32 h-32" /></div>
+                  {/* Floating ambient animation for the background bank */}
+                  <motion.div 
+                     animate={{ y: [0, -10, 0] }} 
+                     transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }} 
+                     className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none"
+                  >
+                     <Landmark className="w-32 h-32" />
+                  </motion.div>
+
                   <div className="relative z-10 flex flex-col md:flex-row md:items-start justify-between gap-6 mb-6">
                      <div>
                         <h3 className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-1">Credit Department</h3>
@@ -255,7 +331,7 @@ export default function BankingTab({
                            const amtStr = await showPrompt("Apply for Loan", "Enter amount to borrow. This will be deposited to your locked Loan Account:", "50000");
                            if (amtStr) handleTakeLoan(amtStr);
                         }} 
-                        className="flex-1 py-4 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded-xl text-xs font-bold uppercase tracking-widest transition-colors shadow-[0_0_15px_rgba(249,115,22,0.1)]"
+                        className="flex-1 py-4 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded-xl text-xs font-bold uppercase tracking-widest transition-colors shadow-[0_0_15px_rgba(249,115,22,0.1)] hover:shadow-[0_0_25px_rgba(249,115,22,0.2)]"
                      >
                         Apply For Loan
                      </button>
