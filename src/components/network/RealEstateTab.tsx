@@ -45,7 +45,7 @@ export default function RealEstateTab({ currentLocation, ownedProperties, handle
 
                <div className="mt-auto border-t border-white/5 pt-4">
                   <h4 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">Available Properties</h4>
-                  <div className="space-y-2 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar">
+                  <div className="space-y-2 max-h-[220px] overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/20 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.1)_transparent]">
                      {cityProperties.map(prop => {
                         const isOwned = ownedProperties.includes(prop.id);
                         return (

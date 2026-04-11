@@ -7,7 +7,7 @@ import { VEHICLES } from '@/lib/network-data';
 
 // --- High-Quality Imagery for the 2.5D Showcase ---
 const VEHICLE_IMAGES: Record<string, string> = {
-  "v_civic": "https://images.unsplash.com/photo-1619682817481-e994891cd1f5?q=80&w=1000&auto=format&fit=crop", // Standard basic sedan
+  "v_civic": "https://images.unsplash.com/photo-1619682817481-e994891cd1f5?q=80&w=1000&auto=format&fit=crop", 
   "v_tesla": "https://images.unsplash.com/photo-1560958089-b8a1929cea89?q=80&w=1000&auto=format&fit=crop",
   "v_porsche": "https://images.unsplash.com/photo-1583121274602-3e2820c69888?q=80&w=1000&auto=format&fit=crop",
   "v_lambo": "https://images.unsplash.com/photo-1511919884226-fd3cad34687c?q=80&w=1000&auto=format&fit=crop",
@@ -49,7 +49,8 @@ const InteractiveCarCard = ({ id, car, isOwned, handleBuyCar, handleSellCar }: a
 
   return (
     <div 
-      style={{ perspective: 1500 }} 
+      // THE FIX: touchAction pan-y guarantees the browser allows vertical scrolling over this element!
+      style={{ perspective: 1500, touchAction: 'pan-y', willChange: 'transform' }} 
       className="w-full h-[400px] z-20 group cursor-pointer"
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
@@ -114,14 +115,20 @@ const InteractiveCarCard = ({ id, car, isOwned, handleBuyCar, handleSellCar }: a
 // ============================================================================
 // MAIN LIFESTYLE TAB COMPONENT
 // ============================================================================
-export default function LifestyleTab({ balance, energy, ownedVehicles, setBalance, setEnergy, setOwnedVehicles, saveGameState, showAlert, showConfirm, selectedBank }: any) {
+export default function LifestyleTab({ balance, energy, maxEnergy, ownedVehicles, setBalance, setEnergy, setOwnedVehicles, saveGameState, showAlert, showConfirm, showAccountSelect, selectedBank, savingsBalance, loanAccountBalance, setSavingsBalance, setLoanAccountBalance, energyBlockUntil }: any) {
    
    const handleBuyFood = async (item: string, cost: number, regen: number) => {
       if (balance < cost) return await showAlert("Insufficient Funds", "You don't have enough liquid funds for this meal.");
-      if (energy >= 100) return await showAlert("Energy Full", "You are already full of energy!");
+      if (energy >= maxEnergy) return await showAlert("Energy Full", "You are already full of energy!");
+      
+      // Energy Block Logic (Prevents eating after Pizza Party)
+      if (Date.now() < energyBlockUntil) {
+         const minsLeft = Math.ceil((energyBlockUntil - Date.now()) / 60000);
+         return await showAlert("Energy Blocked", `You can't regain energy right now! Your energy is locked for another ${minsLeft} minute(s) due to your recent Corporate Retreat hangover.`);
+      }
       
       const newBal = balance - cost;
-      const newEnergy = Math.min(100, energy + regen);
+      const newEnergy = Math.min(maxEnergy, energy + regen);
       setBalance(newBal); 
       setEnergy(newEnergy);
       saveGameState({ bank_balance: newBal, energy: newEnergy });
@@ -131,17 +138,49 @@ export default function LifestyleTab({ balance, energy, ownedVehicles, setBalanc
       if (!selectedBank) return await showAlert("Bank Account Required", "You must open a bank account in the Banking tab before purchasing luxury vehicles.");
 
       const car = VEHICLES[id];
-      if (balance < car.price) return await showAlert("Insufficient Funds", `Insufficient liquid funds to buy the ${car.name}.`);
       if (ownedVehicles.includes(id)) return await showAlert("Already Owned", "You already own this vehicle!");
-      
-      const confirm = await showConfirm("Confirm Purchase", `Are you sure you want to buy the ${car.name} for $${car.price.toLocaleString('en-US')}?`);
-      if (!confirm) return;
 
-      const newBal = balance - car.price;
+      const accounts = [
+          { id: "1", initials: "CA", name: "Current Account", details: `Available: $${balance.toLocaleString('en-US', {maximumFractionDigits: 2})}` },
+          { id: "2", initials: "SV", name: "Savings Vault", details: `Available: $${savingsBalance.toLocaleString('en-US', {maximumFractionDigits: 2})}` },
+          { id: "3", initials: "LA", name: "Loan Account", details: `Available: $${loanAccountBalance.toLocaleString('en-US', {maximumFractionDigits: 2})}` }
+      ];
+
+      const accountChoice = await showAccountSelect(
+        "Purchase Vehicle",
+        `Purchasing ${car.name}`, 
+        car.price,
+        accounts
+      );
+
+      if (!accountChoice) return;
+
       const newVehicles = [...ownedVehicles, id];
-      setBalance(newBal); 
+      let updates: any = { owned_vehicles: newVehicles };
+
+      let newBal = balance;
+      let newSav = savingsBalance;
+      let newLoanAcc = loanAccountBalance;
+
+      if (accountChoice === "1") {
+         if (balance < car.price) return await showAlert("Error", `Insufficient liquid funds in Current Account. You need $${car.price.toLocaleString()}.`);
+         newBal -= car.price;
+         setBalance(newBal);
+         updates.bank_balance = newBal;
+      } else if (accountChoice === "2") {
+         if (savingsBalance < car.price) return await showAlert("Error", `Insufficient funds in Savings Vault. You need $${car.price.toLocaleString()}.`);
+         newSav -= car.price;
+         setSavingsBalance(newSav);
+         updates.savings_balance = newSav;
+      } else if (accountChoice === "3") {
+         if (loanAccountBalance < car.price) return await showAlert("Error", `Insufficient funds in Loan Account. You need $${car.price.toLocaleString()}.`);
+         newLoanAcc -= car.price;
+         setLoanAccountBalance(newLoanAcc);
+         updates.loan_account_balance = newLoanAcc;
+      }
+
       setOwnedVehicles(newVehicles);
-      saveGameState({ bank_balance: newBal, owned_vehicles: newVehicles });
+      saveGameState(updates);
       
       await showAlert("Keys Acquired!", `Congratulations! You are the proud new owner of a ${car.name}.`);
    };
@@ -214,7 +253,7 @@ export default function LifestyleTab({ balance, energy, ownedVehicles, setBalanc
                   </div>
                </button>
 
-               <button onClick={() => handleBuyFood('michelin', 1500, 100)} className="bg-black/40 border border-orange-500/30 hover:border-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.1)] hover:shadow-[0_0_40px_rgba(249,115,22,0.2)] p-6 rounded-2xl flex flex-col justify-between group transition-all duration-300 text-left relative overflow-hidden">
+               <button onClick={() => handleBuyFood('michelin', 1500, maxEnergy)} className="bg-black/40 border border-orange-500/30 hover:border-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.1)] hover:shadow-[0_0_40px_rgba(249,115,22,0.2)] p-6 rounded-2xl flex flex-col justify-between group transition-all duration-300 text-left relative overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                   <div className="flex justify-between items-start mb-6 relative z-10">
                      <div className="w-12 h-12 bg-orange-500/20 rounded-xl flex items-center justify-center text-orange-400 border border-orange-500/30 group-hover:scale-110 transition-all duration-300 shadow-lg">

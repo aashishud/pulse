@@ -9,12 +9,13 @@ import { Activity, Globe, MapPin, Zap, ChevronDown, Loader2, LogOut, X, Landmark
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { LOCATIONS, REAL_ESTATE, VEHICLES, CRYPTO_ASSETS, STOCK_ASSETS } from '@/lib/network-data';
-import { PulseNetworkLogo, ActiveJobModal } from '@/components/network/SharedUI';
+import { ActiveJobModal } from '@/components/network/SharedUI';
 import OverviewTab from '@/components/network/OverviewTab';
 import BankingTab from '@/components/network/BankingTab';
 import RealEstateTab from '@/components/network/RealEstateTab';
 import LifestyleTab from '@/components/network/LifestyleTab';
 import MarketsTab from '@/components/network/MarketsTab';
+import PulseLogo from '@/components/PulseLogo';
 
 // --- TABS CONFIGURATION ---
 const TABS = [
@@ -107,14 +108,22 @@ export default function NetworkDashboard() {
   const [pathUpdatedAt, setPathUpdatedAt] = useState<string | null>(null);
   const [freePathSwitchUsed, setFreePathSwitchUsed] = useState<boolean>(false);
   const [selectedBank, setSelectedBank] = useState<string | null>(null);
+  
+  // SHARED PROGRESSION LEVEL (Corporate Level / Hustler Street Rep)
   const [corporateLevel, setCorporateLevel] = useState(1);
   
   const [currentLocation, setCurrentLocation] = useState('bali');
   const [ownedProperties, setOwnedProperties] = useState<string[]>([]);
   const [ownedVehicles, setOwnedVehicles] = useState<string[]>([]);
   const [portfolio, setPortfolio] = useState<Record<string, any>>({});
-  const [startupData, setStartupData] = useState<any>({ workload: 50, payroll: 50, morale: 100, is_strike: false, level: 1 });
   
+  // THE NEW STARTUP DATA MODEL WITH BRANDING AND EQUITY AND BOOST
+  const [startupData, setStartupData] = useState<any>({ workload: 50, payroll: 50, morale: 100, is_strike: false, level: 1, companyName: "", ticker: "", equityOwned: 100, moraleBoostUntil: 0 });
+  
+  // DYNAMIC MAX ENERGY (Tracks Founder Level if on Founder Path, otherwise tracks Corporate Level)
+  const activeLevel = playerPath === 'founder' ? (startupData.level || 1) : corporateLevel;
+  const maxEnergy = 100 + ((activeLevel - 1) * 50); // scales to 250+
+
   const [pendingSalary, setPendingSalary] = useState(0); 
   const [lastLocalSync, setLastLocalSync] = useState<number | null>(null);
   const [lastEnergySyncState, setLastEnergySyncState] = useState<number | null>(null);
@@ -123,6 +132,9 @@ export default function NetworkDashboard() {
   const [nextTaxTime, setNextTaxTime] = useState<number | null>(null);
   const [taxCycleMinutes, setTaxCycleMinutes] = useState<number>(10);
   const [lazinessPenaltyUntil, setLazinessPenaltyUntil] = useState<number>(0);
+
+  // MACRO ECONOMY STATE
+  const [marketEvent, setMarketEvent] = useState<{type: 'boom' | 'recession' | 'labor_shortage' | 'none', name: string, message: string, expiresAt: number} | null>(null);
 
   const [activeTab, setActiveTab] = useState('overview');
   const [activeJob, setActiveJob] = useState<any>(null);
@@ -177,6 +189,7 @@ export default function NetworkDashboard() {
   const nextTaxTimeRef = useRef(nextTaxTime);
   const lazinessPenaltyUntilRef = useRef(lazinessPenaltyUntil);
   const taxCycleMinutesRef = useRef(taxCycleMinutes);
+  const marketEventRef = useRef(marketEvent);
 
   useEffect(() => { displaySalaryRef.current = pendingSalary; }, [pendingSalary]);
   useEffect(() => { startupDataRef.current = startupData; }, [startupData]);
@@ -187,6 +200,7 @@ export default function NetworkDashboard() {
   useEffect(() => { nextTaxTimeRef.current = nextTaxTime; }, [nextTaxTime]);
   useEffect(() => { lazinessPenaltyUntilRef.current = lazinessPenaltyUntil; }, [lazinessPenaltyUntil]);
   useEffect(() => { taxCycleMinutesRef.current = taxCycleMinutes; }, [taxCycleMinutes]);
+  useEffect(() => { marketEventRef.current = marketEvent; }, [marketEvent]);
 
   const locStats = LOCATIONS[currentLocation] || LOCATIONS.bali;
   
@@ -291,8 +305,6 @@ export default function NetworkDashboard() {
           const initialBal = dbData.data.bank_balance != null ? Number(dbData.data.bank_balance) : 0;
           setBalance(initialBal);
           
-          let loadedEnergy = dbData.data.energy != null ? Number(dbData.data.energy) : 100;
-          
           setFico(dbData.data.fico_score != null ? Number(dbData.data.fico_score) : 700);
           setPlayerPath(dbData.data.player_path || null);
           setPathUpdatedAt(dbData.data.path_updated_at || null);
@@ -322,10 +334,22 @@ export default function NetworkDashboard() {
           setOwnedProperties(parseJSON(dbData.data.owned_properties, []));
           setOwnedVehicles(parseJSON(dbData.data.owned_vehicles, []));
           setPortfolio(parseJSON(dbData.data.portfolio, {}));
-          setStartupData(parseJSON(dbData.data.startup_data, { workload: 50, payroll: 50, morale: 100, is_strike: false, level: 1 }));
+
+          // PARSE NEW STARTUP DATA
+          const sData = parseJSON(dbData.data.startup_data, { workload: 50, payroll: 50, morale: 100, is_strike: false, level: 1, companyName: "", ticker: "", equityOwned: 100, moraleBoostUntil: 0 });
+          if (sData.equityOwned === undefined) sData.equityOwned = 100;
+          if (sData.companyName === undefined) sData.companyName = "";
+          if (sData.ticker === undefined) sData.ticker = "";
+          if (sData.moraleBoostUntil === undefined) sData.moraleBoostUntil = 0;
+          setStartupData(sData);
 
           const level = dbData.data.corporate_level != null ? Number(dbData.data.corporate_level) : 1;
           setCorporateLevel(level);
+          
+          // Apply dynamic energy logic immediately on load
+          const effectiveLoadedLevel = dbData.data.player_path === 'founder' ? (sData.level || 1) : level;
+          const dynamicMaxEnergy = 100 + ((effectiveLoadedLevel - 1) * 50);
+          let loadedEnergy = dbData.data.energy != null ? Number(dbData.data.energy) : dynamicMaxEnergy;
           
           const dbSalary = dbData.data.pending_salary != null ? Number(dbData.data.pending_salary) : 0;
           
@@ -342,36 +366,69 @@ export default function NetworkDashboard() {
                      const currentLocMulti = LOCATIONS[dbData.data.location || 'bali'].multiplier;
                      offlineEarnings = minutesOffline * (basePay * currentLocMulti);
                  } else if (dbData.data.player_path === 'founder') {
-                     const sData = parseJSON(dbData.data.startup_data, { workload: 50, payroll: 50, is_strike: false, level: 1 });
                      const levelMult = sData.level || 1;
                      const locMulti = LOCATIONS[dbData.data.location || 'bali'].multiplier;
                      const baseOpCost = 100 * locMulti * levelMult;
                      
-                     let moraleChangePerMin = (sData.payroll - sData.workload) * 0.5;
-                     if (sData.workload > 50) moraleChangePerMin -= (sData.workload - 50) * 1.0;
+                     // Handle Offline Boost Logic perfectly
+                     let minutesBoosted = 0;
+                     let minutesUnboosted = minutesOffline;
                      
-                     let finalMorale = sData.morale + (moraleChangePerMin * minutesOffline);
-                     let didStrikeOffline = false;
-                     
-                     if (finalMorale <= 0 && !sData.is_strike) {
-                         didStrikeOffline = true;
-                         finalMorale = 0;
-                     } else if (finalMorale >= 50 && sData.is_strike) {
-                         finalMorale = 50;
+                     if (sData.moraleBoostUntil && sData.moraleBoostUntil > lastSync) {
+                         const boostMinsLeft = Math.floor((sData.moraleBoostUntil - lastSync) / 60000);
+                         if (boostMinsLeft >= minutesOffline) {
+                             minutesBoosted = minutesOffline;
+                             minutesUnboosted = 0;
+                         } else {
+                             minutesBoosted = boostMinsLeft;
+                             minutesUnboosted = minutesOffline - boostMinsLeft;
+                         }
                      }
-                     
-                     finalMorale = Math.max(0, Math.min(100, finalMorale));
 
-                     if (!sData.is_strike && !didStrikeOffline) {
-                        const gross = sData.workload * 15 * locMulti * levelMult;
-                        const cost = (sData.payroll * 10 * locMulti * levelMult) + baseOpCost;
-                        offlineEarnings = minutesOffline * (gross - cost);
-                     } else {
-                        const strikeCost = (sData.payroll * 20 * locMulti * levelMult) + baseOpCost;
-                        offlineEarnings = minutesOffline * -strikeCost;
+                     let finalMorale = sData.morale;
+                     let didStrikeOffline = sData.is_strike;
+
+                     // Calculate Boosted Period (100% Morale, No Strikes)
+                     if (minutesBoosted > 0) {
+                         finalMorale = 100;
+                         didStrikeOffline = false;
+                         const gross = sData.workload * 15 * locMulti * levelMult;
+                         const cost = (sData.payroll * 10 * locMulti * levelMult) + baseOpCost;
+                         let rawNet = (gross - cost);
+                         if (rawNet > 0) rawNet *= (sData.equityOwned / 100);
+                         offlineEarnings += minutesBoosted * rawNet;
+                     }
+
+                     // Calculate Unboosted Period
+                     if (minutesUnboosted > 0) {
+                         let moraleChangePerMin = (sData.payroll - sData.workload) * 0.5;
+                         if (sData.workload > 50) moraleChangePerMin -= (sData.workload - 50) * 1.0;
+                         
+                         finalMorale = finalMorale + (moraleChangePerMin * minutesUnboosted);
+                         
+                         if (finalMorale <= 0 && !didStrikeOffline) {
+                             didStrikeOffline = true;
+                             finalMorale = 0;
+                         } else if (finalMorale >= 50 && didStrikeOffline) {
+                             didStrikeOffline = false;
+                             finalMorale = 50;
+                         }
+                         
+                         finalMorale = Math.max(0, Math.min(100, finalMorale));
+
+                         if (!didStrikeOffline) {
+                            const gross = sData.workload * 15 * locMulti * levelMult;
+                            const cost = (sData.payroll * 10 * locMulti * levelMult) + baseOpCost;
+                            let rawNet = (gross - cost);
+                            if (rawNet > 0) rawNet *= (sData.equityOwned / 100);
+                            offlineEarnings += minutesUnboosted * rawNet;
+                         } else {
+                            const strikeCost = (sData.payroll * 20 * locMulti * levelMult) + baseOpCost;
+                            offlineEarnings += minutesUnboosted * -strikeCost;
+                         }
                      }
                      
-                     setStartupData({...sData, morale: finalMorale, is_strike: didStrikeOffline || sData.is_strike});
+                     setStartupData({...sData, morale: finalMorale, is_strike: didStrikeOffline});
                  }
                  syncAnchor = lastSync + (minutesOffline * 60000);
               } else {
@@ -388,15 +445,15 @@ export default function NetworkDashboard() {
           if (dbData.data.last_energy_sync) {
               const lastEnergySync = new Date(dbData.data.last_energy_sync).getTime();
               const minutesOffline = Math.floor((Date.now() - lastEnergySync) / 60000);
-              if (minutesOffline > 0 && loadedEnergy < 100) {
+              if (minutesOffline > 0 && loadedEnergy < dynamicMaxEnergy) {
                  const intervals = Math.floor(minutesOffline / 2);
-                 loadedEnergy = Math.min(100, loadedEnergy + (intervals * 5));
+                 loadedEnergy = Math.min(dynamicMaxEnergy, loadedEnergy + (intervals * 5));
                  energySyncAnchor = lastEnergySync + (intervals * 120000);
               } else { energySyncAnchor = lastEnergySync; }
           }
           setEnergy(loadedEnergy);
           setLastEnergySyncState(energySyncAnchor);
-          if (loadedEnergy !== (dbData.data.energy != null ? Number(dbData.data.energy) : 100)) saveGameState({ energy: loadedEnergy, last_energy_sync: new Date(energySyncAnchor).toISOString() });
+          if (loadedEnergy !== (dbData.data.energy != null ? Number(dbData.data.energy) : dynamicMaxEnergy)) saveGameState({ energy: loadedEnergy, last_energy_sync: new Date(energySyncAnchor).toISOString() });
         }
       } catch (error) { console.error(error); } finally { setLoading(false); }
     });
@@ -475,6 +532,40 @@ export default function NetworkDashboard() {
     return () => clearInterval(interval);
   }, []);
 
+  // --- GLOBAL MACRO-ECONOMY EVENT LOOP (BALANCED BY LEVEL) ---
+  useEffect(() => {
+      if (playerPath !== 'founder') return;
+      const eventInterval = setInterval(() => {
+          const now = Date.now();
+          const level = startupDataRef.current?.level || 1;
+
+          if (!marketEventRef.current || now > marketEventRef.current.expiresAt) {
+              const roll = Math.random();
+              
+              if (level < 5) {
+                 // Early Game: Gentle environment, only positive events
+                 if (roll < 0.15) {
+                    setMarketEvent({ type: 'boom', name: 'TECH BOOM', message: 'Consumer spending surges! Gross Revenue +50%', expiresAt: now + (3 * 60000) });
+                 } else {
+                    setMarketEvent(null);
+                 }
+              } else {
+                 // Late Game: Ruthless environment, positive and negative events
+                 if (roll < 0.15) {
+                    setMarketEvent({ type: 'boom', name: 'TECH BOOM', message: 'Consumer spending surges! Gross Revenue +50%', expiresAt: now + (3 * 60000) });
+                 } else if (roll < 0.30) {
+                    setMarketEvent({ type: 'recession', name: 'MARKET DOWNTURN', message: 'Investors are pulling out. Gross Revenue -30%', expiresAt: now + (3 * 60000) });
+                 } else if (roll < 0.40) {
+                    setMarketEvent({ type: 'labor_shortage', name: 'LABOR SHORTAGE', message: 'Workers demand higher pay. Payroll Costs +40%', expiresAt: now + (3 * 60000) });
+                 } else {
+                    setMarketEvent(null);
+                 }
+              }
+          }
+      }, 60000);
+      return () => clearInterval(eventInterval);
+  }, [playerPath]);
+
   // --- PASSIVE INCOME EARNINGS LOOP ---
   useEffect(() => {
     if ((playerPath !== 'corporate' && playerPath !== 'founder') || !lastLocalSync) return;
@@ -488,51 +579,74 @@ export default function NetworkDashboard() {
       if (secondsPassed >= 1) {
           let netEarnings = 0;
           const isPenalized = now < lazinessPenaltyUntilRef.current;
+          const evt = marketEventRef.current;
           
           if (!isPenalized) {
               if (playerPath === 'corporate') {
                  netEarnings = secondsPassed * (currentRole.payPerMinute / 60);
               } 
-              else if (playerPath === 'founder') {
+              else if (playerPath === 'founder' && startupDataRef.current?.companyName) {
                  const sData = startupDataRef.current;
                  const levelMult = sData.level || 1;
                  const locMulti = LOCATIONS[currentLocation]?.multiplier || 1;
                  const baseOpCost = 100 * locMulti * levelMult;
 
+                 let grossMult = 1;
+                 let payrollCostMult = 1;
+                 if (evt && now < evt.expiresAt) {
+                     if (evt.type === 'boom') grossMult = 1.5;
+                     if (evt.type === 'recession') grossMult = 0.7;
+                     if (evt.type === 'labor_shortage') payrollCostMult = 1.4;
+                 }
+
                  if (!sData.is_strike) {
-                    const gross = sData.workload * 15 * locMulti * levelMult;
-                    const cost = (sData.payroll * 10 * locMulti * levelMult) + baseOpCost;
-                    netEarnings = secondsPassed * ((gross - cost) / 60);
+                    const gross = sData.workload * 15 * locMulti * levelMult * grossMult;
+                    const cost = (sData.payroll * 10 * locMulti * levelMult * payrollCostMult) + baseOpCost;
+                    
+                    let rawProfitPerSec = (gross - cost) / 60;
+                    if (rawProfitPerSec > 0) rawProfitPerSec *= (sData.equityOwned / 100);
+
+                    netEarnings = secondsPassed * rawProfitPerSec;
                  } else {
-                    const strikeCost = (sData.payroll * 20 * locMulti * levelMult) + baseOpCost;
+                    const strikeCost = (sData.payroll * 20 * locMulti * levelMult * payrollCostMult) + baseOpCost;
                     netEarnings = secondsPassed * (-strikeCost / 60); 
                  }
               }
           }
 
-          if (!isPenalized && playerPath === 'founder') {
+          if (!isPenalized && playerPath === 'founder' && startupDataRef.current?.companyName) {
              const sData = startupDataRef.current;
-             let moraleChangePerMin = (sData.payroll - sData.workload) * 0.5;
-             if (sData.workload > 50) {
-                 moraleChangePerMin -= (sData.workload - 50) * 1.0; 
-             }
-             let moraleChange = secondsPassed * (moraleChangePerMin / 60);
-             
-             let newMorale = sData.morale + moraleChange;
-             newMorale = Math.max(0, Math.min(100, newMorale));
-             
-             let newStrike = sData.is_strike;
-             if (newMorale <= 0 && !newStrike) {
-                newStrike = true;
-                showAlert("🚨 WORKER STRIKE! 🚨", "Your employees have walked out due to low morale! Production has halted, but you are still bleeding rent and payroll expenses!");
-             } else if (newMorale >= 50 && newStrike) {
-                newStrike = false;
-                showAlert("✅ Strike Resolved", "Your employees have returned to work.");
-             }
+             const isBoosted = Date.now() < (sData.moraleBoostUntil || 0);
 
-             if (newMorale !== sData.morale || newStrike !== sData.is_strike) {
-                const newSData = { ...sData, morale: newMorale, is_strike: newStrike };
-                setStartupData(newSData);
+             if (isBoosted) {
+                 // RETREAT ACTIVE: Lock Morale at 100!
+                 if (sData.morale !== 100 || sData.is_strike) {
+                    setStartupData({ ...sData, morale: 100, is_strike: false });
+                 }
+             } else {
+                 // NORMAL MORALE DRAIN
+                 let moraleChangePerMin = (sData.payroll - sData.workload) * 0.5;
+                 if (sData.workload > 50) {
+                     moraleChangePerMin -= (sData.workload - 50) * 1.0; 
+                 }
+                 let moraleChange = secondsPassed * (moraleChangePerMin / 60);
+                 
+                 let newMorale = sData.morale + moraleChange;
+                 newMorale = Math.max(0, Math.min(100, newMorale));
+                 
+                 let newStrike = sData.is_strike;
+                 if (newMorale <= 0 && !newStrike) {
+                    newStrike = true;
+                    showAlert("🚨 WORKER STRIKE! 🚨", "Your employees have walked out due to low morale! Production has halted, but you are still bleeding rent and payroll expenses!");
+                 } else if (newMorale >= 50 && newStrike) {
+                    newStrike = false;
+                    showAlert("✅ Strike Resolved", "Your employees have returned to work.");
+                 }
+
+                 if (newMorale !== sData.morale || newStrike !== sData.is_strike) {
+                    const newSData = { ...sData, morale: newMorale, is_strike: newStrike };
+                    setStartupData(newSData);
+                 }
              }
           }
 
@@ -572,19 +686,19 @@ export default function NetworkDashboard() {
          nextTaxTimeRef.current = newNextTax; 
          setLazinessPenaltyUntil(penaltyTime);
          setTaxCycleMinutes(10); 
-         setEnergy(100);
+         setEnergy(maxEnergy);
          setNextTaxTime(newNextTax);
-         saveGameState({ energy: 100, laziness_penalty_until: penaltyTime, tax_cycle_minutes: 10, next_tax_at: newNextTax });
+         saveGameState({ energy: maxEnergy, laziness_penalty_until: penaltyTime, tax_cycle_minutes: 10, next_tax_at: newNextTax });
          return await showAlert("Laziness Penalty!", "You slept too much! Your passive income has been completely paused for 5 minutes, and your tax cycle has reset back to 10 minutes.");
      }
 
      const newNextTax = now + nextCycle * 60000;
      nextTaxTimeRef.current = newNextTax; 
-     setEnergy(100);
+     setEnergy(maxEnergy);
      setTaxCycleMinutes(nextCycle);
      setNextTaxTime(newNextTax);
-     saveGameState({ energy: 100, tax_cycle_minutes: nextCycle, next_tax_at: newNextTax });
-     await showAlert("Well Rested", `You slept and restored 100 Energy!\n\nHowever, because you are sleeping through the day, your next tax cut will arrive in just ${nextCycle} minute(s).`);
+     saveGameState({ energy: maxEnergy, tax_cycle_minutes: nextCycle, next_tax_at: newNextTax });
+     await showAlert("Well Rested", `You slept and restored ${maxEnergy} Energy!\n\nHowever, because you are sleeping through the day, your next tax cut will arrive in just ${nextCycle} minute(s).`);
   };
 
   const handleBankSelect = async (bankId: string | null) => {
@@ -813,7 +927,7 @@ export default function NetworkDashboard() {
           setPendingSalary(0);
           setLastLocalSync(Date.now());
           saveGameState({ bank_balance: newBalance, pending_salary: 0, last_salary_sync: new Date().toISOString() });
-          await showAlert("Dividend Claimed! 📈", `Gross Revenue: $${currentSalary.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\nCorporate Tax (${(locStats.tax * 100).toFixed(0)}%): -$${taxAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n\nNet Deposited: $${netAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+          await showAlert("Dividend Claimed! 📈", `Gross Profit: $${currentSalary.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\nCorporate Tax (${(locStats.tax * 100).toFixed(0)}%): -$${taxAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n\nNet Deposited: $${netAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n(VC Investors automatically received their equity cut)`);
        } else {
           const debt = Math.abs(currentSalary);
           if (balance < debt) return await showAlert("Warning", `Your company is in $${debt.toLocaleString()} of debt, and you don't have enough liquid cash to cover it! Your FICO score will take a massive hit!`);
@@ -910,12 +1024,20 @@ export default function NetworkDashboard() {
         updates.savings_balance = finalSav;
         updates.loan_account_balance = finalLoan;
         
-        const defaultStartup = { workload: 50, payroll: 50, morale: 100, is_strike: false, level: 1 };
+        const defaultStartup = { workload: 50, payroll: 50, morale: 100, is_strike: false, level: 1, companyName: "", ticker: "", equityOwned: 100, moraleBoostUntil: 0 };
         setStartupData(defaultStartup);
         updates.startup_data = defaultStartup;
     } else if (newPath === 'corporate') { 
         setPendingSalary(0); 
         setLastLocalSync(Date.now()); 
+    }
+
+    // Cap energy gracefully if switching back to a lower-level path
+    const newEffectiveLevel = newPath === 'founder' ? 1 : corporateLevel;
+    const newMaxEnergy = 100 + ((newEffectiveLevel - 1) * 50);
+    if (energy > newMaxEnergy) {
+        setEnergy(newMaxEnergy);
+        updates.energy = newMaxEnergy;
     }
 
     saveGameState(updates);
@@ -928,10 +1050,11 @@ export default function NetworkDashboard() {
      if (isNaN(amountToAdd)) return await showAlert("Error", "Invalid number entered.");
 
      const newBal = Number(balance) + amountToAdd;
-     const newStartupData = { workload: 50, payroll: 50, morale: 100, is_strike: false, level: 1 };
+     const newStartupData = { workload: 50, payroll: 50, morale: 100, is_strike: false, level: 1, companyName: startupData.companyName, ticker: startupData.ticker, equityOwned: startupData.equityOwned, moraleBoostUntil: startupData.moraleBoostUntil };
+     const newMaxEnergy = 100 + ((playerPath === 'founder' ? 1 : corporateLevel) - 1) * 50;
      
      setBalance(newBal); 
-     setEnergy(100); 
+     setEnergy(newMaxEnergy); 
      setFico(850); 
      setLoanBalance(0); 
      setPathUpdatedAt(null);
@@ -943,7 +1066,7 @@ export default function NetworkDashboard() {
      
      saveGameState({ 
        bank_balance: newBal, 
-       energy: 100, 
+       energy: newMaxEnergy, 
        fico_score: 850, 
        loan_balance: 0, 
        path_updated_at: null, 
@@ -960,7 +1083,7 @@ export default function NetworkDashboard() {
      const confirmReset = await showConfirm("Hard Reset", "Are you sure you want to hard reset your entire game state? This will wipe your money, level, assets, and startup data back to 0.");
      if (!confirmReset) return;
 
-     const defaultStartup = { workload: 50, payroll: 50, morale: 100, is_strike: false, level: 1 };
+     const defaultStartup = { workload: 50, payroll: 50, morale: 100, is_strike: false, level: 1, companyName: "", ticker: "", equityOwned: 100, moraleBoostUntil: 0 };
 
      setBalance(0);
      setSavingsBalance(0);
@@ -1119,9 +1242,11 @@ export default function NetworkDashboard() {
                 if (success) {
                    const newLevel = corporateLevel + 1;
                    setCorporateLevel(newLevel);
-                   await showAlert("Promotion Earned!", `You are now a ${getCorporateRole(newLevel).title}!`);
-                   saveGameState({ corporate_level: newLevel });
-                } else { await showAlert("Failed", `Time's up! The boss wasn't impressed. No promotion this time.`); }
+                   const newMaxEnergy = 100 + ((newLevel - 1) * 50);
+                   setEnergy(newMaxEnergy);
+                   await showAlert("Rank Up!", `You leveled up to Level ${newLevel}! Your Max Energy has increased to ${newMaxEnergy}.`);
+                   saveGameState({ corporate_level: newLevel, energy: newMaxEnergy });
+                } else { await showAlert("Failed", `Time's up! You failed the challenge. No rank up this time.`); }
                 return;
              }
              
@@ -1130,9 +1255,14 @@ export default function NetworkDashboard() {
                    const sData = startupDataRef.current;
                    const newLevel = (sData.level || 1) + 1;
                    const newSData = { ...sData, level: newLevel };
+                   
+                   // Leveling up your company permanently increases your Energy Cap!
+                   const newMaxEnergy = 100 + ((newLevel - 1) * 50);
+                   setEnergy(newMaxEnergy);
                    setStartupData(newSData);
-                   saveGameState({ startup_data: newSData });
-                   await showAlert("Expansion Successful!", `Your startup is now Level ${newLevel}. Your revenue and costs have scaled up!`);
+                   saveGameState({ startup_data: newSData, energy: newMaxEnergy });
+                   
+                   await showAlert("Expansion Successful!", `Your startup is now Level ${newLevel}. Your Max Energy has increased to ${newMaxEnergy}, and revenue and costs have scaled up!`);
                 } else {
                    await showAlert("Expansion Failed", `Time's up! The expansion failed. Better luck next time.`);
                 }
@@ -1170,11 +1300,11 @@ export default function NetworkDashboard() {
       {/* --- Sidebar (DESKTOP ONLY) --- */}
       <aside className="hidden lg:flex w-64 bg-[#0a0a0c]/80 backdrop-blur-xl border-r border-white/5 flex-col z-20 shrink-0">
         <div className="p-6 border-b border-white/5 flex items-center gap-3">
-          <PulseNetworkLogo className="w-7 h-7 text-white" />
+          <img src="/icon.svg" alt="Pulse" className="w-7 h-7 object-contain" />
           <span className="font-black text-xl tracking-tighter text-white">Pulse<span className="text-zinc-600">Network</span></span>
         </div>
         
-        <div className="flex-1 px-4 py-6 space-y-8 overflow-y-auto custom-scrollbar">
+        <div className="flex-1 px-4 py-6 space-y-8 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/20 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.1)_transparent]">
           <div>
             <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest ml-2 mb-3">Central Hub</p>
             <div className="space-y-1">
@@ -1189,12 +1319,6 @@ export default function NetworkDashboard() {
               ))}
             </div>
           </div>
-        </div>
-
-        <div className="p-4 border-t border-white/5">
-          <button onClick={() => { window.location.href = window.location.hostname.includes('localhost') ? 'http://localhost:3000/dashboard' : 'https://pulsegg.in/dashboard'; }} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-colors text-sm font-bold border border-white/10">
-            <LogOut className="w-4 h-4" /> Return to Pulse
-          </button>
         </div>
       </aside>
 
@@ -1257,9 +1381,6 @@ export default function NetworkDashboard() {
                        </button>
                     </div>
                  )}
-                 <button onClick={() => { window.location.href = window.location.hostname.includes('localhost') ? 'http://localhost:3000/dashboard' : 'https://pulsegg.in/dashboard'; }} className="w-full flex items-center justify-center gap-2 py-4 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-colors text-sm font-bold border border-white/10">
-                   <LogOut className="w-4 h-4" /> Return to Pulse
-                 </button>
                </div>
             </div>
          </div>
@@ -1289,8 +1410,8 @@ export default function NetworkDashboard() {
                <div className="flex items-center gap-2 sm:gap-3 bg-[#121214] border border-white/10 rounded-full pl-1 pr-3 sm:pr-4 py-1 shadow-md">
                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-yellow-900/30 border border-yellow-500/30 flex items-center justify-center"><Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-yellow-400 fill-yellow-400/20" /></div>
                  <div className="flex flex-col justify-center">
-                   <div className="w-16 sm:w-24 h-1.5 bg-white/10 rounded-full overflow-hidden mb-1"><div className="h-full bg-gradient-to-r from-orange-500 to-yellow-400 rounded-full transition-all duration-300" style={{ width: `${energy}%` }}></div></div>
-                   <span className="text-[9px] sm:text-[10px] font-mono text-zinc-400 leading-none">{energy}/100</span>
+                   <div className="w-16 sm:w-24 h-1.5 bg-white/10 rounded-full overflow-hidden mb-1"><div className="h-full bg-gradient-to-r from-orange-500 to-yellow-400 rounded-full transition-all duration-300" style={{ width: `${(energy / maxEnergy) * 100}%` }}></div></div>
+                   <span className="text-[9px] sm:text-[10px] font-mono text-zinc-400 leading-none">{Math.floor(energy)}/{maxEnergy}</span>
                  </div>
                </div>
             </div>
@@ -1301,7 +1422,7 @@ export default function NetworkDashboard() {
                 onClick={handleSleep} 
                 className="flex items-center justify-center sm:gap-2 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 w-9 h-9 sm:w-auto sm:h-auto sm:px-4 sm:py-2 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-indigo-500/20 transition shadow-[0_0_15px_rgba(99,102,241,0.2)]"
               >
-                <Moon className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> <span className="hidden sm:block">Sleep (100⚡)</span>
+                <Moon className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> <span className="hidden sm:block">Sleep ({maxEnergy}⚡)</span>
               </button>
             </div>
           </div>
@@ -1338,7 +1459,7 @@ export default function NetworkDashboard() {
           {activeTab === 'overview' && (
              <OverviewTab 
                 netWorth={totalNetWorth} balance={balance} savingsBalance={savingsBalance} loanAccountBalance={loanAccountBalance} assetValue={assetValue} loanBalance={loanBalance} fico={fico} playerPath={playerPath} netWorthHistory={netWorthHistory} currentLocName={locStats.name} energy={energy} ownedVehicles={ownedVehicles} setBalance={setBalance} setEnergy={setEnergy} setActiveJob={setActiveJob} saveGameState={saveGameState} handleSwitchPathClick={handleSwitchPathClick} corporateLevel={corporateLevel} currentRole={currentRole} displaySalary={displaySalaryRef.current} pendingSalary={pendingSalary} monthlySalaryTarget={monthlySalaryTarget} salaryProgressPercentage={Math.min(100, (Number(pendingSalary) / monthlySalaryTarget) * 100)} handleClaimSalary={handleClaimSalary} currentLocation={currentLocation} ownedProperties={ownedProperties} startupData={startupData} setStartupData={setStartupData} locMultiplier={locStats.multiplier}
-                showAlert={showAlert} showConfirm={showConfirm} showPrompt={showPrompt} nextTaxTime={nextTaxTime} taxCycleMinutes={taxCycleMinutes}
+                showAlert={showAlert} showConfirm={showConfirm} showPrompt={showPrompt} nextTaxTime={nextTaxTime} taxCycleMinutes={taxCycleMinutes} marketEvent={marketEvent}
              />
           )}
           {activeTab === 'banking' && (
