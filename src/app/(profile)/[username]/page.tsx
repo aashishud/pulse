@@ -7,10 +7,8 @@ import { Inter, Space_Grotesk, Press_Start_2P, Cinzel } from 'next/font/google';
 import ShareButton from '@/components/ShareButton';
 import { Metadata } from 'next';
 import AvatarDecoration from '@/components/AvatarDecoration';
-import CursorEffects from '@/components/CursorEffects';
 import ProfileGrid from '@/components/ProfileGrid';
 import ViewCounter from '@/components/ViewCounter';
-import BackgroundShader from '@/components/BackgroundShader';
 import EnterScreen from '@/components/EnterScreen';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -18,6 +16,9 @@ import PulseLogo from "@/components/PulseLogo";
 
 // --- IMPORT YOUR NEW CUSTOM BADGES ---
 import { customBadges } from '@/config/badges';
+
+// --- SAFE CLIENT IMPORTS (Includes Error Boundaries for WebGL) ---
+import { BackgroundShader, CursorEffects } from '@/components/NoSsrWrappers';
 
 // Load Fonts
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
