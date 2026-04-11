@@ -5,820 +5,251 @@ import { useRouter } from 'next/navigation';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { 
-  Activity, Building2, Briefcase, Car, Globe, Trophy, 
-  MapPin, Zap, ChevronDown, CreditCard, ArrowUpRight, 
-  Clock, Server, Coffee, Truck, MousePointerClick,
-  Timer, Lock, CheckCircle2, Loader2, LogOut, X,
-  Landmark, PiggyBank, ArrowRightLeft, Shield, Plane, Home
-} from 'lucide-react';
-import Link from 'next/link';
+import { Activity, Globe, MapPin, Zap, ChevronDown, Loader2, LogOut, X, Landmark, TrendingUp, ShoppingBag, Briefcase, Lock, Building2, RefreshCw, AlertCircle, Check, Moon, Menu } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
-// ============================================================================
-// GAME CONFIGURATION (LOCATIONS & REAL ESTATE)
-// ============================================================================
-const LOCATIONS: Record<string, any> = {
-  bali: { name: "Bali", tax: 0.10, rent: 30, living: 15, multiplier: 0.5, perk: "Low Cost of Living" },
-  london: { name: "London", tax: 0.25, rent: 120, living: 50, multiplier: 1.2, perk: "Balanced Lifestyle" },
-  new_york: { name: "New York", tax: 0.38, rent: 300, living: 100, multiplier: 2.5, perk: "High Salary Multiplier" },
-  zurich: { name: "Zurich", tax: 0.15, rent: 600, living: 200, multiplier: 1.0, perk: "The Banking Capital" },
-  dubai: { name: "Dubai", tax: 0.00, rent: 800, living: 300, multiplier: 1.8, perk: "Tax Haven (0%)" }
-};
+import { LOCATIONS, REAL_ESTATE, VEHICLES, CRYPTO_ASSETS, STOCK_ASSETS } from '@/lib/network-data';
+import { PulseNetworkLogo, ActiveJobModal } from '@/components/network/SharedUI';
+import OverviewTab from '@/components/network/OverviewTab';
+import BankingTab from '@/components/network/BankingTab';
+import RealEstateTab from '@/components/network/RealEstateTab';
+import LifestyleTab from '@/components/network/LifestyleTab';
+import MarketsTab from '@/components/network/MarketsTab';
 
-const REAL_ESTATE: Record<string, { id: string, name: string, price: number }[]> = {
-  bali: [
-    { id: "bali_1", name: "Bamboo Hut", price: 5000 },
-    { id: "bali_2", name: "Beach Shack", price: 15000 },
-    { id: "bali_3", name: "Jungle Retreat", price: 50000 },
-    { id: "bali_4", name: "Beachfront Villa", price: 150000 },
-    { id: "bali_5", name: "Private Island", price: 5000000 },
-  ],
-  london: [
-    { id: "lon_1", name: "Studio Flat", price: 50000 },
-    { id: "lon_2", name: "City Apartment", price: 450000 },
-    { id: "lon_3", name: "Thames Townhouse", price: 1200000 },
-    { id: "lon_4", name: "Mayfair Penthouse", price: 3500000 },
-    { id: "lon_5", name: "Historic Manor", price: 10000000 },
-  ],
-  new_york: [
-    { id: "ny_1", name: "Brooklyn Loft", price: 200000 },
-    { id: "ny_2", name: "Manhattan Penthouse", price: 1200000 },
-    { id: "ny_3", name: "Tribeca Townhouse", price: 4000000 },
-    { id: "ny_4", name: "Central Park Tower", price: 15000000 },
-    { id: "ny_5", name: "Hamptons Estate", price: 35000000 },
-  ],
-  zurich: [
-    { id: "zur_1", name: "Alpine Cabin", price: 100000 },
-    { id: "zur_2", name: "Lakeview Apartment", price: 800000 },
-    { id: "zur_3", name: "Alpine Chateau", price: 2800000 },
-    { id: "zur_4", name: "Executive Villa", price: 8000000 },
-    { id: "zur_5", name: "Swiss Castle", price: 25000000 },
-  ],
-  dubai: [
-    { id: "dub_1", name: "Marina Apartment", price: 300000 },
-    { id: "dub_2", name: "Palm Jumeirah Mansion", price: 3500000 },
-    { id: "dub_3", name: "Burj Khalifa Penthouse", price: 12000000 },
-    { id: "dub_4", name: "Emirates Palace", price: 40000000 },
-    { id: "dub_5", name: "Artificial World Island", price: 150000000 },
-  ]
-};
+// --- TABS CONFIGURATION ---
+const TABS = [
+  { id: 'overview', icon: Activity, label: 'Overview' },
+  { id: 'banking', icon: Landmark, label: 'Banking' },
+  { id: 'markets', icon: TrendingUp, label: 'Stock Markets' },
+  { id: 'real_estate', icon: Globe, label: 'Real Estate' },
+  { id: 'lifestyle', icon: ShoppingBag, label: 'Lifestyle & Cars' }
+];
 
-// ============================================================================
-// SHARED MICRO-COMPONENTS
-// ============================================================================
-const PulseLogo = ({ className = "w-6 h-6" }) => (
-  <div className="relative inline-flex items-center justify-center">
-    <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-      <path d="M10 28L14 4H22L28 10V14L22 20H16L14.5 28H10Z" fill="currentColor" />
-      <path d="M16 9H20L22 11V13L20 15H15L16 9Z" fill="#000000" />
-    </svg>
-    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border-[1.5px] border-black animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.8)]"></span>
-  </div>
-);
+const MOBILE_TABS = [
+  { id: 'overview', icon: Activity, label: 'Overview' },
+  { id: 'banking', icon: Landmark, label: 'Banking' },
+  { id: 'markets', icon: TrendingUp, label: 'Markets' },
+  { id: 'lifestyle', icon: ShoppingBag, label: 'Lifestyle' }
+];
 
-const FicoRadialChart = ({ score }: { score: number }) => {
-  const min = 300;
-  const max = 850;
-  const percentage = Math.max(0, Math.min(1, (score - min) / (max - min)));
-  const strokeDasharray = 126; 
-  const strokeDashoffset = strokeDasharray - (strokeDasharray * percentage);
+// --- CUSTOM COMPONENT: Account Selector UI ---
+const AccountSelectorUI = ({ modal, closeModal }: { modal: any, closeModal: (result: any) => void }) => {
+   const [selectedId, setSelectedId] = useState(modal.accounts?.[0]?.id);
 
-  let label = "POOR";
-  let colorClass = "text-red-400";
-  if (score >= 580) { label = "FAIR"; colorClass = "text-orange-400"; }
-  if (score >= 670) { label = "GOOD"; colorClass = "text-yellow-400"; }
-  if (score >= 740) { label = "VERY GOOD"; colorClass = "text-emerald-400"; }
-  if (score >= 800) { label = "EXCELLENT"; colorClass = "text-indigo-400"; }
+   return (
+       <div className="bg-[#121214] border border-white/10 rounded-[32px] w-full max-w-sm p-6 sm:p-8 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col space-y-6 animate-in zoom-in-95 duration-200">
+           <div className="text-center">
+               <p className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-2">{modal.title}</p>
+               <p className="mt-1 text-4xl font-black tracking-tight text-white sm:text-5xl">
+                 ${modal.amount?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+               </p>
+               <p className="text-sm text-zinc-400 mt-2">{modal.message}</p>
+           </div>
 
-  return (
-    <div className="relative w-full aspect-[2/1] flex flex-col items-center justify-end overflow-hidden mt-4">
-      <svg viewBox="0 0 100 55" className="w-full h-full overflow-visible drop-shadow-[0_0_15px_rgba(99,102,241,0.2)]">
-        <defs>
-          <linearGradient id="ficoGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#ef4444" />
-            <stop offset="40%" stopColor="#eab308" />
-            <stop offset="100%" stopColor="#6366f1" />
-          </linearGradient>
-        </defs>
-        <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#27272a" strokeWidth="8" strokeLinecap="round" />
-        <path 
-          d="M 10 50 A 40 40 0 0 1 90 50" 
-          fill="none" 
-          stroke="url(#ficoGrad)" 
-          strokeWidth="8" 
-          strokeLinecap="round" 
-          strokeDasharray={strokeDasharray}
-          strokeDashoffset={strokeDashoffset}
-          className="transition-all duration-1500 ease-out"
-        />
-      </svg>
-      <div className="absolute bottom-0 flex flex-col items-center">
-        <span className="text-3xl font-black font-mono tracking-tighter text-white">{Math.floor(score)}</span>
-        <span className={`text-[10px] font-bold tracking-widest uppercase ${colorClass}`}>{label}</span>
-      </div>
-      <div className="absolute bottom-1 w-full flex justify-between px-4 text-[9px] font-mono tracking-widest text-zinc-500">
-        <span>300</span>
-        <span>850</span>
-      </div>
-    </div>
-  );
-};
-
-const NetWorthChart = ({ data = [] }: { data?: number[] }) => {
-  const safeData = data.length > 1 ? data : [0, Math.max(100, data[0] || 100)];
-  const max = Math.max(...safeData, 100);
-  const min = Math.min(...safeData, 0);
-  const range = max - min || 1;
-  
-  const mappedScaled = safeData.map((val, i) => ({
-     x: (i / (safeData.length - 1)) * 400,
-     y: 100 - ((val - min) / range) * 80
-  }));
-
-  let d2 = `M${mappedScaled[0].x},${mappedScaled[0].y} `;
-  for (let i = 0; i < mappedScaled.length - 1; i++) {
-    const cp1x = mappedScaled[i].x + (mappedScaled[i+1].x - mappedScaled[i].x) / 2;
-    const cp1y = mappedScaled[i].y;
-    const cp2x = mappedScaled[i].x + (mappedScaled[i+1].x - mappedScaled[i].x) / 2;
-    const cp2y = mappedScaled[i+1].y;
-    d2 += `C${cp1x},${cp1y} ${cp2x},${cp2y} ${mappedScaled[i+1].x},${mappedScaled[i+1].y} `;
-  }
-
-  const areaD = `${d2} L400,120 L0,120 Z`;
-  
-  return (
-    <div className="w-full h-40 mt-6 relative">
-      <svg viewBox="0 0 400 120" className="w-full h-full preserve-3d" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="rgba(16, 185, 129, 0.2)" />
-            <stop offset="100%" stopColor="rgba(16, 185, 129, 0)" />
-          </linearGradient>
-        </defs>
-        <path d="M0,30 L400,30 M0,70 L400,70" stroke="#ffffff10" strokeWidth="1" strokeDasharray="4 4" />
-        <path d={areaD} fill="url(#chartFill)" />
-        <path d={d2} fill="none" stroke="#10b981" strokeWidth="3" className="drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-      </svg>
-    </div>
-  );
-};
-
-const ActiveJobModal = ({ job, onClose, onComplete }: { job: any, onClose: () => void, onComplete: (success: boolean, timeRemaining: number) => void }) => {
-  const [clicks, setClicks] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(job.timeLimit);
-  const [isStarted, setIsStarted] = useState(false);
-
-  useEffect(() => {
-    if (!isStarted || timeLeft <= 0) return;
-    const timer = setInterval(() => {
-      setTimeLeft((prev: number) => prev - 1);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [isStarted]);
-
-  useEffect(() => {
-    if (isStarted && timeLeft <= 0) {
-       onComplete(false, 0); 
-    }
-  }, [timeLeft, isStarted]);
-
-  const handleClick = () => {
-    if (!isStarted) setIsStarted(true);
-    const newClicks = clicks + 1;
-    setClicks(newClicks);
-    if (newClicks >= job.clicksRequired) {
-       onComplete(true, timeLeft);
-    }
-  };
-
-  const progress = Math.min(100, (clicks / job.clicksRequired) * 100);
-
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-       <div className="bg-[#121214] border border-white/10 rounded-[32px] p-8 w-full max-w-md shadow-2xl flex flex-col items-center text-center relative overflow-hidden">
-          <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20 mb-4 shadow-inner">
-             <MousePointerClick className="w-8 h-8 text-indigo-400" />
-          </div>
-          <h2 className="text-2xl font-black text-white mb-2">{job.title}</h2>
-          <p className="text-zinc-400 text-sm mb-6 max-w-xs leading-relaxed">
-            {isStarted ? "Keep clicking to complete the task before time runs out!" : "Click the button below to start the timer."}
-          </p>
-          <div className="w-full flex justify-between items-center mb-2 px-1">
-             <div className="flex items-center gap-2 font-mono text-zinc-300 font-bold"><Timer className="w-4 h-4 text-red-400" /> {timeLeft}s</div>
-             <div className="font-mono text-zinc-300 font-bold">{clicks} / {job.clicksRequired}</div>
-          </div>
-          <div className="w-full h-3 bg-white/5 rounded-full overflow-hidden mb-8 border border-white/5">
-             <div className="h-full bg-gradient-to-r from-indigo-500 to-emerald-400 transition-all duration-100" style={{ width: `${progress}%` }}></div>
-          </div>
-          <button onClick={handleClick} className="w-full py-12 rounded-2xl bg-white/5 border-2 border-white/10 hover:bg-white/10 hover:border-white/20 active:scale-95 transition-all text-2xl font-black flex items-center justify-center select-none shadow-xl">
-             {isStarted ? "WORK!" : "START JOB"}
-          </button>
-       </div>
-    </div>
-  );
-};
-
-// ============================================================================
-// MODULAR TAB COMPONENTS
-// ============================================================================
-
-const OverviewTab = ({ netWorth, balance, savingsBalance, loanAccountBalance, assetValue, loanBalance, fico, playerPath, netWorthHistory }: any) => (
-  <>
-    <div className="lg:col-span-2 bg-[#121214] border border-white/5 rounded-[24px] p-6 shadow-2xl relative overflow-hidden flex flex-col justify-between group hover:border-white/10 transition-colors">
-      <div className="absolute top-0 right-0 p-6 opacity-5"><Building2 className="w-32 h-32" /></div>
-      <div className="relative z-10 flex justify-between items-start">
-        <div>
-          <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">The Central Bank</h3>
-          <p className="text-xs font-medium text-zinc-400 mb-2">Total Combined Net Worth</p>
-          <h2 className="text-5xl font-black font-mono tracking-tighter text-white drop-shadow-md transition-all duration-300">
-            ${Number(netWorth).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </h2>
-        </div>
-      </div>
-      
-      {/* Mini Breakdown (Emphasized Cash) */}
-      <div className="relative z-10 mt-6 flex flex-col gap-3">
-        <div className="flex items-center">
-          <span className="text-emerald-400 font-black text-xl md:text-2xl bg-emerald-500/10 px-4 py-2 rounded-xl border border-emerald-500/20 drop-shadow-md">
-            Cash: ${(Number(balance) + Number(savingsBalance)).toLocaleString('en-US')}
-          </span>
-        </div>
-        <div className="flex items-center gap-4 text-xs md:text-sm font-mono font-bold pl-2 opacity-80 flex-wrap">
-          <span className="text-indigo-400 flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5"/> Assets: ${Number(assetValue).toLocaleString('en-US')}</span>
-          {loanAccountBalance > 0 && <span className="text-orange-400 flex items-center gap-1.5"><Briefcase className="w-3.5 h-3.5"/> Loan Acc: ${Number(loanAccountBalance).toLocaleString('en-US')}</span>}
-          {loanBalance > 0 && <span className="text-red-400 flex items-center gap-1.5"><ArrowUpRight className="w-3.5 h-3.5"/> Debt: -${Number(loanBalance).toLocaleString('en-US')}</span>}
-        </div>
-      </div>
-
-      <NetWorthChart data={netWorthHistory} />
-    </div>
-
-    <div className="bg-[#121214] border border-white/5 rounded-[24px] p-6 shadow-2xl relative overflow-hidden flex flex-col items-center justify-center group [perspective:1000px] hover:border-white/10 transition-colors">
-      <h3 className="absolute top-6 left-6 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">ServantCard™</h3>
-      <div className="w-full max-w-[240px] aspect-[1.586/1] mt-6 rounded-2xl p-5 flex flex-col justify-between text-white relative shadow-[0_20px_40px_rgba(0,0,0,0.4)] transition-transform duration-500 ease-out group-hover:rotate-x-[5deg] group-hover:rotate-y-[-10deg] group-hover:scale-105 bg-gradient-to-br from-[#1e1b4b] via-[#312e81] to-[#111827] border border-white/10 backdrop-blur-md overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 transform -translate-x-full group-hover:translate-x-full"></div>
-          <div className="flex justify-between items-start relative z-10">
-            <div className="flex items-center gap-2 opacity-80"><Zap className="w-4 h-4" /><span className="font-bold text-sm tracking-tight">Pulse</span></div>
-            <CreditCard className="w-5 h-5 opacity-50" />
-          </div>
-          <div className="relative z-10">
-            <p className="text-[8px] uppercase tracking-widest text-indigo-200 mb-1 opacity-80">Class</p>
-            <p className="font-mono text-lg font-bold tracking-widest uppercase">{playerPath}</p>
-          </div>
-      </div>
-    </div>
-
-    <div className="bg-[#121214] border border-white/5 rounded-[24px] p-6 shadow-2xl flex flex-col justify-between group hover:border-white/10 transition-colors">
-      <div>
-        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Credit System</h3>
-        <p className="text-xs font-medium text-zinc-400">FICO Score Tracking</p>
-      </div>
-      <FicoRadialChart score={fico} />
-    </div>
-  </>
-);
-
-const HustlerPath = ({ balance, energy, setBalance, setEnergy, setActiveJob, saveGameState, handleSwitchPathClick }: any) => (
-  <div className="lg:col-span-2 bg-[#121214] border border-emerald-500/20 rounded-[24px] p-6 shadow-[0_0_30px_rgba(16,185,129,0.05)] flex flex-col justify-between">
-    <div className="flex justify-between items-center mb-6">
-      <div>
-        <h3 className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Active Income</h3>
-        <p className="text-lg font-black text-white">The Street Hustle</p>
-      </div>
-      <button onClick={handleSwitchPathClick} className="text-[10px] uppercase tracking-widest bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg font-bold transition-colors">
-        Switch Path
-      </button>
-    </div>
-    
-    <div className="grid grid-cols-2 gap-3">
-      <button 
-        onClick={() => {
-            if (energy < 15) return alert("Not enough energy! Buy coffee.");
-            const newEnergy = Number(energy) - 15;
-            setEnergy(newEnergy);
-            saveGameState({ energy: newEnergy });
-            setActiveJob({ title: "Deliver Food", basePay: 15.00, clicksRequired: 30, timeLimit: 10, isPromotion: false });
-        }}
-        className="flex items-center gap-3 bg-black/40 hover:bg-emerald-500/10 border border-white/5 hover:border-emerald-500/30 p-4 rounded-xl transition-all group text-left"
-      >
-        <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 group-hover:scale-110 transition-transform">
-          <Truck className="w-5 h-5 text-emerald-400" />
-        </div>
-        <div>
-          <h4 className="font-bold text-sm text-white">Deliver Food</h4>
-          <p className="text-[10px] font-mono text-zinc-500">Pays <span className="text-emerald-400">$15</span> • Costs <span className="text-yellow-400">15⚡</span></p>
-        </div>
-      </button>
-
-      <button 
-        onClick={() => {
-            if (balance < 5) return alert("Not enough money!");
-            const newBal = Number(balance) - 5;
-            const newEnergy = Math.min(100, Number(energy) + 25);
-            setBalance(newBal);
-            setEnergy(newEnergy);
-            saveGameState({ bank_balance: newBal, energy: newEnergy });
-        }}
-        className="flex items-center gap-3 bg-black/40 hover:bg-yellow-500/10 border border-white/5 hover:border-yellow-500/30 p-4 rounded-xl transition-all group text-left"
-      >
-        <div className="w-10 h-10 rounded-lg bg-yellow-500/10 flex items-center justify-center border border-yellow-500/20 group-hover:scale-110 transition-transform">
-          <Coffee className="w-5 h-5 text-yellow-400" />
-        </div>
-        <div>
-          <h4 className="font-bold text-sm text-white">Buy Coffee</h4>
-          <p className="text-[10px] font-mono text-zinc-500">Costs <span className="text-red-400">$5</span> • Restores <span className="text-yellow-400">25⚡</span></p>
-        </div>
-      </button>
-    </div>
-  </div>
-);
-
-const CorporatePath = ({ corporateLevel, energy, currentRole, displaySalary, pendingSalary, monthlySalaryTarget, salaryProgressPercentage, setEnergy, setActiveJob, saveGameState, handleClaimSalary, handleSwitchPathClick }: any) => (
-  <div className="lg:col-span-2 bg-[#121214] border border-indigo-500/20 rounded-[24px] p-6 shadow-[0_0_30px_rgba(99,102,241,0.05)] flex flex-col justify-between">
-    <div className="flex justify-between items-center mb-6">
-      <div>
-        <h3 className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Passive Income</h3>
-        <p className="text-lg font-black text-white">Corporate Ladder</p>
-      </div>
-      <button onClick={handleSwitchPathClick} className="text-[10px] uppercase tracking-widest bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg font-bold transition-colors">
-        Switch Path
-      </button>
-    </div>
-    
-    <div className="flex flex-col gap-4 bg-black/40 border border-white/5 rounded-xl p-4">
-      <div className="flex items-center gap-4">
-        <div className="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20 shrink-0">
-          <Server className="w-6 h-6 text-indigo-400" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <h4 className="font-bold text-base text-white leading-tight truncate">{currentRole.title}</h4>
-          <p className="text-xs font-mono text-emerald-400 flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> Salary: ${currentRole.payPerMinute.toFixed(2)} / min</p>
-        </div>
-        <button 
-          onClick={() => {
-              if (energy < 50) return alert("You need 50 energy to ask for a raise!");
-              const newEnergy = Number(energy) - 50;
-              setEnergy(newEnergy);
-              saveGameState({ energy: newEnergy });
-              const clicksReq = 80 + (corporateLevel * 10);
-              setActiveJob({ title: "Boss Task (Hard)", basePay: 0, clicksRequired: clicksReq, timeLimit: 10, isPromotion: true });
-          }}
-          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg transition shadow-lg shrink-0"
-        >
-          Ask For Raise
-        </button>
-      </div>
-
-      <div className="pt-4 border-t border-white/5">
-        <div className="flex justify-between items-end mb-2">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Pending Salary (1 Month)</p>
-              <p className="text-sm font-mono font-bold text-indigo-400">
-                  ${Number(displaySalary).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-zinc-600 text-xs">/ ${monthlySalaryTarget.toLocaleString('en-US')}</span>
-              </p>
-            </div>
-            <button 
-              onClick={handleClaimSalary}
-              disabled={Number(displaySalary) < monthlySalaryTarget}
-              className="px-4 py-2 bg-white/10 hover:bg-white/20 disabled:bg-white/5 disabled:text-zinc-600 text-white text-xs font-bold rounded-lg transition border border-white/10 disabled:border-transparent"
-            >
-              Claim Paycheck
-            </button>
-        </div>
-        <div className="w-full h-1.5 bg-black/50 rounded-full overflow-hidden border border-white/5">
-            <div className="h-full bg-gradient-to-r from-indigo-600 to-indigo-400 transition-all duration-1000" style={{ width: `${salaryProgressPercentage}%` }}></div>
-        </div>
-      </div>
-    </div>
-  </div>
-);
-
-const DailyUpkeep = ({ pendingSalary, playerPath, currentLocation, ownedProperties }: any) => {
-  const [timeLeft, setTimeLeft] = useState("23:59:59");
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    const timer = setInterval(() => {
-      const now = new Date();
-      const tomorrow = new Date(now);
-      tomorrow.setHours(24, 0, 0, 0);
-      const diff = tomorrow.getTime() - now.getTime();
-      
-      const h = Math.floor((diff / (1000 * 60 * 60)) % 24).toString().padStart(2, '0');
-      const m = Math.floor((diff / 1000 / 60) % 60).toString().padStart(2, '0');
-      const s = Math.floor((diff / 1000) % 60).toString().padStart(2, '0');
-      
-      setTimeLeft(`${h}:${m}:${s}`);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const locStats = LOCATIONS[currentLocation] || LOCATIONS.bali;
-  
-  // If they own ANY property in their current location, rent is waived!
-  const ownsHome = ownedProperties.some((id: string) => REAL_ESTATE[currentLocation]?.find((p: any) => p.id === id));
-  const rent = ownsHome ? 0 : locStats.rent;
-  const living = locStats.living;
-  
-  const estTax = playerPath === 'corporate' ? (Number(pendingSalary) * locStats.tax) : 0;
-  const total = rent + living + estTax;
-
-  return (
-    <div className="lg:col-span-2 bg-[#121214] border border-white/5 rounded-[24px] p-6 shadow-2xl flex flex-col justify-between hover:border-white/10 transition-colors">
-      <div className="flex justify-between items-start mb-4">
-        <div>
-          <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">System</h3>
-          <p className="text-sm font-bold text-white">Daily Upkeep (Taxes)</p>
-        </div>
-        <Clock className="w-4 h-4 text-zinc-500" />
-      </div>
-      
-      <div className="text-center bg-black/40 border border-white/5 rounded-xl p-4 mb-4">
-        <span className="text-2xl font-black font-mono tracking-tighter text-white">
-          {mounted ? timeLeft : "23:59:59"}
-        </span>
-        <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mt-1">To Midnight Auto-Cut</p>
-      </div>
-
-      <div className="space-y-2 text-xs font-mono">
-         <div className="flex justify-between border-b border-white/5 pb-1">
-           <span className="text-zinc-400">Rent ({locStats.name})</span>
-           {ownsHome ? (
-              <span className="text-emerald-400 font-bold">Waived (Owner)</span>
-           ) : (
-              <span className="text-red-400">-${rent.toFixed(2)}</span>
-           )}
-         </div>
-         <div className="flex justify-between border-b border-white/5 pb-1">
-           <span className="text-zinc-400">Living & Groceries</span>
-           <span className="text-red-400">-${living.toFixed(2)}</span>
-         </div>
-         <div className="flex justify-between border-b border-white/5 pb-1">
-           <span className="text-zinc-400">Income Tax ({(locStats.tax * 100).toFixed(0)}%)</span>
-           <span className={estTax > 0 ? "text-red-400" : "text-zinc-500"}>-${estTax.toFixed(2)}</span>
-         </div>
-         <div className="flex justify-between pt-1">
-           <span className="font-bold text-white">Total Est. Cut</span>
-           <span className="font-bold text-red-400">-${total.toFixed(2)}</span>
-         </div>
-      </div>
-    </div>
-  );
-};
-
-const BankingTab = ({ 
-  balance, 
-  savingsBalance, 
-  loanBalance, 
-  loanAccountBalance,
-  fico, 
-  selectedBank, 
-  accountNumber,
-  transferAmount, 
-  setTransferAmount, 
-  handleBankSelect, 
-  handleTransfer, 
-  handleTakeLoan, 
-  handleRepayLoan 
-}: any) => {
-  const [loanInput, setLoanInput] = useState("");
-
-  if (!selectedBank) {
-    return (
-      <div className="max-w-5xl mx-auto">
-        <div className="text-center mb-10">
-            <h2 className="text-3xl md:text-4xl font-black text-white mb-4 tracking-tight">Select a Financial Institution</h2>
-            <p className="text-zinc-400 max-w-xl mx-auto">To store your wealth and earn interest, you must open an account. Choose wisely, as your bank dictates your financial perks.</p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <button onClick={() => handleBankSelect('bop')} className="bg-[#121214] border border-white/10 hover:border-blue-500/50 p-8 rounded-3xl text-left flex flex-col group transition-all shadow-xl hover:shadow-[0_0_30px_rgba(59,130,246,0.15)]">
-              <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-400 mb-6 border border-blue-500/20 group-hover:scale-110 transition-transform"><Landmark className="w-6 h-6" /></div>
-              <h3 className="text-xl font-black text-white mb-2">Bank of Pulse (BoP)</h3>
-              <p className="text-sm text-zinc-400 mb-6">Beginner-friendly. No hidden account fees, straightforward banking.</p>
-              <div className="mt-auto space-y-2 text-xs font-mono">
-                  <div className="flex justify-between border-b border-white/5 pb-2"><span className="text-zinc-500">Account Fee</span><span className="text-emerald-400">$0 / day</span></div>
-                  <div className="flex justify-between pt-1"><span className="text-zinc-500">Savings APY</span><span className="text-zinc-300">0.0%</span></div>
-              </div>
-            </button>
-            <button onClick={() => handleBankSelect('maze')} className="bg-[#121214] border border-white/10 hover:border-red-500/50 p-8 rounded-3xl text-left flex flex-col group transition-all shadow-xl hover:shadow-[0_0_30px_rgba(239,68,68,0.15)]">
-              <div className="w-12 h-12 bg-red-500/10 rounded-2xl flex items-center justify-center text-red-400 mb-6 border border-red-500/20 group-hover:scale-110 transition-transform"><Building2 className="w-6 h-6" /></div>
-              <h3 className="text-xl font-black text-white mb-2">Maze Bank</h3>
-              <p className="text-sm text-zinc-400 mb-6">The Investor's choice. High account fees, but free stock trading included.</p>
-              <div className="mt-auto space-y-2 text-xs font-mono">
-                  <div className="flex justify-between border-b border-white/5 pb-2"><span className="text-zinc-500">Account Fee</span><span className="text-red-400">-$50 / day</span></div>
-                  <div className="flex justify-between pt-1"><span className="text-zinc-500">Trading Fee</span><span className="text-emerald-400">0%</span></div>
-              </div>
-            </button>
-            <button onClick={() => handleBankSelect('swells')} className="bg-[#121214] border border-white/10 hover:border-emerald-500/50 p-8 rounded-3xl text-left flex flex-col group transition-all shadow-xl hover:shadow-[0_0_30px_rgba(16,185,129,0.15)]">
-              <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 mb-6 border border-emerald-500/20 group-hover:scale-110 transition-transform"><PiggyBank className="w-6 h-6" /></div>
-              <h3 className="text-xl font-black text-white mb-2">Swells Cargo</h3>
-              <p className="text-sm text-zinc-400 mb-6">The Saver's choice. Highest APY on savings, but brutal interest rates on loans.</p>
-              <div className="mt-auto space-y-2 text-xs font-mono">
-                  <div className="flex justify-between border-b border-white/5 pb-2"><span className="text-zinc-500">Savings APY</span><span className="text-emerald-400">5.0% Daily</span></div>
-                  <div className="flex justify-between pt-1"><span className="text-zinc-500">Loan Interest</span><span className="text-red-400">25% Brutal</span></div>
-              </div>
-            </button>
-            <button onClick={() => handleBankSelect('capital_none')} className="bg-[#121214] border border-white/10 hover:border-indigo-500/50 p-8 rounded-3xl text-left flex flex-col group transition-all shadow-xl hover:shadow-[0_0_30px_rgba(99,102,241,0.15)]">
-              <div className="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-indigo-400 mb-6 border border-indigo-500/20 group-hover:scale-110 transition-transform"><Shield className="w-6 h-6" /></div>
-              <h3 className="text-xl font-black text-white mb-2">Capital None</h3>
-              <p className="text-sm text-zinc-400 mb-6">The Credit builder. Easiest bank to raise your FICO score and get high-limit loans.</p>
-              <div className="mt-auto space-y-2 text-xs font-mono">
-                  <div className="flex justify-between border-b border-white/5 pb-2"><span className="text-zinc-500">Credit Growth</span><span className="text-emerald-400">2x Speed</span></div>
-                  <div className="flex justify-between pt-1"><span className="text-zinc-500">Loan Limit</span><span className="text-emerald-400">High</span></div>
-              </div>
-            </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Capital none multiplies FICO by 200 for loans, others multiply by 50
-  const maxLoan = selectedBank === 'capital_none' ? fico * 200 : fico * 50;
-  const availableCredit = Math.max(0, maxLoan - loanBalance);
-
-  return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <div className="bg-[#121214] border border-white/10 rounded-3xl p-8 flex flex-col justify-between shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-8 opacity-5"><Landmark className="w-48 h-48" /></div>
-          
-          <div className="relative z-10 w-full flex items-center justify-between mb-4">
-            <div>
-              <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-1">Active Institution</p>
-              <h2 className="text-3xl font-black text-white capitalize">{selectedBank.replace('_', ' ')}</h2>
-            </div>
-            <button 
-              onClick={() => handleBankSelect(null)} 
-              className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl transition border border-white/10 backdrop-blur-md"
-            >
-              Switch Bank
-            </button>
-          </div>
-          
-          <div className="relative z-10 w-full bg-black/40 p-4 rounded-2xl border border-white/5 flex justify-between items-center">
-             <div>
-                <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold mb-1">Secure Account Number</p>
-                <p className="font-mono text-sm tracking-widest text-indigo-300">
-                   {accountNumber ? accountNumber.match(/.{1,5}/g)?.join('-') : 'Generating...'}
-                </p>
-             </div>
-             <Shield className="w-5 h-5 text-zinc-600" />
-          </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-[#121214] border border-white/10 rounded-3xl p-8 shadow-2xl relative overflow-hidden group hover:border-emerald-500/30 transition-colors">
-            <div className="flex justify-between items-start mb-8">
-                <div>
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2"><CreditCard className="w-4 h-4 text-emerald-400"/> Current Account</h3>
-                  <p className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">Liquid Cash</p>
-                </div>
-            </div>
-            <h2 className="text-3xl font-black font-mono tracking-tighter text-white">
-                ${Number(balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </h2>
-          </div>
-          <div className="bg-[#121214] border border-white/10 rounded-3xl p-8 shadow-2xl relative overflow-hidden group hover:border-indigo-500/30 transition-colors">
-            <div className="flex justify-between items-start mb-8">
-                <div>
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2"><PiggyBank className="w-4 h-4 text-indigo-400"/> Savings Vault</h3>
-                  <p className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">Earning Interest</p>
-                </div>
-            </div>
-            <h2 className="text-3xl font-black font-mono tracking-tighter text-white">
-                ${Number(savingsBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </h2>
-          </div>
-          <div className="bg-[#121214] border border-white/10 rounded-3xl p-8 shadow-2xl relative overflow-hidden group hover:border-orange-500/30 transition-colors">
-            <div className="flex justify-between items-start mb-8">
-                <div>
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2"><Briefcase className="w-4 h-4 text-orange-400"/> Loan Account</h3>
-                  <p className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">Borrowed Funds</p>
-                </div>
-            </div>
-            <h2 className="text-3xl font-black font-mono tracking-tighter text-white">
-                ${Number(loanAccountBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </h2>
-          </div>
-      </div>
-
-      {/* Financial Interfaces Stacked */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
-          
-          {/* Transfer Interface */}
-          <div className="bg-black/40 border border-white/5 rounded-3xl p-8 shadow-inner">
-            <h3 className="text-lg font-black text-white mb-6 text-center">Transfer Funds</h3>
-            <p className="text-xs text-zinc-500 text-center mb-4">Move money between Current and Savings. Loan funds cannot be transferred to prevent network abuse.</p>
-            <div className="flex flex-col items-center gap-6">
-                <div className="relative w-full max-w-xs">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-400 font-mono">$</div>
-                  <input 
-                    type="number" 
-                    value={transferAmount}
-                    onChange={(e) => setTransferAmount(e.target.value)}
-                    className="w-full bg-[#121214] border border-white/10 rounded-2xl py-3.5 pl-8 pr-4 text-white font-mono text-sm focus:outline-none focus:border-indigo-500 transition-colors"
-                    placeholder="0.00"
-                  />
-                </div>
-                <div className="flex w-full gap-3">
-                  <button onClick={() => handleTransfer('to_savings')} className="flex-1 bg-white/5 hover:bg-indigo-500/20 text-white font-bold py-3.5 rounded-xl border border-white/10 hover:border-indigo-500/30 transition-all text-xs flex items-center justify-center gap-2">
-                      <ArrowRightLeft className="w-4 h-4" /> To Savings
-                  </button>
-                  <button onClick={() => handleTransfer('to_current')} className="flex-1 bg-white/5 hover:bg-emerald-500/20 text-white font-bold py-3.5 rounded-xl border border-white/10 hover:border-emerald-500/30 transition-all text-xs flex items-center justify-center gap-2">
-                      <ArrowRightLeft className="w-4 h-4" /> To Current
-                  </button>
-                </div>
-            </div>
-          </div>
-
-          {/* Loan & Credit Interface */}
-          <div className="bg-black/40 border border-white/5 rounded-3xl p-8 shadow-inner">
-            <h3 className="text-lg font-black text-white mb-2 text-center">Credit Line & Loans</h3>
-            <p className="text-[10px] text-zinc-500 text-center mb-6 uppercase tracking-widest font-bold">
-                Available Credit: <span className="text-emerald-400">${availableCredit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-            </p>
-            
-            <div className="flex justify-between items-center mb-6 bg-white/5 p-4 rounded-2xl border border-white/10">
-                <div>
-                  <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold mb-1">Outstanding Balance</p>
-                  <p className="text-xl font-black text-red-400 font-mono">${Number(loanBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                </div>
-            </div>
-            
-            <div className="flex flex-col items-center gap-4">
-                <div className="relative w-full max-w-xs">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-400 font-mono">$</div>
-                  <input 
-                    type="number" 
-                    value={loanInput}
-                    onChange={(e) => setLoanInput(e.target.value)}
-                    className="w-full bg-[#121214] border border-white/10 rounded-2xl py-3.5 pl-8 pr-4 text-white font-mono text-sm focus:outline-none focus:border-indigo-500 transition-colors"
-                    placeholder="0.00"
-                  />
-                </div>
-                <div className="flex w-full gap-3">
-                  <button onClick={() => { handleTakeLoan(loanInput); setLoanInput(''); }} className="flex-1 bg-white/5 hover:bg-orange-500/20 text-white font-bold py-3.5 rounded-xl border border-white/10 hover:border-orange-500/30 transition-all text-xs">
-                      Take Loan
-                  </button>
-                  <button onClick={() => { handleRepayLoan(loanInput); setLoanInput(''); }} className="flex-1 bg-white/5 hover:bg-emerald-500/20 text-white font-bold py-3.5 rounded-xl border border-white/10 hover:border-emerald-500/30 transition-all text-xs">
-                      Repay
-                  </button>
-                </div>
-            </div>
-          </div>
-      </div>
-    </div>
-  );
-};
-
-const RealEstateTab = ({ 
-  currentLocation, 
-  ownedProperties, 
-  handleRelocate, 
-  handleBuyProperty,
-  handleSellProperty
-}: any) => {
-  return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <div className="text-center mb-10">
-         <h2 className="text-3xl md:text-4xl font-black text-white mb-4 tracking-tight">Global Real Estate & Migration</h2>
-         <p className="text-zinc-400 max-w-xl mx-auto">Relocating changes your tax brackets and cost of living. Purchasing any property in a city permanently removes rent expenses for that city.</p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {Object.entries(LOCATIONS).map(([cityId, city]) => {
-          const isCurrent = currentLocation === cityId;
-          const cityProperties = REAL_ESTATE[cityId] || [];
-          const ownsAnyHere = cityProperties.some(p => ownedProperties.includes(p.id));
-
-          return (
-            <div key={cityId} className={`bg-[#121214] border rounded-3xl p-6 flex flex-col transition-all ${isCurrent ? 'border-cyan-500/50 shadow-[0_0_30px_rgba(6,182,212,0.15)]' : 'border-white/10 hover:border-white/20 shadow-xl'}`}>
-               
-               {/* Header */}
-               <div className="flex justify-between items-start mb-6">
-                 <div>
-                    <h3 className="text-2xl font-black text-white mb-1">{city.name}</h3>
-                    <p className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest">{city.perk}</p>
-                 </div>
-                 {isCurrent ? (
-                    <div className="w-10 h-10 bg-cyan-500/20 rounded-full flex items-center justify-center shrink-0 border border-cyan-500/30 text-cyan-400" title="Current Location">
-                      <MapPin className="w-5 h-5" />
-                    </div>
-                 ) : (
-                    <button 
-                      onClick={() => handleRelocate(cityId)}
-                      className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl border border-white/10 text-xs font-bold transition flex items-center gap-2"
-                    >
-                      <Plane className="w-4 h-4" /> Relocate ($500)
-                    </button>
-                 )}
-               </div>
-
-               {/* City Stats */}
-               <div className="grid grid-cols-2 gap-3 mb-6">
-                  <div className="bg-black/40 border border-white/5 rounded-xl p-3">
-                     <p className="text-[10px] text-zinc-500 font-bold uppercase">Income Tax</p>
-                     <p className={city.tax === 0 ? 'text-emerald-400 font-mono font-bold' : 'text-red-400 font-mono font-bold'}>{(city.tax * 100).toFixed(0)}%</p>
-                  </div>
-                  <div className="bg-black/40 border border-white/5 rounded-xl p-3">
-                     <p className="text-[10px] text-zinc-500 font-bold uppercase">Daily Rent</p>
-                     <p className={ownsAnyHere ? 'text-emerald-400 font-mono font-bold text-xs' : 'text-zinc-300 font-mono font-bold'}>{ownsAnyHere ? 'Waived (Owner)' : `$${city.rent}`}</p>
-                  </div>
-               </div>
-
-               {/* Property Listings */}
-               <div className="mt-auto border-t border-white/5 pt-4">
-                  <h4 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">Available Properties</h4>
-                  <div className="space-y-2 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar">
-                     {cityProperties.map(prop => {
-                        const isOwned = ownedProperties.includes(prop.id);
-                        return (
-                           <div key={prop.id} className={`flex justify-between items-center p-3 rounded-xl border transition-colors ${isOwned ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-black/20 border-white/5 hover:border-white/10'}`}>
-                              <div>
-                                 <p className={`text-sm font-bold ${isOwned ? 'text-emerald-400' : 'text-white'}`}>{prop.name}</p>
-                                 <p className="text-[10px] text-zinc-400 font-mono">${prop.price.toLocaleString()}</p>
-                              </div>
-                              <button 
-                                 onClick={() => isOwned ? handleSellProperty(prop.id) : handleBuyProperty(prop.id)}
-                                 className={`px-4 py-1.5 rounded-lg text-xs font-bold transition shadow-md ${isOwned ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : 'bg-white text-black hover:bg-zinc-200'}`}
-                              >
-                                 {isOwned ? 'Sell' : 'Buy'}
-                              </button>
+           <div className="flex-grow">
+               <p className="mb-4 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Choose Account</p>
+               <div className="space-y-3">
+                  {modal.accounts?.map((acc: any) => {
+                     const isSelected = selectedId === acc.id;
+                     return (
+                        <div key={acc.id} onClick={() => setSelectedId(acc.id)} className={`relative flex cursor-pointer items-center space-x-4 rounded-2xl p-4 transition-all duration-300 ${isSelected ? 'text-white' : 'bg-black/20 hover:bg-black/40 text-zinc-400 border border-white/5 hover:border-white/10'}`}>
+                           {isSelected && (
+                              <motion.div layoutId="sel-bg" className="absolute inset-0 z-0 rounded-2xl bg-indigo-600 shadow-[0_0_20px_rgba(99,102,241,0.3)]" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{type:"spring", stiffness:300, damping:30}} />
+                           )}
+                           <div className={`relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold text-sm border shadow-sm ${isSelected ? 'bg-indigo-500/20 border-indigo-400/30 text-white' : 'bg-white/5 border-white/10 text-zinc-500'}`}>
+                              {acc.initials}
                            </div>
-                        );
-                     })}
-                  </div>
+                           <div className="relative z-10 flex-grow">
+                              <p className={`font-bold text-sm ${isSelected ? 'text-white' : 'text-zinc-300'}`}>{acc.name}</p>
+                              <p className={`text-xs ${isSelected ? 'text-indigo-200' : 'text-zinc-500'}`}>{acc.details}</p>
+                           </div>
+                           <div className="relative z-10 h-6 w-6">
+                              <AnimatePresence>
+                                 {isSelected && (
+                                    <motion.div initial={{scale:0.5, opacity:0}} animate={{scale:1, opacity:1}} exit={{scale:0.5, opacity:0}} transition={{type:'spring', stiffness:400, damping:20}} className="flex h-full w-full items-center justify-center rounded-full bg-white text-indigo-600 shadow-md">
+                                       <Check className="h-4 w-4" strokeWidth={3} />
+                                    </motion.div>
+                                 )}
+                              </AnimatePresence>
+                              {!isSelected && <div className="h-6 w-6 rounded-full border-2 border-white/10" />}
+                           </div>
+                        </div>
+                     )
+                  })}
                </div>
+           </div>
 
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
+           <div className="flex gap-3">
+               <button onClick={() => closeModal(null)} className="w-1/3 rounded-xl py-4 text-xs font-bold text-zinc-400 hover:text-white hover:bg-white/5 transition-colors border border-transparent hover:border-white/10">Cancel</button>
+               <button onClick={() => closeModal(selectedId)} className="w-2/3 rounded-xl py-4 text-sm font-black tracking-widest uppercase bg-white text-black hover:bg-zinc-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.1)]">Confirm</button>
+           </div>
+       </div>
+   );
 };
+// ----------------------------------------------
 
-
-// ============================================================================
-// MAIN DASHBOARD LOOP
-// ============================================================================
 export default function NetworkDashboard() {
   const router = useRouter();
   
-  // App State
   const [loading, setLoading] = useState(true);
   const [pulseProfile, setPulseProfile] = useState<any>(null);
   
-  // Supabase Game State
   const [accountNumber, setAccountNumber] = useState<string | null>(null);
   const [balance, setBalance] = useState(0);
   const [savingsBalance, setSavingsBalance] = useState(0);
   const [loanAccountBalance, setLoanAccountBalance] = useState(0);
-  const [loanBalance, setLoanBalance] = useState(0); // Debt owed
+  const [loanBalance, setLoanBalance] = useState(0); 
 
   const [netWorthHistory, setNetWorthHistory] = useState<number[]>([]);
   const [energy, setEnergy] = useState(100);
   const [fico, setFico] = useState(700);
   const [playerPath, setPlayerPath] = useState<string | null>(null);
   const [pathUpdatedAt, setPathUpdatedAt] = useState<string | null>(null);
+  const [freePathSwitchUsed, setFreePathSwitchUsed] = useState<boolean>(false);
   const [selectedBank, setSelectedBank] = useState<string | null>(null);
   const [corporateLevel, setCorporateLevel] = useState(1);
   
-  // NEW Real Estate & Location State
   const [currentLocation, setCurrentLocation] = useState('bali');
   const [ownedProperties, setOwnedProperties] = useState<string[]>([]);
+  const [ownedVehicles, setOwnedVehicles] = useState<string[]>([]);
+  const [portfolio, setPortfolio] = useState<Record<string, any>>({});
+  const [startupData, setStartupData] = useState<any>({ workload: 50, payroll: 50, morale: 100, is_strike: false, level: 1 });
   
-  // Salary State
-  const [pendingSalary, setPendingSalary] = useState(0);
+  const [pendingSalary, setPendingSalary] = useState(0); 
   const [lastLocalSync, setLastLocalSync] = useState<number | null>(null);
-
-  // NEW: Energy Refill Tracker
   const [lastEnergySyncState, setLastEnergySyncState] = useState<number | null>(null);
   
-  // Local UI State
+  // TAX & SLEEP STATES
+  const [nextTaxTime, setNextTaxTime] = useState<number | null>(null);
+  const [taxCycleMinutes, setTaxCycleMinutes] = useState<number>(10);
+  const [lazinessPenaltyUntil, setLazinessPenaltyUntil] = useState<number>(0);
+
   const [activeTab, setActiveTab] = useState('overview');
   const [activeJob, setActiveJob] = useState<any>(null);
   const [showPathSelection, setShowPathSelection] = useState(false);
   const [transferAmount, setTransferAmount] = useState("");
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // === CUSTOM MODAL SYSTEM ===
+  const [modal, setModal] = useState<{isOpen: boolean, type: 'alert'|'confirm'|'prompt'|'account-select', title: string, message: string, placeholder: string, resolve: any, accounts?: any[], amount?: number}>({
+     isOpen: false, type: 'alert', title: '', message: '', placeholder: '', resolve: null
+  });
+  const [modalInput, setModalInput] = useState("");
+
+  const showAlert = (title: string, message: string) => {
+     return new Promise<void>((resolve) => {
+        setModal({ isOpen: true, type: 'alert', title, message, placeholder: '', resolve });
+     });
+  };
+
+  const showConfirm = (title: string, message: string) => {
+     return new Promise<boolean>((resolve) => {
+        setModal({ isOpen: true, type: 'confirm', title, message, placeholder: '', resolve });
+     });
+  };
+
+  const showPrompt = (title: string, message: string, placeholder = "") => {
+     return new Promise<string | null>((resolve) => {
+        setModalInput("");
+        setModal({ isOpen: true, type: 'prompt', title, message, placeholder, resolve });
+     });
+  };
+
+  const showAccountSelect = (title: string, message: string, amount: number, accounts: any[]) => {
+      return new Promise<string | null>((resolve) => {
+         setModal({ isOpen: true, type: 'account-select', title, message, placeholder: '', resolve, accounts, amount });
+      });
+  };
+
+  const closeModal = (result: any) => {
+     if (modal.resolve) modal.resolve(result);
+     setModal(prev => ({ ...prev, isOpen: false }));
+  };
+  // ==========================
+
+  // REFS for intervals
   const displaySalaryRef = useRef(pendingSalary);
-  useEffect(() => { displaySalaryRef.current = pendingSalary; }, [pendingSalary]);
+  const startupDataRef = useRef(startupData);
+  const balanceRef = useRef(balance);
+  const ficoRef = useRef(fico);
+  const ownedPropertiesRef = useRef(ownedProperties);
+  const currentLocationRef = useRef(currentLocation);
+  const nextTaxTimeRef = useRef(nextTaxTime);
+  const lazinessPenaltyUntilRef = useRef(lazinessPenaltyUntil);
+  const taxCycleMinutesRef = useRef(taxCycleMinutes);
 
-  // --- Dynamic Economy Math ---
+  useEffect(() => { displaySalaryRef.current = pendingSalary; }, [pendingSalary]);
+  useEffect(() => { startupDataRef.current = startupData; }, [startupData]);
+  useEffect(() => { balanceRef.current = balance; }, [balance]);
+  useEffect(() => { ficoRef.current = fico; }, [fico]);
+  useEffect(() => { ownedPropertiesRef.current = ownedProperties; }, [ownedProperties]);
+  useEffect(() => { currentLocationRef.current = currentLocation; }, [currentLocation]);
+  useEffect(() => { nextTaxTimeRef.current = nextTaxTime; }, [nextTaxTime]);
+  useEffect(() => { lazinessPenaltyUntilRef.current = lazinessPenaltyUntil; }, [lazinessPenaltyUntil]);
+  useEffect(() => { taxCycleMinutesRef.current = taxCycleMinutes; }, [taxCycleMinutes]);
+
   const locStats = LOCATIONS[currentLocation] || LOCATIONS.bali;
   
-  // Calculate Asset Value from the new Expanded Property Catalog
-  const assetValue = ownedProperties.reduce((sum, propId) => {
+  const realEstateValue = ownedProperties.reduce((sum, propId) => {
       for (const city in REAL_ESTATE) {
          const prop = REAL_ESTATE[city].find(p => p.id === propId);
          if (prop) return sum + prop.price;
       }
       return sum;
   }, 0);
+  
+  const vehicleValue = ownedVehicles.reduce((sum, vId) => sum + (VEHICLES[vId]?.price || 0) * 0.8, 0); 
+  
+  const [livePortfolioValue, setLivePortfolioValue] = useState(0);
+  
+  useEffect(() => {
+     const fetchPortfolioValue = async () => {
+        if (document.hidden) return;
 
+        if (Object.keys(portfolio).length === 0) {
+           setLivePortfolioValue(0);
+           return;
+        }
+        
+        try {
+           const [cryptoRes, stockRes] = await Promise.all([
+               fetch(`/api/crypto`),
+               fetch(`/api/stocks`)
+           ]);
+           
+           const cryptoData = cryptoRes.ok ? await cryptoRes.json() : [];
+           const stockData = stockRes.ok ? await stockRes.json() : [];
+           
+           const combinedData = [
+               ...(Array.isArray(cryptoData) ? cryptoData : []),
+               ...(Array.isArray(stockData) ? stockData : [])
+           ];
+
+           let val = 0;
+           
+           [...Object.entries(CRYPTO_ASSETS), ...Object.entries(STOCK_ASSETS)].forEach(([ticker, asset]) => {
+              if (portfolio[ticker]?.shares) {
+                 const item = combinedData.find((d: any) => d.symbol === asset.symbol);
+                 if (item && !isNaN(parseFloat(item.price))) {
+                    val += portfolio[ticker].shares * parseFloat(item.price);
+                 }
+              }
+           });
+           
+           setLivePortfolioValue(val);
+        } catch(e) {
+           console.error("Portfolio sync error:", e);
+        }
+     };
+     
+     fetchPortfolioValue();
+     const int = setInterval(fetchPortfolioValue, 10000);
+     return () => clearInterval(int);
+  }, [portfolio]);
+
+  const assetValue = realEstateValue + vehicleValue + livePortfolioValue;
   const totalNetWorth = Number(balance) + Number(savingsBalance) + Number(loanAccountBalance) + assetValue - Number(loanBalance);
 
-  // Update Net Worth History Chart
   useEffect(() => {
      setNetWorthHistory(prev => {
         const next = [...prev, totalNetWorth];
@@ -827,47 +258,33 @@ export default function NetworkDashboard() {
      });
   }, [totalNetWorth]);
 
-  // --- Corporate Ladder Configuration ---
   const getCorporateRole = (level: number) => {
     let basePayPerMinute = 0.50;
     let title = "Junior Developer";
-    
     if (level === 2) { title = "Mid-Level Developer"; basePayPerMinute = 1.50; }
     if (level === 3) { title = "Senior Developer"; basePayPerMinute = 4.00; }
     if (level === 4) { title = "Lead Developer"; basePayPerMinute = 10.00; }
     if (level >= 5) { title = `Executive Lv.${level}`; basePayPerMinute = 10.00 + ((level - 4) * 5); }
-
-    // Dynamic Multiplier applied immediately
     return { title, payPerMinute: basePayPerMinute * locStats.multiplier };
   };
-  
   const currentRole = getCorporateRole(corporateLevel);
   const monthlySalaryTarget = currentRole.payPerMinute * 450; 
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        router.push("/");
-        return;
-      }
+      if (!user) { router.push("/"); return; }
 
       try {
         const q = query(collection(db, "users"), where("owner_uid", "==", user.uid));
         const querySnapshot = await getDocs(q);
         let username = "Agent";
-        
         if (!querySnapshot.empty) {
           const profileData = querySnapshot.docs[0].data();
           setPulseProfile(profileData);
           username = profileData.username || profileData.displayName || "Agent";
         }
 
-        const res = await fetch("/api/bank", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ firebaseUid: user.uid, username })
-        });
-        
+        const res = await fetch("/api/bank", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ firebaseUid: user.uid, username }) });
         const dbData = await res.json();
         
         if (dbData.data) {
@@ -880,31 +297,32 @@ export default function NetworkDashboard() {
           setPlayerPath(dbData.data.player_path || null);
           setPathUpdatedAt(dbData.data.path_updated_at || null);
           setSelectedBank(dbData.data.selected_bank || null);
-          
-          // New Accounts Load
           setAccountNumber(dbData.data.account_number || null);
           setSavingsBalance(dbData.data.savings_balance != null ? Number(dbData.data.savings_balance) : 0);
           setLoanAccountBalance(dbData.data.loan_account_balance != null ? Number(dbData.data.loan_account_balance) : 0);
           setLoanBalance(dbData.data.loan_balance != null ? Number(dbData.data.loan_balance) : 0);
-          
-          // Load Location & Properties
           setCurrentLocation(dbData.data.location || 'bali');
-          const loadedProps = dbData.data.owned_properties || [];
-          const parsedProps = typeof loadedProps === 'string' ? JSON.parse(loadedProps) : loadedProps;
-          setOwnedProperties(parsedProps);
+          
+          const localTaxData = JSON.parse(localStorage.getItem('pulse_tax_state') || '{}');
+          
+          const dbNextTaxAt = localTaxData.next_tax_at != null ? Number(localTaxData.next_tax_at) : Date.now() + 10 * 60000;
+          const dbTaxCycle = localTaxData.tax_cycle_minutes != null ? Number(localTaxData.tax_cycle_minutes) : 10;
+          const dbLaziness = localTaxData.laziness_penalty_until != null ? Number(localTaxData.laziness_penalty_until) : 0;
+          const dbFreeSwitch = localTaxData.free_path_switch_used != null ? Boolean(localTaxData.free_path_switch_used) : false;
 
-          // Calculate Initial Asset Value
-          const loadedAssetValue = parsedProps.reduce((sum: number, propId: string) => {
-             for (const city in REAL_ESTATE) {
-                const prop = REAL_ESTATE[city].find(p => p.id === propId);
-                if (prop) return sum + prop.price;
-             }
-             return sum;
-          }, 0);
+          setNextTaxTime(dbNextTaxAt);
+          setTaxCycleMinutes(dbTaxCycle);
+          setLazinessPenaltyUntil(dbLaziness);
+          setFreePathSwitchUsed(dbFreeSwitch);
 
-          const loadedNetWorth = initialBal + (dbData.data.savings_balance != null ? Number(dbData.data.savings_balance) : 0) + (dbData.data.loan_account_balance != null ? Number(dbData.data.loan_account_balance) : 0) + loadedAssetValue - (dbData.data.loan_balance != null ? Number(dbData.data.loan_balance) : 0);
-          const fakeHistory = Array.from({length: 20}, (_, i) => Math.max(0, loadedNetWorth * (0.3 + 0.7 * (i/19))));
-          setNetWorthHistory(fakeHistory);
+          const parseJSON = (data: any, fallback: any) => {
+             if (!data) return fallback;
+             return typeof data === 'string' ? JSON.parse(data) : data;
+          };
+          setOwnedProperties(parseJSON(dbData.data.owned_properties, []));
+          setOwnedVehicles(parseJSON(dbData.data.owned_vehicles, []));
+          setPortfolio(parseJSON(dbData.data.portfolio, {}));
+          setStartupData(parseJSON(dbData.data.startup_data, { workload: 50, payroll: 50, morale: 100, is_strike: false, level: 1 }));
 
           const level = dbData.data.corporate_level != null ? Number(dbData.data.corporate_level) : 1;
           setCorporateLevel(level);
@@ -914,15 +332,47 @@ export default function NetworkDashboard() {
           let offlineEarnings = 0;
           let syncAnchor = Date.now();
 
-          // CORPORATE SALARY OFFLINE CALC
-          if (dbData.data.player_path === 'corporate' && dbData.data.last_salary_sync) {
+          if ((dbData.data.player_path === 'corporate' || dbData.data.player_path === 'founder') && dbData.data.last_salary_sync) {
               const lastSync = new Date(dbData.data.last_salary_sync).getTime();
               const minutesOffline = Math.floor((Date.now() - lastSync) / 60000);
               
               if (minutesOffline > 0 && minutesOffline < 525600) { 
-                 const basePay = level >= 5 ? 10 + ((level - 4) * 5) : [0.5, 1.5, 4, 10][level-1];
-                 const currentLocMulti = LOCATIONS[dbData.data.location || 'bali'].multiplier;
-                 offlineEarnings = minutesOffline * (basePay * currentLocMulti);
+                 if (dbData.data.player_path === 'corporate') {
+                     const basePay = level >= 5 ? 10 + ((level - 4) * 5) : [0.5, 1.5, 4, 10][level-1];
+                     const currentLocMulti = LOCATIONS[dbData.data.location || 'bali'].multiplier;
+                     offlineEarnings = minutesOffline * (basePay * currentLocMulti);
+                 } else if (dbData.data.player_path === 'founder') {
+                     const sData = parseJSON(dbData.data.startup_data, { workload: 50, payroll: 50, is_strike: false, level: 1 });
+                     const levelMult = sData.level || 1;
+                     const locMulti = LOCATIONS[dbData.data.location || 'bali'].multiplier;
+                     const baseOpCost = 100 * locMulti * levelMult;
+                     
+                     let moraleChangePerMin = (sData.payroll - sData.workload) * 0.5;
+                     if (sData.workload > 50) moraleChangePerMin -= (sData.workload - 50) * 1.0;
+                     
+                     let finalMorale = sData.morale + (moraleChangePerMin * minutesOffline);
+                     let didStrikeOffline = false;
+                     
+                     if (finalMorale <= 0 && !sData.is_strike) {
+                         didStrikeOffline = true;
+                         finalMorale = 0;
+                     } else if (finalMorale >= 50 && sData.is_strike) {
+                         finalMorale = 50;
+                     }
+                     
+                     finalMorale = Math.max(0, Math.min(100, finalMorale));
+
+                     if (!sData.is_strike && !didStrikeOffline) {
+                        const gross = sData.workload * 15 * locMulti * levelMult;
+                        const cost = (sData.payroll * 10 * locMulti * levelMult) + baseOpCost;
+                        offlineEarnings = minutesOffline * (gross - cost);
+                     } else {
+                        const strikeCost = (sData.payroll * 20 * locMulti * levelMult) + baseOpCost;
+                        offlineEarnings = minutesOffline * -strikeCost;
+                     }
+                     
+                     setStartupData({...sData, morale: finalMorale, is_strike: didStrikeOffline || sData.is_strike});
+                 }
                  syncAnchor = lastSync + (minutesOffline * 60000);
               } else {
                  syncAnchor = lastSync;
@@ -932,40 +382,24 @@ export default function NetworkDashboard() {
           const totalLoadedSalary = dbSalary + offlineEarnings;
           setPendingSalary(totalLoadedSalary);
           setLastLocalSync(syncAnchor);
-          
-          if (offlineEarnings > 0) {
-             saveGameState({ pending_salary: totalLoadedSalary, last_salary_sync: new Date(syncAnchor).toISOString() });
-          }
+          if (offlineEarnings !== 0) saveGameState({ pending_salary: totalLoadedSalary, last_salary_sync: new Date(syncAnchor).toISOString() });
 
-          // === ENERGY OFFLINE CALC ===
           let energySyncAnchor = Date.now();
           if (dbData.data.last_energy_sync) {
               const lastEnergySync = new Date(dbData.data.last_energy_sync).getTime();
               const minutesOffline = Math.floor((Date.now() - lastEnergySync) / 60000);
-              
               if (minutesOffline > 0 && loadedEnergy < 100) {
-                 // Grants 5 Energy every 2 full minutes offline
                  const intervals = Math.floor(minutesOffline / 2);
                  loadedEnergy = Math.min(100, loadedEnergy + (intervals * 5));
                  energySyncAnchor = lastEnergySync + (intervals * 120000);
-              } else {
-                 energySyncAnchor = lastEnergySync;
-              }
+              } else { energySyncAnchor = lastEnergySync; }
           }
           setEnergy(loadedEnergy);
           setLastEnergySyncState(energySyncAnchor);
-          
-          if (loadedEnergy !== (dbData.data.energy != null ? Number(dbData.data.energy) : 100)) {
-             saveGameState({ energy: loadedEnergy, last_energy_sync: new Date(energySyncAnchor).toISOString() });
-          }
+          if (loadedEnergy !== (dbData.data.energy != null ? Number(dbData.data.energy) : 100)) saveGameState({ energy: loadedEnergy, last_energy_sync: new Date(energySyncAnchor).toISOString() });
         }
-      } catch (error) {
-        console.error("Error loading network data:", error);
-      } finally {
-        setLoading(false);
-      }
+      } catch (error) { console.error(error); } finally { setLoading(false); }
     });
-
     return () => unsubscribe();
   }, [router]);
 
@@ -979,209 +413,277 @@ export default function NetworkDashboard() {
       if (safeUpdates.loan_balance !== undefined) safeUpdates.loan_balance = Math.floor(Number(safeUpdates.loan_balance));
       if (safeUpdates.fico_score !== undefined) safeUpdates.fico_score = Math.floor(Number(safeUpdates.fico_score));
       if (safeUpdates.pending_salary !== undefined) safeUpdates.pending_salary = Number(Number(safeUpdates.pending_salary).toFixed(2));
+      
+      const localTaxUpdates: any = {};
+      if (safeUpdates.next_tax_at !== undefined) { localTaxUpdates.next_tax_at = Number(safeUpdates.next_tax_at); delete safeUpdates.next_tax_at; }
+      if (safeUpdates.tax_cycle_minutes !== undefined) { localTaxUpdates.tax_cycle_minutes = Number(safeUpdates.tax_cycle_minutes); delete safeUpdates.tax_cycle_minutes; }
+      if (safeUpdates.laziness_penalty_until !== undefined) { localTaxUpdates.laziness_penalty_until = Number(safeUpdates.laziness_penalty_until); delete safeUpdates.laziness_penalty_until; }
+      if (safeUpdates.free_path_switch_used !== undefined) { localTaxUpdates.free_path_switch_used = Boolean(safeUpdates.free_path_switch_used); delete safeUpdates.free_path_switch_used; }
+      
+      if (Object.keys(localTaxUpdates).length > 0) {
+          const currentLocalData = JSON.parse(localStorage.getItem('pulse_tax_state') || '{}');
+          localStorage.setItem('pulse_tax_state', JSON.stringify({ ...currentLocalData, ...localTaxUpdates }));
+      }
 
-      await fetch("/api/bank", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firebaseUid: auth.currentUser.uid, updates: safeUpdates })
-      });
-    } catch (error) {
-      console.error("Failed to sync game state:", error);
-    }
+      if (safeUpdates.owned_properties !== undefined) safeUpdates.owned_properties = JSON.stringify(safeUpdates.owned_properties);
+      if (safeUpdates.owned_vehicles !== undefined) safeUpdates.owned_vehicles = JSON.stringify(safeUpdates.owned_vehicles);
+      if (safeUpdates.portfolio !== undefined) safeUpdates.portfolio = JSON.stringify(safeUpdates.portfolio);
+      if (safeUpdates.startup_data !== undefined) safeUpdates.startup_data = JSON.stringify(safeUpdates.startup_data);
+
+      await fetch("/api/bank", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ firebaseUid: auth.currentUser.uid, updates: safeUpdates }) });
+    } catch (error) { console.error("Failed to sync game state:", error); }
   };
 
-  // --- ENERGY REFILL SYSTEM (ONLINE POLLING) ---
+  // --- AUTOMATED 10-MINUTE TAX UPKEEP LOOP ---
   useEffect(() => {
-    if (!lastEnergySyncState) return;
-    
-    let currentSync = lastEnergySyncState;
-
     const interval = setInterval(() => {
       const now = Date.now();
-      const minutesPassed = Math.floor((now - currentSync) / 60000);
-      
-      if (minutesPassed >= 2) {
-          const intervals = Math.floor(minutesPassed / 2);
-          
-          setEnergy(prev => {
-              const currentEnergy = Number(prev);
-              if (currentEnergy >= 100) {
-                  return currentEnergy;
-              }
-              const newEnergy = Math.min(100, currentEnergy + (intervals * 5));
-              // Save to database
-              saveGameState({ energy: newEnergy, last_energy_sync: new Date(now).toISOString() });
-              return newEnergy;
-          });
-          
-          currentSync += intervals * 120000;
-          setLastEnergySyncState(currentSync); 
-      }
-    }, 1000); 
-    
-    return () => clearInterval(interval);
-  }, [lastEnergySyncState]);
+      if (nextTaxTimeRef.current && now >= nextTaxTimeRef.current) {
+         const locId = currentLocationRef.current;
+         const locStats = LOCATIONS[locId] || LOCATIONS.bali;
+         const ownsHome = ownedPropertiesRef.current.some((id: string) => REAL_ESTATE[locId]?.find((p: any) => p.id === id));
+         const rent = ownsHome ? 0 : locStats.rent;
+         const upkeepCost = rent + locStats.living;
 
+         let newBal = balanceRef.current - upkeepCost;
+         let newFico = ficoRef.current;
+         
+         if (newBal < 0) {
+             newFico = Math.max(300, newFico - 20); // Penalty
+             newBal = 0;
+             if (balanceRef.current <= 0) {
+                 showAlert("Upkeep Failed", `You couldn't afford your $${upkeepCost} living expenses. FICO score dropped by 20 points!`);
+             }
+         }
+         
+         setBalance(newBal);
+         setFico(newFico);
+         
+         const newNextTax = now + 10 * 60000; 
+         nextTaxTimeRef.current = newNextTax; 
+         setTaxCycleMinutes(10);
+         setNextTaxTime(newNextTax);
+         
+         saveGameState({
+             bank_balance: newBal,
+             fico_score: newFico,
+             tax_cycle_minutes: 10,
+             next_tax_at: newNextTax
+         });
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // --- PASSIVE INCOME EARNINGS LOOP ---
   useEffect(() => {
-    if (playerPath !== 'corporate' || !lastLocalSync) return;
+    if ((playerPath !== 'corporate' && playerPath !== 'founder') || !lastLocalSync) return;
     
     let currentSync = lastLocalSync;
 
     const interval = setInterval(() => {
       const now = Date.now();
-      const minutesPassed = Math.floor((now - currentSync) / 60000);
+      const secondsPassed = Math.floor((now - currentSync) / 1000);
       
-      if (minutesPassed >= 1) {
-          const earnings = minutesPassed * currentRole.payPerMinute;
-          setPendingSalary(prev => {
-              const newValue = Number(prev) + earnings;
-              saveGameState({ pending_salary: newValue, last_salary_sync: new Date(now).toISOString() });
-              return newValue;
-          });
-          currentSync += minutesPassed * 60000;
+      if (secondsPassed >= 1) {
+          let netEarnings = 0;
+          const isPenalized = now < lazinessPenaltyUntilRef.current;
+          
+          if (!isPenalized) {
+              if (playerPath === 'corporate') {
+                 netEarnings = secondsPassed * (currentRole.payPerMinute / 60);
+              } 
+              else if (playerPath === 'founder') {
+                 const sData = startupDataRef.current;
+                 const levelMult = sData.level || 1;
+                 const locMulti = LOCATIONS[currentLocation]?.multiplier || 1;
+                 const baseOpCost = 100 * locMulti * levelMult;
+
+                 if (!sData.is_strike) {
+                    const gross = sData.workload * 15 * locMulti * levelMult;
+                    const cost = (sData.payroll * 10 * locMulti * levelMult) + baseOpCost;
+                    netEarnings = secondsPassed * ((gross - cost) / 60);
+                 } else {
+                    const strikeCost = (sData.payroll * 20 * locMulti * levelMult) + baseOpCost;
+                    netEarnings = secondsPassed * (-strikeCost / 60); 
+                 }
+              }
+          }
+
+          if (!isPenalized && playerPath === 'founder') {
+             const sData = startupDataRef.current;
+             let moraleChangePerMin = (sData.payroll - sData.workload) * 0.5;
+             if (sData.workload > 50) {
+                 moraleChangePerMin -= (sData.workload - 50) * 1.0; 
+             }
+             let moraleChange = secondsPassed * (moraleChangePerMin / 60);
+             
+             let newMorale = sData.morale + moraleChange;
+             newMorale = Math.max(0, Math.min(100, newMorale));
+             
+             let newStrike = sData.is_strike;
+             if (newMorale <= 0 && !newStrike) {
+                newStrike = true;
+                showAlert("🚨 WORKER STRIKE! 🚨", "Your employees have walked out due to low morale! Production has halted, but you are still bleeding rent and payroll expenses!");
+             } else if (newMorale >= 50 && newStrike) {
+                newStrike = false;
+                showAlert("✅ Strike Resolved", "Your employees have returned to work.");
+             }
+
+             if (newMorale !== sData.morale || newStrike !== sData.is_strike) {
+                const newSData = { ...sData, morale: newMorale, is_strike: newStrike };
+                setStartupData(newSData);
+             }
+          }
+
+          setPendingSalary(prev => Number(prev) + netEarnings);
+          currentSync += secondsPassed * 1000;
       }
     }, 1000); 
     
     return () => clearInterval(interval);
-  }, [playerPath, currentRole.payPerMinute, lastLocalSync]);
+  }, [playerPath, currentRole.payPerMinute, lastLocalSync, currentLocation]);
 
-  const handleClaimSalary = () => {
-    const currentSalary = Number(pendingSalary);
-    if (currentSalary < monthlySalaryTarget) {
-       alert(`You haven't completed a full month of work yet! You need $${monthlySalaryTarget.toLocaleString()} accumulated.`);
-       return;
-    }
-    
-    // Taxes now dynamically pulled from current location!
-    const taxRate = locStats.tax; 
-    const taxAmount = currentSalary * taxRate;
-    const netAmount = currentSalary - taxAmount;
-    const newBalance = Number(balance) + netAmount;
-    
-    setBalance(newBalance);
-    setPendingSalary(0);
-    setLastLocalSync(Date.now());
+  useEffect(() => {
+    if (playerPath !== 'corporate' && playerPath !== 'founder') return;
+    const saveInterval = setInterval(() => {
+        if (document.hidden) return;
+        saveGameState({ pending_salary: displaySalaryRef.current, startup_data: startupDataRef.current, last_salary_sync: new Date().toISOString() });
+    }, 60000);
+    return () => clearInterval(saveInterval);
+  }, [playerPath]);
 
-    saveGameState({ bank_balance: newBalance, pending_salary: 0, last_salary_sync: new Date().toISOString() });
-    alert(`Payday! 🏢\n\nGross Salary: $${currentSalary.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\nIncome Tax (${(taxRate * 100).toFixed(0)}%): -$${taxAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n\nNet Added to Account: $${netAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
-  };
-
-  const handleJobComplete = (success: boolean, timeRemaining: number) => {
-     setActiveJob(null);
-     let newBalance = Number(balance);
-     
-     if (activeJob.isPromotion) {
-        if (success) {
-           const newLevel = corporateLevel + 1;
-           setCorporateLevel(newLevel);
-           alert(`Promotion Earned! You are now a ${getCorporateRole(newLevel).title}!`);
-           saveGameState({ corporate_level: newLevel, energy });
-        } else {
-           alert(`Time's up! The boss wasn't impressed. No promotion this time.`);
-           saveGameState({ energy });
-        }
-        return;
+  // --- SLEEP SYSTEM ---
+  const handleSleep = async () => {
+     const now = Date.now();
+     if (now < lazinessPenaltyUntilRef.current) {
+         const minsLeft = Math.ceil((lazinessPenaltyUntilRef.current - now) / 60000);
+         return await showAlert("Laziness Penalty Active", `You slept too much! Your earnings are paused for another ${minsLeft} minute(s). Wake up!`);
      }
 
-     if (success) {
-        const bonus = timeRemaining * 0.50; 
-        const totalEarned = activeJob.basePay + bonus;
-        newBalance += totalEarned;
-        alert(`Job Complete! You earned $${activeJob.basePay} + $${bonus.toFixed(2)} speed bonus!`);
-     } else {
-        const penalty = activeJob.basePay * 0.20;
-        newBalance -= penalty;
-        alert(`Time's up! You failed the job. The client was angry and fined you $${penalty.toFixed(2)}!`);
+     let nextCycle = taxCycleMinutesRef.current;
+     if (nextCycle === 10) nextCycle = 7;
+     else if (nextCycle === 7) nextCycle = 5;
+     else if (nextCycle === 5) nextCycle = 3;
+     else if (nextCycle === 3) nextCycle = 1;
+     else if (nextCycle <= 1) {
+         const penaltyTime = now + 5 * 60000;
+         const newNextTax = now + 10 * 60000;
+         nextTaxTimeRef.current = newNextTax; 
+         setLazinessPenaltyUntil(penaltyTime);
+         setTaxCycleMinutes(10); 
+         setEnergy(100);
+         setNextTaxTime(newNextTax);
+         saveGameState({ energy: 100, laziness_penalty_until: penaltyTime, tax_cycle_minutes: 10, next_tax_at: newNextTax });
+         return await showAlert("Laziness Penalty!", "You slept too much! Your passive income has been completely paused for 5 minutes, and your tax cycle has reset back to 10 minutes.");
      }
 
-     setBalance(newBalance);
-     saveGameState({ bank_balance: newBalance, energy });
+     const newNextTax = now + nextCycle * 60000;
+     nextTaxTimeRef.current = newNextTax; 
+     setEnergy(100);
+     setTaxCycleMinutes(nextCycle);
+     setNextTaxTime(newNextTax);
+     saveGameState({ energy: 100, tax_cycle_minutes: nextCycle, next_tax_at: newNextTax });
+     await showAlert("Well Rested", `You slept and restored 100 Energy!\n\nHowever, because you are sleeping through the day, your next tax cut will arrive in just ${nextCycle} minute(s).`);
   };
 
-  const handleBankSelect = (bankId: string | null) => {
+  const handleBankSelect = async (bankId: string | null) => {
      setSelectedBank(bankId);
      const updates: any = { selected_bank: bankId };
-
-     // Generate an account number if they don't have one yet
      if (bankId && !accountNumber) {
         const newAccNum = Array.from({length: 25}, () => Math.floor(Math.random() * 10)).join('');
         setAccountNumber(newAccNum);
         updates.account_number = newAccNum;
      }
-
      saveGameState(updates);
-     if(bankId) alert("Account successfully opened! Welcome to " + bankId.toUpperCase());
+     if(bankId) await showAlert("Account Opened", "Account successfully opened! Welcome to " + bankId.toUpperCase());
   };
 
-  const handleTransfer = (direction: 'to_savings' | 'to_current') => {
+  const handleTransfer = async (direction: 'to_savings' | 'to_current', newBal?: number, newSav?: number) => {
+     if (newBal !== undefined && newSav !== undefined) {
+         setBalance(newBal);
+         setSavingsBalance(newSav);
+         saveGameState({ bank_balance: newBal, savings_balance: newSav });
+         return;
+     }
+
      const amount = parseFloat(transferAmount);
-     if (isNaN(amount) || amount <= 0) return alert("Please enter a valid amount.");
+     if (isNaN(amount) || amount <= 0) return await showAlert("Error", "Please enter a valid amount.");
 
      const currentLiquid = Number(balance);
      const currentSav = Number(savingsBalance);
 
-     // Loan Account is excluded from free transfers to prevent farming
      if (direction === 'to_savings') {
-        if (currentLiquid < amount) return alert("Insufficient liquid funds.");
-        const newBal = currentLiquid - amount;
-        const newSav = currentSav + amount;
-        setBalance(newBal);
-        setSavingsBalance(newSav);
-        saveGameState({ bank_balance: newBal, savings_balance: newSav });
+        if (currentLiquid < amount) return await showAlert("Error", "Insufficient liquid funds.");
+        const nextBal = currentLiquid - amount;
+        const nextSav = currentSav + amount;
+        setBalance(nextBal);
+        setSavingsBalance(nextSav);
+        saveGameState({ bank_balance: nextBal, savings_balance: nextSav });
      } else {
-        if (currentSav < amount) return alert("Insufficient savings funds.");
-        const newBal = currentLiquid + amount;
-        const newSav = currentSav - amount;
-        setBalance(newBal);
-        setSavingsBalance(newSav);
-        saveGameState({ bank_balance: newBal, savings_balance: newSav });
+        if (currentSav < amount) return await showAlert("Error", "Insufficient savings funds.");
+        const nextBal = currentLiquid + amount;
+        const nextSav = currentSav - amount;
+        setBalance(nextBal);
+        setSavingsBalance(nextSav);
+        saveGameState({ bank_balance: nextBal, savings_balance: nextSav });
      }
      setTransferAmount("");
   };
 
-  const handleTakeLoan = (amountStr: string) => {
+  const handleTakeLoan = async (amountStr: string) => {
      const amount = parseFloat(amountStr);
-     if (isNaN(amount) || amount <= 0) return alert("Invalid amount.");
+     if (isNaN(amount) || amount <= 0) return await showAlert("Error", "Invalid amount.");
      
-     const maxLoan = selectedBank === 'capital_none' ? fico * 200 : fico * 50;
+     const maxLoan = selectedBank === 'summit_one' ? fico * 200 : fico * 100;
      const availableCredit = Math.max(0, maxLoan - loanBalance);
      
-     if (amount > availableCredit) return alert(`Credit limit exceeded. You can only borrow up to $${availableCredit.toLocaleString('en-US')}.`);
+     if (amount > availableCredit) return await showAlert("Credit Limit Exceeded", `You can only borrow up to $${availableCredit.toLocaleString('en-US')}.`);
      
-     // Funds now go directly to the Loan Account instead of Current
      const newLoanAccBal = Number(loanAccountBalance) + amount;
      const newLoanDebt = Number(loanBalance) + amount;
      
      setLoanAccountBalance(newLoanAccBal);
      setLoanBalance(newLoanDebt);
      saveGameState({ loan_account_balance: newLoanAccBal, loan_balance: newLoanDebt });
-     alert(`Loan approved! $${amount.toLocaleString('en-US')} has been deposited to your locked Loan Account.`);
+     await showAlert("Loan Approved", `$${amount.toLocaleString('en-US')} has been deposited to your locked Loan Account.`);
   };
 
-  const handleRepayLoan = (amountStr: string) => {
+  const handleRepayLoan = async (amountStr: string) => {
      const amount = parseFloat(amountStr);
-     if (isNaN(amount) || amount <= 0) return alert("Invalid amount.");
+     if (isNaN(amount) || amount <= 0) return await showAlert("Error", "Invalid amount.");
      
      const actualRepayment = Math.min(amount, loanBalance);
-     if (actualRepayment <= 0) return alert("You don't owe any money!");
+     if (actualRepayment <= 0) return await showAlert("Notice", "You don't owe any money!");
 
-     const accountChoice = prompt(`Repay $${actualRepayment.toLocaleString()} from which account?\n\n1: Current Account\n2: Loan Account (Return unused funds)`, "1");
+     const accounts = [
+        { id: "1", initials: "CA", name: "Current Account", details: `Available: $${balance.toLocaleString('en-US', {maximumFractionDigits: 2})}` },
+        { id: "2", initials: "LA", name: "Loan Account", details: `Available: $${loanAccountBalance.toLocaleString('en-US', {maximumFractionDigits: 2})}` }
+     ];
+
+     const accountChoice = await showAccountSelect(
+         "Repay Loan", 
+         `Choose source account to repay funds.`,
+         actualRepayment,
+         accounts
+     );
+     
+     if (!accountChoice) return; 
      
      let newBal = Number(balance);
      let newLoanAccBal = Number(loanAccountBalance);
 
      if (accountChoice === "1") {
-         if (actualRepayment > newBal) return alert("Insufficient liquid funds in Current Account.");
+         if (actualRepayment > newBal) return await showAlert("Error", "Insufficient liquid funds in Current Account.");
          newBal -= actualRepayment;
      } else if (accountChoice === "2") {
-         if (actualRepayment > newLoanAccBal) return alert("Insufficient funds in Loan Account.");
+         if (actualRepayment > newLoanAccBal) return await showAlert("Error", "Insufficient funds in Loan Account.");
          newLoanAccBal -= actualRepayment;
      } else {
-         return; // Cancelled
+         return; 
      }
 
      const newLoanDebt = Number(loanBalance) - actualRepayment;
-     
      const ficoBoost = Math.floor(actualRepayment / 1000);
      const newFico = Math.min(850, fico + (ficoBoost > 0 ? ficoBoost : 1));
      
@@ -1191,54 +693,23 @@ export default function NetworkDashboard() {
      setFico(newFico);
      saveGameState({ bank_balance: newBal, loan_account_balance: newLoanAccBal, loan_balance: newLoanDebt, fico_score: newFico });
      
-     alert(`Successfully repaid $${actualRepayment.toLocaleString('en-US')}! Your FICO score increased by ${ficoBoost > 0 ? ficoBoost : 1} points.`);
+     await showAlert("Repayment Successful", `Successfully repaid $${actualRepayment.toLocaleString('en-US')}! Your FICO score increased by ${ficoBoost > 0 ? ficoBoost : 1} points.`);
   };
 
-  const handleSwitchPathClick = () => {
-    if (pathUpdatedAt) {
-      const lastUpdate = new Date(pathUpdatedAt).getTime();
-      const now = new Date().getTime();
-      const hoursSince = (now - lastUpdate) / (1000 * 60 * 60);
-      if (hoursSince < 24) {
-        const hoursLeft = Math.ceil(24 - hoursSince);
-        return alert(`ACCESS DENIED: You must wait ${hoursLeft} more hours before switching your career path.`);
-      }
-    }
-    setShowPathSelection(true);
-  };
-
-  const handlePathSelect = (newPath: string) => {
-    const now = new Date().toISOString();
-    setPlayerPath(newPath);
-    setPathUpdatedAt(now);
-    setShowPathSelection(false);
-    saveGameState({ 
-        player_path: newPath, 
-        path_updated_at: now, 
-        last_salary_sync: now,
-        last_energy_sync: lastEnergySyncState ? new Date(lastEnergySyncState).toISOString() : now
-    });
-    
-    if (newPath === 'corporate') {
-       setPendingSalary(0);
-       setLastLocalSync(Date.now());
-    }
-  };
-
-  // --- NEW REAL ESTATE FUNCTIONS ---
-  const handleRelocate = (cityId: string) => {
+  const handleRelocate = async (cityId: string) => {
     const flightCost = 500;
-    if (Number(balance) < flightCost) return alert(`Insufficient liquid funds to relocate. You need $${flightCost} for a ticket.`);
+    if (Number(balance) < flightCost) return await showAlert("Error", `Insufficient liquid funds to relocate. You need $${flightCost} for a ticket.`);
     
     const newBal = Number(balance) - flightCost;
     setBalance(newBal);
     setCurrentLocation(cityId);
     saveGameState({ bank_balance: newBal, location: cityId });
-    alert(`Flight landed! Welcome to ${LOCATIONS[cityId].name}.`);
+    await showAlert("Flight Landed", `Welcome to ${LOCATIONS[cityId].name}.`);
   };
 
-  const handleBuyProperty = (propertyId: string) => {
-    // Find the property across all cities
+  const handleBuyProperty = async (propertyId: string) => {
+    if (!selectedBank) return await showAlert("Bank Account Required", "You must open a bank account in the Banking tab before purchasing real estate.");
+
     let propertyInfo: any = null;
     let cityInfo: any = null;
     for (const [cId, props] of Object.entries(REAL_ESTATE)) {
@@ -1249,29 +720,36 @@ export default function NetworkDashboard() {
 
     const price = propertyInfo.price;
     
-    // Explicit Prompt for purchasing account
-    const accountChoice = prompt(
-      `Purchasing ${propertyInfo.name} for $${price.toLocaleString()}.\n\nType '1' for Current Account\nType '2' for Savings Vault\nType '3' for Loan Account`, 
-      "1"
+    const accounts = [
+        { id: "1", initials: "CA", name: "Current Account", details: `Available: $${balance.toLocaleString('en-US', {maximumFractionDigits: 2})}` },
+        { id: "2", initials: "SV", name: "Savings Vault", details: `Available: $${savingsBalance.toLocaleString('en-US', {maximumFractionDigits: 2})}` },
+        { id: "3", initials: "LA", name: "Loan Account", details: `Available: $${loanAccountBalance.toLocaleString('en-US', {maximumFractionDigits: 2})}` }
+    ];
+
+    const accountChoice = await showAccountSelect(
+      "Purchase Property",
+      `Purchasing ${propertyInfo.name}`, 
+      price,
+      accounts
     );
 
-    if (!["1", "2", "3"].includes(accountChoice as string)) return;
+    if (!accountChoice) return;
 
     const newProps = [...ownedProperties, propertyInfo.id];
     let updates: any = { owned_properties: newProps };
 
     if (accountChoice === "1") {
-       if (Number(balance) < price) return alert(`Insufficient liquid funds in Current Account. You need $${price.toLocaleString()}.`);
+       if (Number(balance) < price) return await showAlert("Error", `Insufficient liquid funds in Current Account. You need $${price.toLocaleString()}.`);
        const newBal = Number(balance) - price;
        setBalance(newBal);
        updates.bank_balance = newBal;
     } else if (accountChoice === "2") {
-       if (Number(savingsBalance) < price) return alert(`Insufficient funds in Savings Vault. You need $${price.toLocaleString()}.`);
+       if (Number(savingsBalance) < price) return await showAlert("Error", `Insufficient funds in Savings Vault. You need $${price.toLocaleString()}.`);
        const newSav = Number(savingsBalance) - price;
        setSavingsBalance(newSav);
        updates.savings_balance = newSav;
     } else if (accountChoice === "3") {
-       if (Number(loanAccountBalance) < price) return alert(`Insufficient funds in Loan Account. You need $${price.toLocaleString()}.`);
+       if (Number(loanAccountBalance) < price) return await showAlert("Error", `Insufficient funds in Loan Account. You need $${price.toLocaleString()}.`);
        const newLoanAcc = Number(loanAccountBalance) - price;
        setLoanAccountBalance(newLoanAcc);
        updates.loan_account_balance = newLoanAcc;
@@ -1279,11 +757,10 @@ export default function NetworkDashboard() {
 
     setOwnedProperties(newProps);
     saveGameState(updates);
-
-    alert(`Congratulations! You are the proud new owner of the ${propertyInfo.name} in ${cityInfo.name}! Rent is now permanently waived here.`);
+    await showAlert("Purchase Successful", `Congratulations! You are the proud new owner of the ${propertyInfo.name} in ${cityInfo.name}! Rent is now permanently waived here.`);
   };
 
-  const handleSellProperty = (propertyId: string) => {
+  const handleSellProperty = async (propertyId: string) => {
     let propertyInfo: any = null;
     for (const [cId, props] of Object.entries(REAL_ESTATE)) {
        const found = props.find(p => p.id === propertyId);
@@ -1292,36 +769,177 @@ export default function NetworkDashboard() {
     if (!propertyInfo) return;
 
     const price = propertyInfo.price;
-    const confirmSell = confirm(`Are you sure you want to sell the ${propertyInfo.name} for $${price.toLocaleString()}?\n\nThe funds will be deposited into your Current Account.`);
-    
+    const confirmSell = await showConfirm("Sell Property", `Are you sure you want to sell the ${propertyInfo.name} for $${price.toLocaleString()}?\n\nThe funds will be deposited into your Current Account.`);
     if (!confirmSell) return;
 
     const newBal = Number(balance) + price;
     const newProps = ownedProperties.filter(id => id !== propertyId);
-    
     setBalance(newBal);
     setOwnedProperties(newProps);
     saveGameState({ bank_balance: newBal, owned_properties: newProps });
-    
-    alert(`Property sold! $${price.toLocaleString()} has been deposited to your Current Account.`);
+    await showAlert("Property Sold", `$${price.toLocaleString()} has been deposited to your Current Account.`);
   };
 
-  const handleDevBypass = () => {
-     const input = prompt("Enter amount of cash to add (use negative to remove):", "1000000");
-     if (input === null) return;
+  const handleClaimSalary = async () => {
+    const currentSalary = Number(pendingSalary);
+    
+    if (playerPath === 'corporate') {
+       if (currentSalary < monthlySalaryTarget) return await showAlert("Error", `You haven't completed a full month of work yet! You need $${monthlySalaryTarget.toLocaleString()} accumulated.`);
+       const taxAmount = currentSalary * locStats.tax;
+       const netAmount = currentSalary - taxAmount;
+       
+       if (!selectedBank && Number(balance) + netAmount > 50000) {
+          return await showAlert("Wallet Full!", "You cannot hold more than $50,000 without a secure bank account. Please open an account in the Banking tab to receive this transfer.");
+       }
+       
+       const newBalance = Number(balance) + netAmount;
+       setBalance(newBalance);
+       setPendingSalary(0);
+       setLastLocalSync(Date.now());
+       saveGameState({ bank_balance: newBalance, pending_salary: 0, last_salary_sync: new Date().toISOString() });
+       await showAlert("Payday! 🏢", `Gross Salary: $${currentSalary.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\nIncome Tax (${(locStats.tax * 100).toFixed(0)}%): -$${taxAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n\nNet Added to Account: $${netAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+    } 
+    else if (playerPath === 'founder') {
+       if (currentSalary >= 0) {
+          const taxAmount = currentSalary * locStats.tax;
+          const netAmount = currentSalary - taxAmount;
+          
+          if (!selectedBank && Number(balance) + netAmount > 50000) {
+             return await showAlert("Wallet Full!", "You cannot hold more than $50,000 without a secure bank account. Please open an account in the Banking tab to receive this transfer.");
+          }
+          
+          const newBalance = Number(balance) + netAmount;
+          setBalance(newBalance);
+          setPendingSalary(0);
+          setLastLocalSync(Date.now());
+          saveGameState({ bank_balance: newBalance, pending_salary: 0, last_salary_sync: new Date().toISOString() });
+          await showAlert("Dividend Claimed! 📈", `Gross Revenue: $${currentSalary.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\nCorporate Tax (${(locStats.tax * 100).toFixed(0)}%): -$${taxAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n\nNet Deposited: $${netAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+       } else {
+          const debt = Math.abs(currentSalary);
+          if (balance < debt) return await showAlert("Warning", `Your company is in $${debt.toLocaleString()} of debt, and you don't have enough liquid cash to cover it! Your FICO score will take a massive hit!`);
+          const newBalance = Number(balance) - debt;
+          setBalance(newBalance);
+          setPendingSalary(0);
+          setLastLocalSync(Date.now());
+          saveGameState({ bank_balance: newBalance, pending_salary: 0, last_salary_sync: new Date().toISOString() });
+          await showAlert("Company Debt Paid 📉", `You wired $${debt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} from your personal account to keep the startup afloat.`);
+       }
+    }
+  };
 
+  const handleSwitchPathClick = async () => {
+    if (pathUpdatedAt) {
+      const lastUpdate = new Date(pathUpdatedAt).getTime();
+      const now = new Date().getTime();
+      const hoursSince = (now - lastUpdate) / (1000 * 60 * 60);
+      if (hoursSince < 24) {
+         if (!freePathSwitchUsed) {
+            const confirm = await showConfirm("Free Switch Available", `You normally have to wait 24 hours to switch careers, but you have 1 free switch available! Use it now?`);
+            if (!confirm) return;
+         } else {
+            return await showAlert("Access Denied", `You must wait ${Math.ceil(24 - hoursSince)} more hours before switching your career path.`);
+         }
+      }
+    }
+    setShowPathSelection(true);
+  };
+
+  const handlePathSelect = async (newPath: string) => {
+    let finalBal = balance;
+    let finalSav = savingsBalance;
+    let finalLoan = loanAccountBalance;
+
+    if (newPath === 'founder') {
+        const accounts = [
+            { id: "1", initials: "CA", name: "Current Account", details: `Available: $${balance.toLocaleString('en-US', {maximumFractionDigits: 2})}` },
+            { id: "2", initials: "SV", name: "Savings Vault", details: `Available: $${savingsBalance.toLocaleString('en-US', {maximumFractionDigits: 2})}` },
+            { id: "3", initials: "LA", name: "Loan Account", details: `Available: $${loanAccountBalance.toLocaleString('en-US', {maximumFractionDigits: 2})}` }
+        ];
+
+        const accountChoice = await showAccountSelect(
+            "Startup Investment",
+            "Starting a business requires a $50,000 initial investment. Where should we pull the funds from?",
+            50000,
+            accounts
+        );
+
+        if (!accountChoice) return;
+
+        if (accountChoice === "1") {
+            if (balance < 50000) return await showAlert("Error", "Insufficient liquid funds in Current Account.");
+            finalBal -= 50000;
+        } else if (accountChoice === "2") {
+            if (savingsBalance < 50000) return await showAlert("Error", "Insufficient funds in Savings Vault.");
+            finalSav -= 50000;
+        } else if (accountChoice === "3") {
+            if (loanAccountBalance < 50000) return await showAlert("Error", "Insufficient funds in Loan Account.");
+            finalLoan -= 50000;
+        }
+
+        setBalance(finalBal);
+        setSavingsBalance(finalSav);
+        setLoanAccountBalance(finalLoan);
+    }
+
+    let usedFreeSwitch = freePathSwitchUsed;
+    if (pathUpdatedAt) {
+      const lastUpdate = new Date(pathUpdatedAt).getTime();
+      const now = new Date().getTime();
+      const hoursSince = (now - lastUpdate) / (1000 * 60 * 60);
+      if (hoursSince < 24 && !freePathSwitchUsed) {
+          usedFreeSwitch = true;
+          setFreePathSwitchUsed(true);
+      }
+    }
+
+    const nowStr = new Date().toISOString();
+    setPlayerPath(newPath); 
+    setPathUpdatedAt(nowStr); 
+    setShowPathSelection(false);
+    
+    const updates: any = { 
+        player_path: newPath, 
+        path_updated_at: nowStr, 
+        free_path_switch_used: usedFreeSwitch,
+        last_salary_sync: nowStr, 
+        last_energy_sync: lastEnergySyncState ? new Date(lastEnergySyncState).toISOString() : nowStr 
+    };
+
+    if (newPath === 'founder') {
+        updates.bank_balance = finalBal;
+        updates.savings_balance = finalSav;
+        updates.loan_account_balance = finalLoan;
+        
+        const defaultStartup = { workload: 50, payroll: 50, morale: 100, is_strike: false, level: 1 };
+        setStartupData(defaultStartup);
+        updates.startup_data = defaultStartup;
+    } else if (newPath === 'corporate') { 
+        setPendingSalary(0); 
+        setLastLocalSync(Date.now()); 
+    }
+
+    saveGameState(updates);
+  };
+
+  const handleDevBypass = async () => {
+     const input = await showPrompt("God Mode", "Enter amount of cash to add (use negative to remove):", "1000000");
+     if (input === null) return;
      const amountToAdd = parseFloat(input);
-     if (isNaN(amountToAdd)) return alert("Invalid number entered.");
+     if (isNaN(amountToAdd)) return await showAlert("Error", "Invalid number entered.");
 
      const newBal = Number(balance) + amountToAdd;
-     setBalance(newBal);
-     setEnergy(100);
-     setFico(850);
-     setLoanBalance(0);
+     const newStartupData = { workload: 50, payroll: 50, morale: 100, is_strike: false, level: 1 };
+     
+     setBalance(newBal); 
+     setEnergy(100); 
+     setFico(850); 
+     setLoanBalance(0); 
      setPathUpdatedAt(null);
-     setPendingSalary(monthlySalaryTarget); 
-     setLastLocalSync(Date.now());
+     setFreePathSwitchUsed(false);
+     setPendingSalary(playerPath === 'corporate' ? monthlySalaryTarget : 0); 
+     setLastLocalSync(Date.now()); 
      setLastEnergySyncState(Date.now());
+     setStartupData(newStartupData);
      
      saveGameState({ 
        bank_balance: newBal, 
@@ -1329,13 +947,59 @@ export default function NetworkDashboard() {
        fico_score: 850, 
        loan_balance: 0, 
        path_updated_at: null, 
-       pending_salary: monthlySalaryTarget, 
-       last_salary_sync: new Date().toISOString(),
-       last_energy_sync: new Date().toISOString()
+       free_path_switch_used: false,
+       pending_salary: playerPath === 'corporate' ? monthlySalaryTarget : 0, 
+       last_salary_sync: new Date().toISOString(), 
+       last_energy_sync: new Date().toISOString(),
+       startup_data: newStartupData
      });
-     
-     const formattedAmount = amountToAdd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-     alert(`God Mode Activated: Added $${formattedAmount}, FICO 850, Loans Cleared, Cooldowns Reset.`);
+     await showAlert("God Mode Activated", `Added $${amountToAdd.toLocaleString()}, FICO 850, Loans Cleared, Strikes Resolved.`);
+  };
+
+  const handleResetState = async () => {
+     const confirmReset = await showConfirm("Hard Reset", "Are you sure you want to hard reset your entire game state? This will wipe your money, level, assets, and startup data back to 0.");
+     if (!confirmReset) return;
+
+     const defaultStartup = { workload: 50, payroll: 50, morale: 100, is_strike: false, level: 1 };
+
+     setBalance(0);
+     setSavingsBalance(0);
+     setLoanAccountBalance(0);
+     setLoanBalance(0);
+     setFico(700);
+     setEnergy(100);
+     setPendingSalary(0);
+     setCurrentLocation('bali');
+     setOwnedProperties([]);
+     setOwnedVehicles([]);
+     setPortfolio({});
+     setStartupData(defaultStartup);
+     setCorporateLevel(1);
+
+     // Wipe localStorage vars too!
+     localStorage.removeItem('pulse_tax_state');
+
+     saveGameState({
+         bank_balance: 0,
+         savings_balance: 0,
+         loan_account_balance: 0,
+         loan_balance: 0,
+         fico_score: 700,
+         energy: 100,
+         pending_salary: 0,
+         location: 'bali',
+         owned_properties: [],
+         owned_vehicles: [],
+         portfolio: {},
+         startup_data: defaultStartup,
+         corporate_level: 1,
+         path_updated_at: null,
+         free_path_switch_used: false,
+         last_salary_sync: new Date().toISOString(),
+         last_energy_sync: new Date().toISOString()
+     });
+
+     await showAlert("Success", "Game state successfully hard reset.");
   };
 
   if (loading) {
@@ -1347,90 +1011,166 @@ export default function NetworkDashboard() {
     );
   }
 
-  // --- PATH SELECTION OVERLAY ---
-  if (!playerPath || showPathSelection) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#050505]/95 backdrop-blur-2xl p-4 overflow-y-auto">
-         {/* Cancel Button (Only show if they already have a path and are just trying to switch) */}
-         {playerPath && (
-           <button onClick={() => setShowPathSelection(false)} className="absolute top-8 right-8 text-zinc-500 hover:text-white transition-colors bg-white/5 p-2 rounded-full">
-             <X className="w-6 h-6" />
-           </button>
-         )}
-
-         <div className="max-w-5xl w-full py-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
-            <div className="text-center mb-12">
-               <h1 className="text-5xl md:text-6xl font-black tracking-tighter text-white mb-4">Choose Your Path</h1>
-               <p className="text-zinc-400 text-lg max-w-xl mx-auto">
-                 {playerPath ? "Warning: Switching paths will lock this decision for 24 hours." : "How will you build your empire? Your choice determines your gameplay mechanics, income style, and risks."}
-               </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-               <button 
-                  onClick={() => handlePathSelect('hustler')}
-                  className={`group border rounded-3xl p-8 text-left transition-all flex flex-col justify-between min-h-[400px] cursor-pointer ${playerPath === 'hustler' ? 'bg-emerald-500/10 border-emerald-500/50 shadow-[0_0_40px_rgba(16,185,129,0.15)]' : 'bg-[#121214] border-white/10 hover:border-emerald-500/50 hover:-translate-y-2 hover:shadow-[0_0_40px_rgba(16,185,129,0.15)]'}`}
-               >
-                  <div>
-                     <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center border border-emerald-500/20 mb-6 group-hover:scale-110 transition-transform">
-                        <Zap className="w-7 h-7 text-emerald-400" />
-                     </div>
-                     <h3 className="text-2xl font-black text-white mb-2">The Street Hustler</h3>
-                     <p className="text-zinc-400 text-sm leading-relaxed mb-6">
-                        Active gameplay. Take on gig economy jobs. You have to click to complete tasks before the timer runs out. Finish fast for bonuses, finish late for penalties.
-                     </p>
-                  </div>
-               </button>
-
-               <button 
-                  onClick={() => handlePathSelect('corporate')}
-                  className={`group border rounded-3xl p-8 text-left transition-all flex flex-col justify-between min-h-[400px] cursor-pointer ${playerPath === 'corporate' ? 'bg-indigo-500/10 border-indigo-500/50 shadow-[0_0_40px_rgba(99,102,241,0.15)]' : 'bg-[#121214] border-white/10 hover:border-indigo-500/50 hover:-translate-y-2 hover:shadow-[0_0_40px_rgba(99,102,241,0.15)]'}`}
-               >
-                  <div>
-                     <div className="w-14 h-14 bg-indigo-500/10 rounded-2xl flex items-center justify-center border border-indigo-500/20 mb-6 group-hover:scale-110 transition-transform">
-                        <Briefcase className="w-7 h-7 text-indigo-400" />
-                     </div>
-                     <h3 className="text-2xl font-black text-white mb-2">Corporate Worker</h3>
-                     <p className="text-zinc-400 text-sm leading-relaxed mb-6">
-                        Stable passive income. Accrue your salary per minute and claim it monthly. Perform "Boss Tasks" to earn promotions and raise your income.
-                     </p>
-                  </div>
-               </button>
-
-               <div className="group bg-[#121214]/50 border border-white/5 rounded-3xl p-8 text-left flex flex-col justify-between min-h-[400px] relative overflow-hidden opacity-70">
-                  <div className="absolute inset-0 bg-black/40 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
-                     <Lock className="w-8 h-8 text-zinc-500 mb-2" />
-                     <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Requires $50k Bank</p>
-                  </div>
-                  <div className="blur-sm">
-                     <div className="w-14 h-14 bg-orange-500/10 rounded-2xl flex items-center justify-center border border-orange-500/20 mb-6">
-                        <Building2 className="w-7 h-7 text-orange-400" />
-                     </div>
-                     <h3 className="text-2xl font-black text-white mb-2">The Founder</h3>
-                  </div>
-               </div>
-            </div>
-         </div>
-      </div>
-    );
-  }
-
   const displayName = pulseProfile?.username || pulseProfile?.displayName || "PlayerOne";
   const avatarUrl = pulseProfile?.theme?.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=Fallback";
-  const salaryProgressPercentage = Math.min(100, (Number(pendingSalary) / monthlySalaryTarget) * 100);
 
   return (
     <div className="flex h-screen bg-[#050505] text-zinc-300 font-sans selection:bg-indigo-500/30 overflow-hidden relative">
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none z-0"></div>
 
-      {activeJob && (
-        <ActiveJobModal job={activeJob} onClose={() => setActiveJob(null)} onComplete={handleJobComplete} />
+      {/* --- CUSTOM MODAL UI OVERLAY --- */}
+      {modal.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#050505]/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          
+          {modal.type === 'account-select' ? (
+             <AccountSelectorUI modal={modal} closeModal={closeModal} />
+          ) : (
+             <div className="bg-[#121214] border border-white/10 rounded-[24px] w-full max-w-md overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-200 flex flex-col">
+                <div className="p-6">
+                   <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
+                         <AlertCircle className="w-5 h-5 text-indigo-400" />
+                      </div>
+                      <h3 className="text-xl font-black text-white">{modal.title}</h3>
+                   </div>
+                   
+                   <p className="text-zinc-400 text-sm mb-6 whitespace-pre-wrap leading-relaxed">{modal.message}</p>
+
+                   {modal.type === 'prompt' && (
+                      <input
+                         type="text"
+                         autoFocus
+                         value={modalInput}
+                         onChange={(e) => setModalInput(e.target.value)}
+                         placeholder={modal.placeholder}
+                         className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-white placeholder:text-zinc-600 focus:outline-none focus:border-indigo-500 transition-colors mb-6 font-mono text-sm shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]"
+                         onKeyDown={(e) => { if(e.key === 'Enter') closeModal(modalInput); }}
+                      />
+                   )}
+
+                   <div className="flex gap-3 justify-end mt-2">
+                      {(modal.type === 'confirm' || modal.type === 'prompt') && (
+                         <button onClick={() => closeModal(modal.type === 'prompt' ? null : false)} className="px-5 py-2.5 rounded-xl font-bold text-xs text-zinc-400 hover:text-white hover:bg-white/5 transition-colors border border-transparent hover:border-white/10">
+                            Cancel
+                         </button>
+                      )}
+                      <button onClick={() => closeModal(modal.type === 'prompt' ? modalInput : (modal.type === 'confirm' ? true : undefined))} className="px-6 py-2.5 rounded-xl font-bold text-xs bg-indigo-600 hover:bg-indigo-500 text-white transition-colors shadow-[0_0_20px_rgba(79,70,229,0.3)]">
+                         {modal.type === 'alert' ? 'Acknowledge' : 'Confirm'}
+                      </button>
+                   </div>
+                </div>
+             </div>
+          )}
+        </div>
       )}
 
-      {/* --- Sidebar --- */}
-      <aside className="w-64 bg-[#0a0a0c]/80 backdrop-blur-xl border-r border-white/5 flex flex-col z-20 shrink-0">
+      {/* --- PATH SELECTION OVERLAY --- */}
+      {(!playerPath || showPathSelection) && !modal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#050505]/95 backdrop-blur-2xl p-4 overflow-y-auto">
+           {playerPath && (
+             <button onClick={() => setShowPathSelection(false)} className="absolute top-8 right-8 text-zinc-500 hover:text-white transition-colors bg-white/5 p-2 rounded-full">
+               <X className="w-6 h-6" />
+             </button>
+           )}
+           <div className="max-w-5xl w-full py-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
+              <div className="text-center mb-12">
+                 <h1 className="text-5xl md:text-6xl font-black tracking-tighter text-white mb-4">Choose Your Path</h1>
+                 <p className="text-zinc-400 text-lg max-w-xl mx-auto">Your choice determines your gameplay mechanics, income style, and risks.</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                 <button onClick={() => handlePathSelect('hustler')} className={`group border rounded-3xl p-8 text-left transition-all flex flex-col justify-between min-h-[400px] cursor-pointer ${playerPath === 'hustler' ? 'bg-emerald-500/10 border-emerald-500/50 shadow-[0_0_40px_rgba(16,185,129,0.15)]' : 'bg-[#121214] border-white/10 hover:border-emerald-500/50 hover:-translate-y-2'}`}>
+                    <div>
+                       <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center border border-emerald-500/20 mb-6"><Zap className="w-7 h-7 text-emerald-400" /></div>
+                       <h3 className="text-2xl font-black text-white mb-2">The Street Hustler</h3>
+                       <p className="text-zinc-400 text-sm leading-relaxed mb-6">Active gameplay. Take on gig economy jobs. Click to complete tasks. Finish fast for bonuses.</p>
+                    </div>
+                 </button>
+                 <button onClick={() => handlePathSelect('corporate')} className={`group border rounded-3xl p-8 text-left transition-all flex flex-col justify-between min-h-[400px] cursor-pointer ${playerPath === 'corporate' ? 'bg-indigo-500/10 border-indigo-500/50 shadow-[0_0_40px_rgba(99,102,241,0.15)]' : 'bg-[#121214] border-white/10 hover:border-indigo-500/50 hover:-translate-y-2'}`}>
+                    <div>
+                       <div className="w-14 h-14 bg-indigo-500/10 rounded-2xl flex items-center justify-center border border-indigo-500/20 mb-6"><Briefcase className="w-7 h-7 text-indigo-400" /></div>
+                       <h3 className="text-2xl font-black text-white mb-2">Corporate Worker</h3>
+                       <p className="text-zinc-400 text-sm leading-relaxed mb-6">Stable passive income. Accrue salary per minute and claim monthly. Perform "Boss Tasks" to earn promotions.</p>
+                    </div>
+                 </button>
+                 <button onClick={() => handlePathSelect('founder')} className={`group border rounded-3xl p-8 text-left transition-all flex flex-col justify-between min-h-[400px] cursor-pointer relative overflow-hidden bg-[#121214] border-white/10 hover:border-orange-500/50 hover:-translate-y-2 ${playerPath === 'founder' ? 'bg-orange-500/10 border-orange-500/50 shadow-[0_0_40px_rgba(249,115,22,0.15)]' : ''}`}>
+                    <div>
+                       <div className="w-14 h-14 bg-orange-500/10 rounded-2xl flex items-center justify-center border border-orange-500/20 mb-6"><Building2 className="w-7 h-7 text-orange-400" /></div>
+                       <h3 className="text-2xl font-black text-white mb-2">The Founder</h3>
+                       <p className="text-zinc-400 text-sm leading-relaxed mb-6">Manage a global startup. Balance workload and payroll. Highly volatile income, massive upside potential, but strikes can bankrupt you.</p>
+                    </div>
+                    <div className="mt-auto pt-6">
+                       <p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest border border-orange-500/20 bg-orange-500/10 px-3 py-1.5 rounded-lg inline-block w-max">Requires $50,000 Investment</p>
+                    </div>
+                 </button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {activeJob && (
+        <ActiveJobModal 
+           job={activeJob} 
+           onClose={() => setActiveJob(null)} 
+           onComplete={async (success, timeRemaining) => {
+             setActiveJob(null);
+             let newBalance = Number(balance);
+
+             if (activeJob.isPromotion) {
+                if (success) {
+                   const newLevel = corporateLevel + 1;
+                   setCorporateLevel(newLevel);
+                   await showAlert("Promotion Earned!", `You are now a ${getCorporateRole(newLevel).title}!`);
+                   saveGameState({ corporate_level: newLevel });
+                } else { await showAlert("Failed", `Time's up! The boss wasn't impressed. No promotion this time.`); }
+                return;
+             }
+             
+             if (activeJob.isExpansion) {
+                if (success) {
+                   const sData = startupDataRef.current;
+                   const newLevel = (sData.level || 1) + 1;
+                   const newSData = { ...sData, level: newLevel };
+                   setStartupData(newSData);
+                   saveGameState({ startup_data: newSData });
+                   await showAlert("Expansion Successful!", `Your startup is now Level ${newLevel}. Your revenue and costs have scaled up!`);
+                } else {
+                   await showAlert("Expansion Failed", `Time's up! The expansion failed. Better luck next time.`);
+                }
+                return;
+             }
+
+             if (success) {
+                const bonus = timeRemaining * 0.50; 
+                let totalEarned = activeJob.basePay + bonus;
+                
+                if (!selectedBank && newBalance + totalEarned > 50000) {
+                   const allowed = 50000 - newBalance;
+                   if (allowed <= 0) {
+                      await showAlert("Wallet Full!", "Your pockets are full! You cannot hold more than $50,000 without a bank account. Job payout discarded.");
+                      totalEarned = 0;
+                   } else {
+                      await showAlert("Wallet Full!", `You can only hold $50,000 without a bank account. You earned $${totalEarned.toFixed(2)}, but could only keep $${allowed.toFixed(2)}.`);
+                      totalEarned = allowed;
+                   }
+                } else {
+                   await showAlert("Job Complete!", `You earned $${activeJob.basePay} + $${bonus.toFixed(2)} speed bonus!`);
+                }
+                
+                newBalance += totalEarned;
+             } else {
+                const penalty = activeJob.basePay * 0.20;
+                newBalance -= penalty;
+                await showAlert("Job Failed", `Time's up! You failed the job. The client was angry and fined you $${penalty.toFixed(2)}!`);
+             }
+             setBalance(newBalance); saveGameState({ bank_balance: newBalance });
+           }} 
+        />
+      )}
+
+      {/* --- Sidebar (DESKTOP ONLY) --- */}
+      <aside className="hidden lg:flex w-64 bg-[#0a0a0c]/80 backdrop-blur-xl border-r border-white/5 flex-col z-20 shrink-0">
         <div className="p-6 border-b border-white/5 flex items-center gap-3">
-          <PulseLogo className="w-7 h-7 text-white" />
+          <PulseNetworkLogo className="w-7 h-7 text-white" />
           <span className="font-black text-xl tracking-tighter text-white">Pulse<span className="text-zinc-600">Network</span></span>
         </div>
         
@@ -1438,18 +1178,15 @@ export default function NetworkDashboard() {
           <div>
             <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest ml-2 mb-3">Central Hub</p>
             <div className="space-y-1">
-              <button onClick={() => setActiveTab('overview')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'overview' ? 'bg-gradient-to-r from-indigo-500/10 to-transparent text-indigo-400 border-l-2 border-indigo-500 shadow-[inset_0_0_20px_rgba(99,102,241,0.05)]' : 'text-zinc-400 hover:bg-white/5 hover:text-white font-medium'}`}>
-                <Activity className="w-4 h-4" /> Overview
-              </button>
-              <button onClick={() => setActiveTab('banking')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'banking' ? 'bg-gradient-to-r from-emerald-500/10 to-transparent text-emerald-400 border-l-2 border-emerald-500 shadow-[inset_0_0_20px_rgba(16,185,129,0.05)]' : 'text-zinc-400 hover:bg-white/5 hover:text-white font-medium'}`}>
-                <Landmark className="w-4 h-4" /> Banking
-              </button>
-              <button onClick={() => setActiveTab('real_estate')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'real_estate' ? 'bg-gradient-to-r from-cyan-500/10 to-transparent text-cyan-400 border-l-2 border-cyan-500 shadow-[inset_0_0_20px_rgba(6,182,212,0.05)]' : 'text-zinc-400 hover:bg-white/5 hover:text-white font-medium'}`}>
-                <Globe className="w-4 h-4" /> Real Estate
-              </button>
-              <button className="w-full flex items-center gap-3 px-4 py-3 text-zinc-400 hover:bg-white/5 hover:text-white rounded-xl transition-colors font-medium group">
-                <Zap className="w-4 h-4 group-hover:text-yellow-400 transition-colors" /> {playerPath === 'hustler' ? 'The Hustle' : 'Corporate Job'} 
-              </button>
+              {TABS.map(tab => (
+                <button 
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)} 
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === tab.id ? 'bg-gradient-to-r from-indigo-500/10 to-transparent text-indigo-400 border-l-2 border-indigo-500 shadow-[inset_0_0_20px_rgba(99,102,241,0.05)]' : 'text-zinc-400 hover:bg-white/5 hover:text-white font-medium'}`}
+                >
+                  <tab.icon className="w-4 h-4" /> {tab.label}
+                </button>
+              ))}
             </div>
           </div>
         </div>
@@ -1461,102 +1198,170 @@ export default function NetworkDashboard() {
         </div>
       </aside>
 
+      {/* --- MOBILE BOTTOM NAVIGATION --- */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-[60] bg-[#0a0a0c]/90 backdrop-blur-xl border-t border-white/10 pb-safe shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+         <div className="flex justify-between items-center px-2 py-2">
+            {MOBILE_TABS.map(tab => (
+               <button
+                  key={tab.id}
+                  onClick={() => { setActiveTab(tab.id); setIsMobileMenuOpen(false); }}
+                  className={`flex-1 flex flex-col items-center gap-1 p-2 rounded-xl transition-colors ${activeTab === tab.id && !isMobileMenuOpen ? 'text-indigo-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+               >
+                  <div className={`p-1.5 rounded-lg transition-colors ${activeTab === tab.id && !isMobileMenuOpen ? 'bg-indigo-500/20' : 'bg-transparent'}`}>
+                     <tab.icon className="w-5 h-5" />
+                  </div>
+                  <span className="text-[9px] font-bold tracking-widest uppercase truncate max-w-[60px]">{tab.label.split(' ')[0]}</span>
+               </button>
+            ))}
+            <button
+               onClick={() => setIsMobileMenuOpen(true)}
+               className={`flex-1 flex flex-col items-center gap-1 p-2 rounded-xl transition-colors ${isMobileMenuOpen ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+            >
+               <div className={`p-1.5 rounded-lg transition-colors ${isMobileMenuOpen ? 'bg-white/10' : 'bg-transparent'}`}>
+                  <Menu className="w-5 h-5" />
+               </div>
+               <span className="text-[9px] font-bold tracking-widest uppercase">More</span>
+            </button>
+         </div>
+      </div>
+
+      {/* --- MOBILE OVERLAY "MORE" MENU --- */}
+      {isMobileMenuOpen && (
+         <div className="lg:hidden fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm animate-in fade-in duration-200 flex flex-col justify-end">
+            <div className="absolute inset-0" onClick={() => setIsMobileMenuOpen(false)}></div>
+            <div className="bg-[#121214] border-t border-white/10 rounded-t-[32px] p-6 pb-8 shadow-[0_-20px_50px_rgba(0,0,0,0.5)] animate-in slide-in-from-bottom-8 relative z-10">
+               <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-black text-white">Network Hub</h2>
+                  <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-white/5 hover:bg-white/10 rounded-full transition"><X className="w-5 h-5"/></button>
+               </div>
+               <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mb-6">
+                  {TABS.map(tab => (
+                     <button
+                        key={tab.id}
+                        onClick={() => { setActiveTab(tab.id); setIsMobileMenuOpen(false); }}
+                        className={`flex flex-col items-center justify-center gap-3 p-4 rounded-2xl border transition-all ${activeTab === tab.id ? 'bg-indigo-600/20 border-indigo-500 text-indigo-400' : 'bg-black/40 border-white/5 text-zinc-400 hover:bg-white/5 hover:text-white'}`}
+                     >
+                        <tab.icon className="w-6 h-6" />
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-center leading-tight">{tab.label.replace(' & ', '\n& ')}</span>
+                     </button>
+                  ))}
+               </div>
+               <div className="pt-6 border-t border-white/5 space-y-3">
+                 {displayName.toLowerCase() === 'sour' && (
+                    <div className="flex gap-3 mb-3">
+                       <button onClick={() => { handleResetState(); setIsMobileMenuOpen(false); }} className="flex-1 flex items-center justify-center gap-2 bg-orange-500/10 border border-orange-500/30 text-orange-500 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-500/20 transition">
+                          <RefreshCw className="w-4 h-4" /> Reset
+                       </button>
+                       <button onClick={() => { handleDevBypass(); setIsMobileMenuOpen(false); }} className="flex-1 flex items-center justify-center gap-2 bg-red-500/10 border border-red-500/30 text-red-500 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500/20 transition">
+                          <Zap className="w-4 h-4" /> God Mode
+                       </button>
+                    </div>
+                 )}
+                 <button onClick={() => { window.location.href = window.location.hostname.includes('localhost') ? 'http://localhost:3000/dashboard' : 'https://pulsegg.in/dashboard'; }} className="w-full flex items-center justify-center gap-2 py-4 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-colors text-sm font-bold border border-white/10">
+                   <LogOut className="w-4 h-4" /> Return to Pulse
+                 </button>
+               </div>
+            </div>
+         </div>
+      )}
+
       {/* --- Main Content Area --- */}
       <main className="flex-1 flex flex-col h-screen overflow-y-auto relative z-10">
         
-        <header className="p-6 md:px-8 flex justify-between items-center sticky top-0 z-30 bg-[#050505]/80 backdrop-blur-md border-b border-white/5">
-          <div className="flex items-center gap-4">
+        {/* Header - MOBILE OPTIMIZED */}
+        <header className="p-4 sm:p-6 md:px-8 flex justify-between items-center sticky top-0 z-30 bg-[#050505]/80 backdrop-blur-md border-b border-white/5">
+          <div className="flex items-center gap-2 sm:gap-4">
             
-            {/* CLICKABLE LOCATION PILL */}
+            {/* Location */}
             <div className="flex flex-col cursor-pointer group" onClick={() => setActiveTab('real_estate')}>
-               <span className="text-[9px] font-bold tracking-widest text-zinc-500 uppercase ml-1 mb-1 group-hover:text-cyan-400 transition-colors">Current Location</span>
-               <div className="flex items-center gap-2 bg-[#121214] border border-white/10 rounded-full pl-1 pr-4 py-1 shadow-md group-hover:bg-white/5 transition-colors">
-                 <div className="w-8 h-8 rounded-full bg-cyan-900/30 border border-cyan-500/30 flex items-center justify-center group-hover:scale-105 transition-transform"><MapPin className="w-4 h-4 text-cyan-400" /></div>
+               <span className="hidden sm:block text-[9px] font-bold tracking-widest text-zinc-500 uppercase ml-1 mb-1 group-hover:text-cyan-400 transition-colors">Location</span>
+               <div className="flex items-center gap-1.5 sm:gap-2 bg-[#121214] border border-white/10 rounded-full pl-1 pr-3 sm:pr-4 py-1 shadow-md group-hover:bg-white/5 transition-colors">
+                 <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-cyan-900/30 border border-cyan-500/30 flex items-center justify-center group-hover:scale-105 transition-transform"><MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400" /></div>
                  <span className="text-sm font-bold text-white tracking-wide">
-                   {locStats.name} 
-                   <span className={`font-mono text-[10px] uppercase ml-1 px-1.5 py-0.5 rounded ${locStats.tax === 0 ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}`}>
-                     {(locStats.tax * 100).toFixed(0)}% Tax
-                   </span>
+                   {locStats.name} <span className={`hidden sm:inline-block font-mono text-[10px] uppercase ml-1 px-1.5 py-0.5 rounded ${locStats.tax === 0 ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}`}>{(locStats.tax * 100).toFixed(0)}% Tax</span>
                  </span>
                </div>
             </div>
-
-            <div className="flex flex-col hidden md:flex">
-               <span className="text-[9px] font-bold tracking-widest text-zinc-500 uppercase ml-1 mb-1">Energy Bar</span>
-               <div className="flex items-center gap-3 bg-[#121214] border border-white/10 rounded-full pl-1 pr-4 py-1 shadow-md">
-                 <div className="w-8 h-8 rounded-full bg-yellow-900/30 border border-yellow-500/30 flex items-center justify-center"><Zap className="w-4 h-4 text-yellow-400 fill-yellow-400/20" /></div>
+            
+            {/* Energy */}
+            <div className="flex flex-col">
+               <span className="hidden sm:block text-[9px] font-bold tracking-widest text-zinc-500 uppercase ml-1 mb-1">Energy Bar</span>
+               <div className="flex items-center gap-2 sm:gap-3 bg-[#121214] border border-white/10 rounded-full pl-1 pr-3 sm:pr-4 py-1 shadow-md">
+                 <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-yellow-900/30 border border-yellow-500/30 flex items-center justify-center"><Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-yellow-400 fill-yellow-400/20" /></div>
                  <div className="flex flex-col justify-center">
-                   <div className="w-24 h-1.5 bg-white/10 rounded-full overflow-hidden mb-1"><div className="h-full bg-gradient-to-r from-orange-500 to-yellow-400 rounded-full transition-all duration-300" style={{ width: `${energy}%` }}></div></div>
-                   <span className="text-[10px] font-mono text-zinc-400 leading-none">{energy}/100</span>
+                   <div className="w-16 sm:w-24 h-1.5 bg-white/10 rounded-full overflow-hidden mb-1"><div className="h-full bg-gradient-to-r from-orange-500 to-yellow-400 rounded-full transition-all duration-300" style={{ width: `${energy}%` }}></div></div>
+                   <span className="text-[9px] sm:text-[10px] font-mono text-zinc-400 leading-none">{energy}/100</span>
                  </div>
                </div>
             </div>
+            
+            {/* Sleep Button */}
+            <div className="flex sm:mt-4">
+              <button 
+                onClick={handleSleep} 
+                className="flex items-center justify-center sm:gap-2 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 w-9 h-9 sm:w-auto sm:h-auto sm:px-4 sm:py-2 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-indigo-500/20 transition shadow-[0_0_15px_rgba(99,102,241,0.2)]"
+              >
+                <Moon className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> <span className="hidden sm:block">Sleep (100⚡)</span>
+              </button>
+            </div>
           </div>
           
-          <div className="flex items-center gap-3">
-             {/* GOD MODE BUTTON FOR SOUR */}
-             {displayName.toLowerCase() === 'sour' && (
-               <button onClick={handleDevBypass} className="hidden md:flex items-center gap-2 bg-red-500/10 border border-red-500/30 text-red-500 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-red-500/20 transition shadow-[0_0_15px_rgba(239,68,68,0.2)]">
-                 <Zap className="w-3 h-3" /> God Mode
-               </button>
+          <div className="flex items-center gap-2 sm:gap-3">
+             {Date.now() < lazinessPenaltyUntil && (
+                <div className="hidden lg:flex items-center gap-2 bg-red-500/10 border border-red-500/30 text-red-500 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest mr-2 animate-pulse">
+                   [LAZY]
+                </div>
              )}
-             <div className="flex items-center gap-3 bg-[#121214] border border-white/10 rounded-full pl-4 pr-1 py-1 shadow-md cursor-pointer hover:bg-white/5 transition-colors">
-               <div className="flex flex-col items-end">
-                 <span className="text-[9px] font-bold tracking-widest text-zinc-500 uppercase">Quick-Link</span>
+             {displayName.toLowerCase() === 'sour' && (
+               <div className="hidden lg:flex items-center gap-2">
+                 <button onClick={handleResetState} className="flex items-center gap-2 bg-orange-500/10 border border-orange-500/30 text-orange-500 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-orange-500/20 transition shadow-[0_0_15px_rgba(249,115,22,0.2)]">
+                    <RefreshCw className="w-3 h-3" /> Reset
+                 </button>
+                 <button onClick={handleDevBypass} className="flex items-center gap-2 bg-red-500/10 border border-red-500/30 text-red-500 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-red-500/20 transition shadow-[0_0_15px_rgba(239,68,68,0.2)]">
+                    <Zap className="w-3 h-3" /> God Mode
+                 </button>
+               </div>
+             )}
+             <div className="flex items-center gap-2 sm:gap-3 bg-[#121214] border border-white/10 rounded-full pl-2 sm:pl-4 pr-1 py-1 shadow-md cursor-pointer hover:bg-white/5 transition-colors">
+               <div className="hidden sm:flex flex-col items-end">
+                 <span className="text-[9px] font-bold tracking-widest text-zinc-500 uppercase">Agent</span>
                  <span className="text-sm font-bold text-white tracking-wide">{displayName}</span>
                </div>
-               <img src={avatarUrl} alt="Avatar" className="w-10 h-10 rounded-full border-2 border-zinc-800 bg-zinc-900 object-cover" />
-               <ChevronDown className="w-4 h-4 text-zinc-500 mr-2" />
+               <img src={avatarUrl} alt="Avatar" className="w-7 h-7 sm:w-10 sm:h-10 rounded-full border-2 border-zinc-800 bg-zinc-900 object-cover" />
+               <ChevronDown className="hidden sm:block w-4 h-4 text-zinc-500 mr-2" />
              </div>
           </div>
         </header>
 
-        <div className="p-6 md:p-8 pt-2">
+        {/* Extracted Bottom Padding for Mobile Nav Bar! */}
+        <div className="p-4 sm:p-6 md:p-8 pt-4 pb-32 lg:pb-12">
           {activeTab === 'overview' && (
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 animate-in fade-in duration-500">
-              
-              <OverviewTab netWorth={totalNetWorth} balance={balance} savingsBalance={savingsBalance} loanAccountBalance={loanAccountBalance} assetValue={assetValue} loanBalance={loanBalance} fico={fico} playerPath={playerPath} netWorthHistory={netWorthHistory} />
-
-              {playerPath === 'hustler' ? (
-                 <HustlerPath balance={balance} energy={energy} setBalance={setBalance} setEnergy={setEnergy} setActiveJob={setActiveJob} saveGameState={saveGameState} handleSwitchPathClick={handleSwitchPathClick} />
-              ) : (
-                 <CorporatePath corporateLevel={corporateLevel} energy={energy} currentRole={currentRole} displaySalary={displaySalaryRef.current} pendingSalary={pendingSalary} monthlySalaryTarget={monthlySalaryTarget} salaryProgressPercentage={salaryProgressPercentage} setEnergy={setEnergy} setActiveJob={setActiveJob} saveGameState={saveGameState} handleClaimSalary={handleClaimSalary} handleSwitchPathClick={handleSwitchPathClick} />
-              )}
-
-              <DailyUpkeep pendingSalary={pendingSalary} playerPath={playerPath} currentLocation={currentLocation} ownedProperties={ownedProperties} />
-
-            </div>
+             <OverviewTab 
+                netWorth={totalNetWorth} balance={balance} savingsBalance={savingsBalance} loanAccountBalance={loanAccountBalance} assetValue={assetValue} loanBalance={loanBalance} fico={fico} playerPath={playerPath} netWorthHistory={netWorthHistory} currentLocName={locStats.name} energy={energy} ownedVehicles={ownedVehicles} setBalance={setBalance} setEnergy={setEnergy} setActiveJob={setActiveJob} saveGameState={saveGameState} handleSwitchPathClick={handleSwitchPathClick} corporateLevel={corporateLevel} currentRole={currentRole} displaySalary={displaySalaryRef.current} pendingSalary={pendingSalary} monthlySalaryTarget={monthlySalaryTarget} salaryProgressPercentage={Math.min(100, (Number(pendingSalary) / monthlySalaryTarget) * 100)} handleClaimSalary={handleClaimSalary} currentLocation={currentLocation} ownedProperties={ownedProperties} startupData={startupData} setStartupData={setStartupData} locMultiplier={locStats.multiplier}
+                showAlert={showAlert} showConfirm={showConfirm} showPrompt={showPrompt} nextTaxTime={nextTaxTime} taxCycleMinutes={taxCycleMinutes}
+             />
           )}
-
           {activeTab === 'banking' && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <BankingTab 
-                balance={balance} 
-                savingsBalance={savingsBalance} 
-                loanBalance={loanBalance}
-                loanAccountBalance={loanAccountBalance}
-                fico={fico}
-                selectedBank={selectedBank}
-                accountNumber={accountNumber}
-                transferAmount={transferAmount} 
-                setTransferAmount={setTransferAmount} 
-                handleBankSelect={handleBankSelect} 
-                handleTransfer={handleTransfer} 
-                handleTakeLoan={handleTakeLoan}
-                handleRepayLoan={handleRepayLoan}
-              />
+               <BankingTab 
+                 balance={balance} savingsBalance={savingsBalance} loanBalance={loanBalance} loanAccountBalance={loanAccountBalance} fico={fico} selectedBank={selectedBank} accountNumber={accountNumber} transferAmount={transferAmount} setTransferAmount={setTransferAmount} handleBankSelect={handleBankSelect} handleTransfer={handleTransfer} handleTakeLoan={handleTakeLoan} handleRepayLoan={handleRepayLoan}
+                 displayName={displayName} showPrompt={showPrompt} showAlert={showAlert} showConfirm={showConfirm} showAccountSelect={showAccountSelect}
+               />
             </div>
           )}
-
           {activeTab === 'real_estate' && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <RealEstateTab 
-                currentLocation={currentLocation} 
-                ownedProperties={ownedProperties} 
-                handleRelocate={handleRelocate} 
-                handleBuyProperty={handleBuyProperty} 
-                handleSellProperty={handleSellProperty}
-              />
+               <RealEstateTab currentLocation={currentLocation} ownedProperties={ownedProperties} handleRelocate={handleRelocate} handleBuyProperty={handleBuyProperty} handleSellProperty={handleSellProperty} />
+            </div>
+          )}
+          {activeTab === 'lifestyle' && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+               <LifestyleTab balance={balance} energy={energy} ownedVehicles={ownedVehicles} setBalance={setBalance} setEnergy={setEnergy} setOwnedVehicles={setOwnedVehicles} saveGameState={saveGameState} showAlert={showAlert} showConfirm={showConfirm} selectedBank={selectedBank} />
+            </div>
+          )}
+          {activeTab === 'markets' && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+               <MarketsTab balance={balance} portfolio={portfolio} setBalance={setBalance} setPortfolio={setPortfolio} saveGameState={saveGameState} showAlert={showAlert} showConfirm={showConfirm} showPrompt={showPrompt} selectedBank={selectedBank} />
             </div>
           )}
         </div>

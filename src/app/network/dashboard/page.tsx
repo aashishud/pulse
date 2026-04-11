@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { Activity, Globe, MapPin, Zap, ChevronDown, Loader2, LogOut, X, Landmark, TrendingUp, ShoppingBag, Briefcase, Lock, Building2, RefreshCw, AlertCircle, Check, Moon } from 'lucide-react';
+import { Activity, Globe, MapPin, Zap, ChevronDown, Loader2, LogOut, X, Landmark, TrendingUp, ShoppingBag, Briefcase, Lock, Building2, RefreshCw, AlertCircle, Check, Moon, Menu } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { LOCATIONS, REAL_ESTATE, VEHICLES, CRYPTO_ASSETS, STOCK_ASSETS } from '@/lib/network-data';
@@ -15,6 +15,22 @@ import BankingTab from '@/components/network/BankingTab';
 import RealEstateTab from '@/components/network/RealEstateTab';
 import LifestyleTab from '@/components/network/LifestyleTab';
 import MarketsTab from '@/components/network/MarketsTab';
+
+// --- TABS CONFIGURATION ---
+const TABS = [
+  { id: 'overview', icon: Activity, label: 'Overview' },
+  { id: 'banking', icon: Landmark, label: 'Banking' },
+  { id: 'markets', icon: TrendingUp, label: 'Stock Markets' },
+  { id: 'real_estate', icon: Globe, label: 'Real Estate' },
+  { id: 'lifestyle', icon: ShoppingBag, label: 'Lifestyle & Cars' }
+];
+
+const MOBILE_TABS = [
+  { id: 'overview', icon: Activity, label: 'Overview' },
+  { id: 'banking', icon: Landmark, label: 'Banking' },
+  { id: 'markets', icon: TrendingUp, label: 'Markets' },
+  { id: 'lifestyle', icon: ShoppingBag, label: 'Lifestyle' }
+];
 
 // --- CUSTOM COMPONENT: Account Selector UI ---
 const AccountSelectorUI = ({ modal, closeModal }: { modal: any, closeModal: (result: any) => void }) => {
@@ -112,6 +128,7 @@ export default function NetworkDashboard() {
   const [activeJob, setActiveJob] = useState<any>(null);
   const [showPathSelection, setShowPathSelection] = useState(false);
   const [transferAmount, setTransferAmount] = useState("");
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // === CUSTOM MODAL SYSTEM ===
   const [modal, setModal] = useState<{isOpen: boolean, type: 'alert'|'confirm'|'prompt'|'account-select', title: string, message: string, placeholder: string, resolve: any, accounts?: any[], amount?: number}>({
@@ -286,7 +303,6 @@ export default function NetworkDashboard() {
           setLoanBalance(dbData.data.loan_balance != null ? Number(dbData.data.loan_balance) : 0);
           setCurrentLocation(dbData.data.location || 'bali');
           
-          // FIX: Load the un-migrated variables directly from LocalStorage to bypass Postgres Database Schema errors
           const localTaxData = JSON.parse(localStorage.getItem('pulse_tax_state') || '{}');
           
           const dbNextTaxAt = localTaxData.next_tax_at != null ? Number(localTaxData.next_tax_at) : Date.now() + 10 * 60000;
@@ -398,7 +414,6 @@ export default function NetworkDashboard() {
       if (safeUpdates.fico_score !== undefined) safeUpdates.fico_score = Math.floor(Number(safeUpdates.fico_score));
       if (safeUpdates.pending_salary !== undefined) safeUpdates.pending_salary = Number(Number(safeUpdates.pending_salary).toFixed(2));
       
-      // FIX: Isolate the new variables into LocalStorage to prevent Postgres "Column Not Found" errors!
       const localTaxUpdates: any = {};
       if (safeUpdates.next_tax_at !== undefined) { localTaxUpdates.next_tax_at = Number(safeUpdates.next_tax_at); delete safeUpdates.next_tax_at; }
       if (safeUpdates.tax_cycle_minutes !== undefined) { localTaxUpdates.tax_cycle_minutes = Number(safeUpdates.tax_cycle_minutes); delete safeUpdates.tax_cycle_minutes; }
@@ -538,7 +553,7 @@ export default function NetworkDashboard() {
     return () => clearInterval(saveInterval);
   }, [playerPath]);
 
-  // --- NEW: SLEEP SYSTEM ---
+  // --- SLEEP SYSTEM ---
   const handleSleep = async () => {
      const now = Date.now();
      if (now < lazinessPenaltyUntilRef.current) {
@@ -552,10 +567,9 @@ export default function NetworkDashboard() {
      else if (nextCycle === 5) nextCycle = 3;
      else if (nextCycle === 3) nextCycle = 1;
      else if (nextCycle <= 1) {
-         // LAZINESS PENALTY APPLIED
          const penaltyTime = now + 5 * 60000;
          const newNextTax = now + 10 * 60000;
-         nextTaxTimeRef.current = newNextTax; // <-- FIX: Safely override ref
+         nextTaxTimeRef.current = newNextTax; 
          setLazinessPenaltyUntil(penaltyTime);
          setTaxCycleMinutes(10); 
          setEnergy(100);
@@ -564,9 +578,8 @@ export default function NetworkDashboard() {
          return await showAlert("Laziness Penalty!", "You slept too much! Your passive income has been completely paused for 5 minutes, and your tax cycle has reset back to 10 minutes.");
      }
 
-     // Apply successful sleep benefits
      const newNextTax = now + nextCycle * 60000;
-     nextTaxTimeRef.current = newNextTax; // <-- FIX: Safely override ref
+     nextTaxTimeRef.current = newNextTax; 
      setEnergy(100);
      setTaxCycleMinutes(nextCycle);
      setNextTaxTime(newNextTax);
@@ -1154,8 +1167,8 @@ export default function NetworkDashboard() {
         />
       )}
 
-      {/* --- Sidebar --- */}
-      <aside className="w-64 bg-[#0a0a0c]/80 backdrop-blur-xl border-r border-white/5 flex flex-col z-20 shrink-0">
+      {/* --- Sidebar (DESKTOP ONLY) --- */}
+      <aside className="hidden lg:flex w-64 bg-[#0a0a0c]/80 backdrop-blur-xl border-r border-white/5 flex-col z-20 shrink-0">
         <div className="p-6 border-b border-white/5 flex items-center gap-3">
           <PulseNetworkLogo className="w-7 h-7 text-white" />
           <span className="font-black text-xl tracking-tighter text-white">Pulse<span className="text-zinc-600">Network</span></span>
@@ -1165,85 +1178,154 @@ export default function NetworkDashboard() {
           <div>
             <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest ml-2 mb-3">Central Hub</p>
             <div className="space-y-1">
-              <button onClick={() => setActiveTab('overview')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'overview' ? 'bg-gradient-to-r from-indigo-500/10 to-transparent text-indigo-400 border-l-2 border-indigo-500 shadow-[inset_0_0_20px_rgba(99,102,241,0.05)]' : 'text-zinc-400 hover:bg-white/5 hover:text-white font-medium'}`}><Activity className="w-4 h-4" /> Overview</button>
-              <button onClick={() => setActiveTab('banking')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'banking' ? 'bg-gradient-to-r from-emerald-500/10 to-transparent text-emerald-400 border-l-2 border-emerald-500 shadow-[inset_0_0_20px_rgba(16,185,129,0.05)]' : 'text-zinc-400 hover:bg-white/5 hover:text-white font-medium'}`}><Landmark className="w-4 h-4" /> Banking</button>
-              <button onClick={() => setActiveTab('markets')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'markets' ? 'bg-gradient-to-r from-emerald-500/10 to-transparent text-emerald-400 border-l-2 border-emerald-500 shadow-[inset_0_0_20px_rgba(16,185,129,0.05)]' : 'text-zinc-400 hover:bg-white/5 hover:text-white font-medium'}`}><TrendingUp className="w-4 h-4" /> Stock Markets</button>
-              <button onClick={() => setActiveTab('real_estate')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'real_estate' ? 'bg-gradient-to-r from-cyan-500/10 to-transparent text-cyan-400 border-l-2 border-cyan-500 shadow-[inset_0_0_20px_rgba(6,182,212,0.05)]' : 'text-zinc-400 hover:bg-white/5 hover:text-white font-medium'}`}><Globe className="w-4 h-4" /> Real Estate</button>
-              <button onClick={() => setActiveTab('lifestyle')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === 'lifestyle' ? 'bg-gradient-to-r from-orange-500/10 to-transparent text-orange-400 border-l-2 border-orange-500 shadow-[inset_0_0_20px_rgba(249,115,22,0.05)]' : 'text-zinc-400 hover:bg-white/5 hover:text-white font-medium'}`}><ShoppingBag className="w-4 h-4" /> Lifestyle & Cars</button>
+              {TABS.map(tab => (
+                <button 
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)} 
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === tab.id ? 'bg-gradient-to-r from-indigo-500/10 to-transparent text-indigo-400 border-l-2 border-indigo-500 shadow-[inset_0_0_20px_rgba(99,102,241,0.05)]' : 'text-zinc-400 hover:bg-white/5 hover:text-white font-medium'}`}
+                >
+                  <tab.icon className="w-4 h-4" /> {tab.label}
+                </button>
+              ))}
             </div>
           </div>
         </div>
-
-        <div className="p-4 border-t border-white/5">
-          <button onClick={() => { window.location.href = window.location.hostname.includes('localhost') ? 'http://localhost:3000/dashboard' : 'https://pulsegg.in/dashboard'; }} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-colors text-sm font-bold border border-white/10">
-            <LogOut className="w-4 h-4" /> Return to Pulse
-          </button>
-        </div>
       </aside>
+
+      {/* --- MOBILE BOTTOM NAVIGATION --- */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-[60] bg-[#0a0a0c]/90 backdrop-blur-xl border-t border-white/10 pb-safe shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+         <div className="flex justify-between items-center px-2 py-2">
+            {MOBILE_TABS.map(tab => (
+               <button
+                  key={tab.id}
+                  onClick={() => { setActiveTab(tab.id); setIsMobileMenuOpen(false); }}
+                  className={`flex-1 flex flex-col items-center gap-1 p-2 rounded-xl transition-colors ${activeTab === tab.id && !isMobileMenuOpen ? 'text-indigo-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+               >
+                  <div className={`p-1.5 rounded-lg transition-colors ${activeTab === tab.id && !isMobileMenuOpen ? 'bg-indigo-500/20' : 'bg-transparent'}`}>
+                     <tab.icon className="w-5 h-5" />
+                  </div>
+                  <span className="text-[9px] font-bold tracking-widest uppercase truncate max-w-[60px]">{tab.label.split(' ')[0]}</span>
+               </button>
+            ))}
+            <button
+               onClick={() => setIsMobileMenuOpen(true)}
+               className={`flex-1 flex flex-col items-center gap-1 p-2 rounded-xl transition-colors ${isMobileMenuOpen ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+            >
+               <div className={`p-1.5 rounded-lg transition-colors ${isMobileMenuOpen ? 'bg-white/10' : 'bg-transparent'}`}>
+                  <Menu className="w-5 h-5" />
+               </div>
+               <span className="text-[9px] font-bold tracking-widest uppercase">More</span>
+            </button>
+         </div>
+      </div>
+
+      {/* --- MOBILE OVERLAY "MORE" MENU --- */}
+      {isMobileMenuOpen && (
+         <div className="lg:hidden fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm animate-in fade-in duration-200 flex flex-col justify-end">
+            <div className="absolute inset-0" onClick={() => setIsMobileMenuOpen(false)}></div>
+            <div className="bg-[#121214] border-t border-white/10 rounded-t-[32px] p-6 pb-8 shadow-[0_-20px_50px_rgba(0,0,0,0.5)] animate-in slide-in-from-bottom-8 relative z-10">
+               <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-black text-white">Network Hub</h2>
+                  <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-white/5 hover:bg-white/10 rounded-full transition"><X className="w-5 h-5"/></button>
+               </div>
+               <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mb-6">
+                  {TABS.map(tab => (
+                     <button
+                        key={tab.id}
+                        onClick={() => { setActiveTab(tab.id); setIsMobileMenuOpen(false); }}
+                        className={`flex flex-col items-center justify-center gap-3 p-4 rounded-2xl border transition-all ${activeTab === tab.id ? 'bg-indigo-600/20 border-indigo-500 text-indigo-400' : 'bg-black/40 border-white/5 text-zinc-400 hover:bg-white/5 hover:text-white'}`}
+                     >
+                        <tab.icon className="w-6 h-6" />
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-center leading-tight">{tab.label.replace(' & ', '\n& ')}</span>
+                     </button>
+                  ))}
+               </div>
+               <div className="pt-6 border-t border-white/5 space-y-3">
+                 {displayName.toLowerCase() === 'sour' && (
+                    <div className="flex gap-3 mb-3">
+                       <button onClick={() => { handleResetState(); setIsMobileMenuOpen(false); }} className="flex-1 flex items-center justify-center gap-2 bg-orange-500/10 border border-orange-500/30 text-orange-500 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-500/20 transition">
+                          <RefreshCw className="w-4 h-4" /> Reset
+                       </button>
+                       <button onClick={() => { handleDevBypass(); setIsMobileMenuOpen(false); }} className="flex-1 flex items-center justify-center gap-2 bg-red-500/10 border border-red-500/30 text-red-500 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500/20 transition">
+                          <Zap className="w-4 h-4" /> God Mode
+                       </button>
+                    </div>
+                 )}
+               </div>
+            </div>
+         </div>
+      )}
 
       {/* --- Main Content Area --- */}
       <main className="flex-1 flex flex-col h-screen overflow-y-auto relative z-10">
-        <header className="p-6 md:px-8 flex justify-between items-center sticky top-0 z-30 bg-[#050505]/80 backdrop-blur-md border-b border-white/5">
-          <div className="flex items-center gap-4">
+        
+        {/* Header - MOBILE OPTIMIZED */}
+        <header className="p-4 sm:p-6 md:px-8 flex justify-between items-center sticky top-0 z-30 bg-[#050505]/80 backdrop-blur-md border-b border-white/5">
+          <div className="flex items-center gap-2 sm:gap-4">
+            
+            {/* Location */}
             <div className="flex flex-col cursor-pointer group" onClick={() => setActiveTab('real_estate')}>
-               <span className="text-[9px] font-bold tracking-widest text-zinc-500 uppercase ml-1 mb-1 group-hover:text-cyan-400 transition-colors">Current Location</span>
-               <div className="flex items-center gap-2 bg-[#121214] border border-white/10 rounded-full pl-1 pr-4 py-1 shadow-md group-hover:bg-white/5 transition-colors">
-                 <div className="w-8 h-8 rounded-full bg-cyan-900/30 border border-cyan-500/30 flex items-center justify-center group-hover:scale-105 transition-transform"><MapPin className="w-4 h-4 text-cyan-400" /></div>
+               <span className="hidden sm:block text-[9px] font-bold tracking-widest text-zinc-500 uppercase ml-1 mb-1 group-hover:text-cyan-400 transition-colors">Location</span>
+               <div className="flex items-center gap-1.5 sm:gap-2 bg-[#121214] border border-white/10 rounded-full pl-1 pr-3 sm:pr-4 py-1 shadow-md group-hover:bg-white/5 transition-colors">
+                 <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-cyan-900/30 border border-cyan-500/30 flex items-center justify-center group-hover:scale-105 transition-transform"><MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400" /></div>
                  <span className="text-sm font-bold text-white tracking-wide">
-                   {locStats.name} <span className={`font-mono text-[10px] uppercase ml-1 px-1.5 py-0.5 rounded ${locStats.tax === 0 ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}`}>{(locStats.tax * 100).toFixed(0)}% Tax</span>
+                   {locStats.name} <span className={`hidden sm:inline-block font-mono text-[10px] uppercase ml-1 px-1.5 py-0.5 rounded ${locStats.tax === 0 ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}`}>{(locStats.tax * 100).toFixed(0)}% Tax</span>
                  </span>
                </div>
             </div>
-            <div className="flex flex-col hidden md:flex">
-               <span className="text-[9px] font-bold tracking-widest text-zinc-500 uppercase ml-1 mb-1">Energy Bar</span>
-               <div className="flex items-center gap-3 bg-[#121214] border border-white/10 rounded-full pl-1 pr-4 py-1 shadow-md">
-                 <div className="w-8 h-8 rounded-full bg-yellow-900/30 border border-yellow-500/30 flex items-center justify-center"><Zap className="w-4 h-4 text-yellow-400 fill-yellow-400/20" /></div>
+            
+            {/* Energy */}
+            <div className="flex flex-col">
+               <span className="hidden sm:block text-[9px] font-bold tracking-widest text-zinc-500 uppercase ml-1 mb-1">Energy Bar</span>
+               <div className="flex items-center gap-2 sm:gap-3 bg-[#121214] border border-white/10 rounded-full pl-1 pr-3 sm:pr-4 py-1 shadow-md">
+                 <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-yellow-900/30 border border-yellow-500/30 flex items-center justify-center"><Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-yellow-400 fill-yellow-400/20" /></div>
                  <div className="flex flex-col justify-center">
-                   <div className="w-24 h-1.5 bg-white/10 rounded-full overflow-hidden mb-1"><div className="h-full bg-gradient-to-r from-orange-500 to-yellow-400 rounded-full transition-all duration-300" style={{ width: `${energy}%` }}></div></div>
-                   <span className="text-[10px] font-mono text-zinc-400 leading-none">{energy}/100</span>
+                   <div className="w-16 sm:w-24 h-1.5 bg-white/10 rounded-full overflow-hidden mb-1"><div className="h-full bg-gradient-to-r from-orange-500 to-yellow-400 rounded-full transition-all duration-300" style={{ width: `${energy}%` }}></div></div>
+                   <span className="text-[9px] sm:text-[10px] font-mono text-zinc-400 leading-none">{energy}/100</span>
                  </div>
                </div>
             </div>
             
-            {/* NEW SLEEP BUTTON */}
-            <div className="hidden md:flex mt-4">
+            {/* Sleep Button */}
+            <div className="flex sm:mt-4">
               <button 
                 onClick={handleSleep} 
-                className="flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-indigo-500/20 transition shadow-[0_0_15px_rgba(99,102,241,0.2)]"
+                className="flex items-center justify-center sm:gap-2 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 w-9 h-9 sm:w-auto sm:h-auto sm:px-4 sm:py-2 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-indigo-500/20 transition shadow-[0_0_15px_rgba(99,102,241,0.2)]"
               >
-                <Moon className="w-3.5 h-3.5" /> Sleep (100⚡)
+                <Moon className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> <span className="hidden sm:block">Sleep (100⚡)</span>
               </button>
             </div>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
              {Date.now() < lazinessPenaltyUntil && (
                 <div className="hidden lg:flex items-center gap-2 bg-red-500/10 border border-red-500/30 text-red-500 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest mr-2 animate-pulse">
-                   [LAZY - PENALTY ACTIVE]
+                   [LAZY]
                 </div>
              )}
              {displayName.toLowerCase() === 'sour' && (
-               <div className="hidden md:flex items-center gap-2">
+               <div className="hidden lg:flex items-center gap-2">
                  <button onClick={handleResetState} className="flex items-center gap-2 bg-orange-500/10 border border-orange-500/30 text-orange-500 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-orange-500/20 transition shadow-[0_0_15px_rgba(249,115,22,0.2)]">
-                    <RefreshCw className="w-3 h-3" /> Hard Reset
+                    <RefreshCw className="w-3 h-3" /> Reset
                  </button>
                  <button onClick={handleDevBypass} className="flex items-center gap-2 bg-red-500/10 border border-red-500/30 text-red-500 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-red-500/20 transition shadow-[0_0_15px_rgba(239,68,68,0.2)]">
                     <Zap className="w-3 h-3" /> God Mode
                  </button>
                </div>
              )}
-             <div className="flex items-center gap-3 bg-[#121214] border border-white/10 rounded-full pl-4 pr-1 py-1 shadow-md cursor-pointer hover:bg-white/5 transition-colors">
-               <div className="flex flex-col items-end">
-                 <span className="text-[9px] font-bold tracking-widest text-zinc-500 uppercase">Quick-Link</span>
+             <div className="flex items-center gap-2 sm:gap-3 bg-[#121214] border border-white/10 rounded-full pl-2 sm:pl-4 pr-1 py-1 shadow-md cursor-pointer hover:bg-white/5 transition-colors">
+               <div className="hidden sm:flex flex-col items-end">
+                 <span className="text-[9px] font-bold tracking-widest text-zinc-500 uppercase">Agent</span>
                  <span className="text-sm font-bold text-white tracking-wide">{displayName}</span>
                </div>
-               <img src={avatarUrl} alt="Avatar" className="w-10 h-10 rounded-full border-2 border-zinc-800 bg-zinc-900 object-cover" />
-               <ChevronDown className="w-4 h-4 text-zinc-500 mr-2" />
+               <img src={avatarUrl} alt="Avatar" className="w-7 h-7 sm:w-10 sm:h-10 rounded-full border-2 border-zinc-800 bg-zinc-900 object-cover" />
+               <ChevronDown className="hidden sm:block w-4 h-4 text-zinc-500 mr-2" />
              </div>
           </div>
         </header>
 
-        <div className="p-6 md:p-8 pt-2">
+        {/* Extracted Bottom Padding for Mobile Nav Bar! */}
+        <div className="p-4 sm:p-6 md:p-8 pt-4 pb-32 lg:pb-12">
           {activeTab === 'overview' && (
              <OverviewTab 
                 netWorth={totalNetWorth} balance={balance} savingsBalance={savingsBalance} loanAccountBalance={loanAccountBalance} assetValue={assetValue} loanBalance={loanBalance} fico={fico} playerPath={playerPath} netWorthHistory={netWorthHistory} currentLocName={locStats.name} energy={energy} ownedVehicles={ownedVehicles} setBalance={setBalance} setEnergy={setEnergy} setActiveJob={setActiveJob} saveGameState={saveGameState} handleSwitchPathClick={handleSwitchPathClick} corporateLevel={corporateLevel} currentRole={currentRole} displaySalary={displaySalaryRef.current} pendingSalary={pendingSalary} monthlySalaryTarget={monthlySalaryTarget} salaryProgressPercentage={Math.min(100, (Number(pendingSalary) / monthlySalaryTarget) * 100)} handleClaimSalary={handleClaimSalary} currentLocation={currentLocation} ownedProperties={ownedProperties} startupData={startupData} setStartupData={setStartupData} locMultiplier={locStats.multiplier}

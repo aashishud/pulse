@@ -6,13 +6,26 @@ import { auth, db } from "@/lib/firebase";
 import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { onAuthStateChanged, updateEmail, updatePassword, signOut, deleteUser } from "firebase/auth";
 import { getSteamLoginUrl, verifySteamLogin, verifyDiscordLogin } from "@/app/setup/actions"; 
-import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X, Cpu, Monitor, Keyboard, Mouse, Headphones, Trophy, Gamepad2, Clock, Music, Video, Users, Crown, LayoutTemplate, Layers, Activity, Diamond, Mail, ArrowRight, CheckCircle2, Info } from "lucide-react";
+// Added Menu icon for the mobile navigation drawer
+import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X, Cpu, Monitor, Keyboard, Mouse, Headphones, Trophy, Gamepad2, Clock, Music, Video, Users, Crown, LayoutTemplate, Layers, Activity, Diamond, Mail, ArrowRight, CheckCircle2, Info, Menu } from "lucide-react";
 import { validateHandle } from "@/lib/validation";
 import AnalyticsGlobe from "@/components/AnalyticsGlobe";
 import AnalyticsChart from "@/components/AnalyticsChart";
 import PulseLogo from "@/components/PulseLogo";
 import AvatarDecoration from "@/components/AvatarDecoration";
 import LayoutBuilder, { LayoutItem } from "@/components/LayoutBuilder";
+
+// --- Extracted Tabs array for reuse in Desktop Sidebar and Mobile Menus ---
+const TABS = [
+  { id: 'analytics', icon: Activity, label: 'Analytics' },
+  { id: 'identity', icon: User, label: 'Identity' },
+  { id: 'gaming', icon: Gamepad2, label: 'Gaming & Socials' },
+  { id: 'communities', icon: Users, label: 'Communities' },
+  { id: 'gear', icon: Cpu, label: 'Hardware Setup' },
+  { id: 'layout', icon: Palette, label: 'Layout & Theme' },
+  { id: 'premium', icon: Diamond, label: 'Pulse Pro' },
+  { id: 'settings', icon: Settings, label: 'Settings' },
+];
 
 function DashboardContent() {
   const router = useRouter();
@@ -21,12 +34,14 @@ function DashboardContent() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("analytics");
+  
+  // --- Mobile Overlay State ---
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const [displayName, setDisplayName] = useState("");
   const [newUsername, setNewUsername] = useState("");
   const [bio, setBio] = useState("");
   
-  // ADDED bgm, backgroundVideo, and enterText to initial state
   const [theme, setTheme] = useState({ 
     color: "indigo", mode: "dark", banner: "", background: "", avatar: "", avatarDecoration: "none",
     cursorTrail: "none", customCursor: "", customCursorHover: "", nameEffect: "solid",
@@ -620,18 +635,18 @@ function DashboardContent() {
          </div>
       )}
 
-      {/* Top Bar - Frosted Glass */}
-      <div className="sticky top-0 z-50 bg-[#0a0a0c]/60 backdrop-blur-xl border-b border-white/[0.05] px-6 py-4 flex justify-between items-center shadow-sm">
+      {/* Top Bar - Frosted Glass (MOBILE OPTIMIZED) */}
+      <div className="sticky top-0 z-50 bg-[#0a0a0c]/60 backdrop-blur-xl border-b border-white/[0.05] px-4 sm:px-6 py-4 flex justify-between items-center shadow-sm">
          <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20"><PulseLogo className="w-5 h-5 text-white" /></div>
             <span className="font-bold tracking-tight hidden md:block">Dashboard</span>
          </div>
-         <div className="flex items-center gap-3">
-            <a href={`/${user?.id}`} target="_blank" className="px-4 py-2 text-xs font-bold bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition flex items-center gap-2">
-               <ExternalLink className="w-3 h-3" /> View Profile
+         <div className="flex items-center gap-2 sm:gap-3">
+            <a href={`/${user?.id}`} target="_blank" className="px-3 sm:px-4 py-2 text-xs font-bold bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition flex items-center gap-2">
+               <ExternalLink className="w-3 h-3" /> <span className="hidden sm:block">View Profile</span>
             </a>
-            <button onClick={handleSave} disabled={saving} className="px-6 py-2 text-xs font-bold bg-white text-black rounded-lg hover:bg-zinc-200 transition disabled:opacity-50 shadow-lg shadow-white/10">
-               {saving ? "Saving..." : "Save Changes"}
+            <button onClick={handleSave} disabled={saving} className="px-4 sm:px-6 py-2 text-xs font-bold bg-white text-black rounded-lg hover:bg-zinc-200 transition disabled:opacity-50 shadow-lg shadow-white/10">
+               {saving ? "Saving..." : <><span className="sm:hidden">Save</span><span className="hidden sm:block">Save Changes</span></>}
             </button>
             <button onClick={() => signOut(auth)} className="p-2 hover:bg-red-500/10 hover:text-red-500 rounded-lg transition text-zinc-500">
                <LogOut className="w-4 h-4" />
@@ -639,21 +654,70 @@ function DashboardContent() {
          </div>
       </div>
 
-      <div className="max-w-[1300px] mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-8 relative z-10">
+      {/* --- MOBILE BOTTOM NAVIGATION --- */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-[60] bg-[#0a0a0c]/90 backdrop-blur-xl border-t border-white/10 pb-safe shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+         <div className="flex justify-between items-center px-2 py-2">
+            {[
+               { id: 'analytics', icon: Activity, label: 'Analytics' },
+               { id: 'identity', icon: User, label: 'Identity' },
+               { id: 'layout', icon: Palette, label: 'Theme' },
+               { id: 'gaming', icon: Gamepad2, label: 'Gaming' },
+            ].map(tab => (
+               <button
+                  key={tab.id}
+                  onClick={() => { setActiveTab(tab.id); setIsMobileMenuOpen(false); }}
+                  className={`flex-1 flex flex-col items-center gap-1 p-2 rounded-xl transition-colors ${activeTab === tab.id && !isMobileMenuOpen ? 'text-indigo-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+               >
+                  <div className={`p-1.5 rounded-lg transition-colors ${activeTab === tab.id && !isMobileMenuOpen ? 'bg-indigo-500/20' : 'bg-transparent'}`}>
+                     <tab.icon className="w-5 h-5" />
+                  </div>
+                  <span className="text-[9px] font-bold tracking-widest uppercase">{tab.label}</span>
+               </button>
+            ))}
+            <button
+               onClick={() => setIsMobileMenuOpen(true)}
+               className={`flex-1 flex flex-col items-center gap-1 p-2 rounded-xl transition-colors ${isMobileMenuOpen ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+            >
+               <div className={`p-1.5 rounded-lg transition-colors ${isMobileMenuOpen ? 'bg-white/10' : 'bg-transparent'}`}>
+                  <Menu className="w-5 h-5" />
+               </div>
+               <span className="text-[9px] font-bold tracking-widest uppercase">More</span>
+            </button>
+         </div>
+      </div>
+
+      {/* --- MOBILE OVERLAY "MORE" MENU --- */}
+      {isMobileMenuOpen && (
+         <div className="lg:hidden fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm animate-in fade-in duration-200 flex flex-col justify-end">
+            <div className="absolute inset-0" onClick={() => setIsMobileMenuOpen(false)}></div>
+            <div className="bg-[#121214] border-t border-white/10 rounded-t-[32px] p-6 pb-8 shadow-[0_-20px_50px_rgba(0,0,0,0.5)] animate-in slide-in-from-bottom-8 relative z-10">
+               <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-black text-white">All Settings</h2>
+                  <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-white/5 hover:bg-white/10 rounded-full transition"><X className="w-5 h-5"/></button>
+               </div>
+               <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                  {TABS.map(tab => (
+                     <button
+                        key={tab.id}
+                        onClick={() => { setActiveTab(tab.id); setIsMobileMenuOpen(false); }}
+                        className={`flex flex-col items-center justify-center gap-3 p-4 rounded-2xl border transition-all ${activeTab === tab.id ? 'bg-indigo-600/20 border-indigo-500 text-indigo-400' : 'bg-black/40 border-white/5 text-zinc-400 hover:bg-white/5 hover:text-white'}`}
+                     >
+                        <tab.icon className="w-6 h-6" />
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-center leading-tight">{tab.label.replace(' & ', '\n& ')}</span>
+                     </button>
+                  ))}
+               </div>
+            </div>
+         </div>
+      )}
+
+      {/* Main Layout Container - Extra bottom padding on mobile to clear the bottom nav! */}
+      <div className="max-w-[1300px] mx-auto p-4 sm:p-6 pb-32 lg:pb-6 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 relative z-10">
         
-        {/* Sidebar Nav - Frosted Premium Look */}
-        <aside className="lg:col-span-3">
+        {/* Sidebar Nav - Desktop Only */}
+        <aside className="hidden lg:block lg:col-span-3">
            <div className="bg-white/[0.02] border border-white/[0.05] backdrop-blur-md rounded-3xl p-3 sticky top-24 shadow-2xl">
-              {[
-                { id: 'analytics', icon: Activity, label: 'Analytics' },
-                { id: 'identity', icon: User, label: 'Identity' },
-                { id: 'gaming', icon: Gamepad2, label: 'Gaming & Socials' },
-                { id: 'communities', icon: Users, label: 'Communities' },
-                { id: 'gear', icon: Cpu, label: 'Hardware Setup' },
-                { id: 'layout', icon: Palette, label: 'Layout & Theme' },
-                { id: 'premium', icon: Diamond, label: 'Pulse Pro' },
-                { id: 'settings', icon: Settings, label: 'Settings' },
-              ].map((tab) => (
+              {TABS.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
@@ -793,7 +857,7 @@ function DashboardContent() {
                    <button 
                       onClick={() => setIsCreatingCommunity(true)} 
                       disabled={myCommunities.length >= 3}
-                      className="relative z-10 px-8 py-4 bg-white disabled:bg-zinc-800 disabled:text-zinc-500 text-black font-black rounded-2xl hover:bg-indigo-50 transition flex items-center gap-2 shadow-xl hover:scale-105 active:scale-95"
+                      className="relative z-10 w-full md:w-auto px-8 py-4 bg-white disabled:bg-zinc-800 disabled:text-zinc-500 text-black font-black rounded-2xl hover:bg-indigo-50 transition flex items-center justify-center gap-2 shadow-xl hover:scale-105 active:scale-95"
                    >
                       {myCommunities.length >= 3 ? "Limit Reached (3/3)" : <><Plus className="w-5 h-5" /> New Community</>}
                    </button>
@@ -875,16 +939,19 @@ function DashboardContent() {
                          </div>
                       ) : (
                         customLinks.map((link, idx) => (
-                            <div key={idx} className="flex gap-3 items-center bg-black/20 p-2 rounded-2xl border border-white/5">
+                            <div key={idx} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center bg-black/20 p-3 sm:p-2 rounded-2xl border border-white/5">
                                 <input type="text" placeholder="Label (e.g. My Website)" value={link.label} onChange={(e) => {
                                     const newLinks = [...customLinks]; newLinks[idx].label = e.target.value; setCustomLinks(newLinks);
-                                }} className="w-1/3 bg-black/40 border border-transparent rounded-xl p-3 text-sm text-white outline-none focus:border-indigo-500 focus:bg-black/60 transition" />
+                                }} className="w-full sm:w-1/3 bg-black/40 border border-transparent rounded-xl p-3 text-sm text-white outline-none focus:border-indigo-500 focus:bg-black/60 transition" />
                                 <input type="text" placeholder="https://..." value={link.url} onChange={(e) => {
                                     const newLinks = [...customLinks]; newLinks[idx].url = e.target.value; setCustomLinks(newLinks);
-                                }} className="flex-1 bg-black/40 border border-transparent rounded-xl p-3 text-sm text-white outline-none focus:border-indigo-500 focus:bg-black/60 transition font-mono" />
+                                }} className="w-full sm:flex-1 bg-black/40 border border-transparent rounded-xl p-3 text-sm text-white outline-none focus:border-indigo-500 focus:bg-black/60 transition font-mono" />
                                 <button onClick={() => {
                                     const newLinks = customLinks.filter((_, i) => i !== idx); setCustomLinks(newLinks);
-                                }} className="p-3 text-red-500 hover:bg-red-500/10 rounded-xl transition"><Trash2 className="w-5 h-5" /></button>
+                                }} className="w-full sm:w-auto p-3 flex items-center justify-center text-red-500 hover:bg-red-500/10 rounded-xl transition border border-red-500/20 sm:border-transparent">
+                                   <Trash2 className="w-5 h-5" />
+                                   <span className="sm:hidden ml-2 font-bold text-xs uppercase tracking-widest">Remove Link</span>
+                                </button>
                             </div>
                         ))
                       )}
@@ -951,7 +1018,7 @@ function DashboardContent() {
                             <p className={user?.steamId ? "text-green-400 text-sm font-mono break-all" : "text-zinc-500 text-sm"}>{user?.steamId ? `Connected: ${user.steamId}` : "Not connected"}</p>
                          </div>
                       </div>
-                      <div className="flex items-center gap-3 w-full sm:w-auto">
+                      <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
                          {user?.steamId && (
                             <a href={`https://steamcommunity.com/profiles/${user.steamId}`} target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-sm font-bold bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-white transition text-center flex items-center justify-center gap-2 border border-white/5">
                                <span>Visit Profile</span><ExternalLink className="w-3 h-3" />
@@ -1040,16 +1107,16 @@ function DashboardContent() {
                       <div className="relative">
                          <label className="text-xs font-bold text-zinc-500 block mb-2 uppercase tracking-wider">Discord Status</label>
                          {socials.discord ? (
-                            <div className="flex gap-3">
+                            <div className="flex flex-col sm:flex-row gap-3">
                                <div className="flex-1 bg-black/40 border border-indigo-500/50 rounded-xl p-4 text-indigo-400 text-sm flex items-center gap-3 shadow-inner">
-                                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
-                                  Linked as <span className="font-bold text-white">{socials.discord}</span>
+                                  <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
+                                  <span className="truncate">Linked as <span className="font-bold text-white">{socials.discord}</span></span>
                                </div>
-                               <button onClick={() => handleDisconnect('discord')} className="bg-red-500/10 hover:bg-red-500/20 px-6 rounded-xl text-sm text-red-500 font-bold transition border border-red-500/20">Unlink</button>
+                               <button onClick={() => handleDisconnect('discord')} className="bg-red-500/10 hover:bg-red-500/20 px-6 py-3 sm:py-0 rounded-xl text-sm text-red-500 font-bold transition border border-red-500/20 w-full sm:w-auto flex items-center justify-center">Unlink</button>
                             </div>
                          ) : (
                             <button onClick={connectDiscord} className="w-full bg-[#5865F2] hover:bg-[#4752c4] text-white p-4 rounded-xl text-sm font-bold transition flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(88,101,242,0.3)]">
-                               <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
+                               <svg className="w-5 h-5 fill-current shrink-0" viewBox="0 0 24 24"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
                                Connect Discord Profile
                             </button>
                          )}
@@ -1226,7 +1293,8 @@ function DashboardContent() {
                       </div>
                       <div>
                          <label className="text-[10px] text-zinc-500 uppercase font-bold block mb-3 tracking-widest">Color Selection</label>
-                         <div className="grid grid-cols-7 gap-3">
+                         {/* Swatches optimized for mobile view */}
+                         <div className="grid grid-cols-4 sm:grid-cols-7 gap-3">
                             {theme.nameEffect === 'gradient' 
                                ? gradients.map(g => <button key={g.name} onClick={() => setTheme({...theme, nameColor: g.class})} className={`w-full aspect-square rounded-xl bg-gradient-to-tr ${g.class} ring-2 ring-offset-4 ring-offset-[#0a0a0c] transition-all hover:scale-110 ${theme.nameColor === g.class ? 'ring-white scale-110' : 'ring-transparent'}`} title={g.name} />) 
                                : solidColors.map(c => <button key={c.name} onClick={() => setTheme({...theme, nameColor: c.value})} style={{ backgroundColor: c.value === 'white' ? 'white' : undefined }} className={`w-full aspect-square rounded-xl ring-2 ring-offset-4 ring-offset-[#0a0a0c] transition-all hover:scale-110 ${theme.nameColor === c.value ? 'ring-white scale-110' : 'ring-transparent'} ${c.value !== 'white' ? `bg-${c.value}` : ''}`} title={c.name} />)
@@ -1262,7 +1330,7 @@ function DashboardContent() {
                       <div>
                           <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Primary Accent Color</label>
                           <div className="flex gap-3">
-                             <input type="color" value={theme.primary} onChange={(e) => setTheme({...theme, primary: e.target.value})} className="w-12 h-12 rounded-xl bg-transparent border border-white/10 cursor-pointer p-1" />
+                             <input type="color" value={theme.primary} onChange={(e) => setTheme({...theme, primary: e.target.value})} className="w-12 h-12 rounded-xl bg-transparent border border-white/10 cursor-pointer p-1 shrink-0" />
                              <input type="text" value={theme.primary} onChange={(e) => setTheme({...theme, primary: e.target.value})} className={`${inputStyle} font-mono`} />
                           </div>
                       </div>
@@ -1412,7 +1480,7 @@ function DashboardContent() {
                                ) : (
                                   <MousePointer2 className="w-8 h-8 text-zinc-600 group-hover:text-zinc-400 transition-colors duration-200" />
                                )}
-                               <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest group-hover:text-zinc-300 transition-colors">{preset.name}</span>
+                               <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest group-hover:text-zinc-300 transition-colors text-center">{preset.name}</span>
                             </button>
                          ))}
                       </div>
@@ -1464,7 +1532,7 @@ function DashboardContent() {
                 <h2 className="text-xl font-bold text-white mb-6">Support & Contact</h2>
                 <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+                      <div className="w-12 h-12 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
                          <Mail className="w-6 h-6" />
                       </div>
                       <div>
@@ -1472,7 +1540,7 @@ function DashboardContent() {
                          <p className="text-xs text-zinc-400">Reach out to our support team for inquiries or assistance.</p>
                       </div>
                    </div>
-                   <a href="mailto:contact@pulsegg.in" className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-xl transition whitespace-nowrap shadow-lg shadow-indigo-500/20">
+                   <a href="mailto:contact@pulsegg.in" className="w-full sm:w-auto text-center px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-xl transition whitespace-nowrap shadow-lg shadow-indigo-500/20">
                       contact@pulsegg.in
                    </a>
                 </div>
@@ -1488,9 +1556,9 @@ function DashboardContent() {
                         <button onClick={handleChangeUsername} disabled={saving || newUsername === user.username || isOnCooldown} className="px-6 bg-white text-black rounded-xl font-bold text-sm hover:bg-zinc-200 disabled:opacity-50 transition shadow-lg shrink-0">Change</button>
                     </div>
                     {isOnCooldown ? (
-                       <p className="text-xs text-red-400 mt-3 flex items-center gap-1.5"><Clock className="w-4 h-4" /> Username change is locked. Please try again in {hoursLeft} hours.</p>
+                       <p className="text-xs text-red-400 mt-3 flex items-center gap-1.5"><Clock className="w-4 h-4 shrink-0" /> Username change is locked. Please try again in {hoursLeft} hours.</p>
                     ) : (
-                       <p className="text-xs text-orange-400 mt-3 flex items-center gap-1.5"><AlertTriangle className="w-4 h-4" /> Changing this will permanently alter your public profile URL.</p>
+                       <p className="text-xs text-orange-400 mt-3 flex items-center gap-1.5"><AlertTriangle className="w-4 h-4 shrink-0" /> Changing this will permanently alter your public profile URL.</p>
                     )}
                   </div>
                 </div>
@@ -1514,10 +1582,10 @@ function DashboardContent() {
               {/* DANGER ZONE - Account Deletion */}
               <section className="bg-red-500/5 border border-red-500/20 rounded-3xl p-6 md:p-8 shadow-inner">
                 <h2 className="text-xl font-black text-red-500 mb-2">Danger Zone</h2>
-                <p className="text-zinc-400 text-sm mb-6">Once you delete your account, there is no going back. All connections, themes, and data will be permanently erased.</p>
+                <p className="text-zinc-400 text-sm mb-6 leading-relaxed">Once you delete your account, there is no going back. All connections, themes, and data will be permanently erased.</p>
                 <button 
                   onClick={() => setIsDeletingAccount(true)} 
-                  className="px-8 py-4 bg-red-600 hover:bg-red-500 text-white font-black rounded-xl transition shadow-[0_0_20px_rgba(220,38,38,0.4)] hover:shadow-[0_0_30px_rgba(220,38,38,0.6)]"
+                  className="w-full sm:w-auto px-8 py-4 bg-red-600 hover:bg-red-500 text-white font-black rounded-xl transition shadow-[0_0_20px_rgba(220,38,38,0.4)] hover:shadow-[0_0_30px_rgba(220,38,38,0.6)]"
                 >
                   Delete Account Permanently
                 </button>
@@ -1533,7 +1601,7 @@ function DashboardContent() {
       {alertContent && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-[#121214] border border-white/10 rounded-[24px] p-6 w-full max-w-sm shadow-2xl flex flex-col items-center text-center">
-             <div className={`w-12 h-12 rounded-full mb-4 flex items-center justify-center shadow-inner border ${alertContent.type === 'error' ? 'bg-red-500/20 text-red-500 border-red-500/20' : alertContent.type === 'success' ? 'bg-emerald-500/20 text-emerald-500 border-emerald-500/20' : 'bg-indigo-500/20 text-indigo-400 border-indigo-500/20'}`}>
+             <div className={`w-12 h-12 rounded-full mb-4 flex items-center justify-center shadow-inner border shrink-0 ${alertContent.type === 'error' ? 'bg-red-500/20 text-red-500 border-red-500/20' : alertContent.type === 'success' ? 'bg-emerald-500/20 text-emerald-500 border-emerald-500/20' : 'bg-indigo-500/20 text-indigo-400 border-indigo-500/20'}`}>
                 {alertContent.type === 'error' ? <AlertTriangle className="w-6 h-6" /> : alertContent.type === 'success' ? <CheckCircle2 className="w-6 h-6" /> : <Info className="w-6 h-6" />}
              </div>
              <h3 className="text-xl font-black text-white mb-2 tracking-tight">{alertContent.title || (alertContent.type === 'error' ? 'Error' : alertContent.type === 'success' ? 'Success' : 'Notice')}</h3>
@@ -1547,7 +1615,7 @@ function DashboardContent() {
       {confirmContent && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-[#121214] border border-white/10 rounded-[24px] p-6 w-full max-w-sm shadow-2xl flex flex-col items-center text-center">
-             <div className={`w-12 h-12 rounded-full mb-4 flex items-center justify-center shadow-inner border ${confirmContent.isDanger ? 'bg-red-500/20 text-red-500 border-red-500/20' : 'bg-indigo-500/20 text-indigo-400 border-indigo-500/20'}`}>
+             <div className={`w-12 h-12 rounded-full mb-4 flex items-center justify-center shadow-inner border shrink-0 ${confirmContent.isDanger ? 'bg-red-500/20 text-red-500 border-red-500/20' : 'bg-indigo-500/20 text-indigo-400 border-indigo-500/20'}`}>
                 {confirmContent.isDanger ? <AlertTriangle className="w-6 h-6" /> : <Info className="w-6 h-6" />}
              </div>
              <h3 className="text-xl font-black text-white mb-2 tracking-tight">{confirmContent.title || 'Confirm Action'}</h3>
