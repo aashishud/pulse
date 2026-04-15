@@ -49,7 +49,6 @@ const InteractiveCarCard = ({ id, car, isOwned, handleBuyCar, handleSellCar }: a
 
   return (
     <div 
-      // THE FIX: touchAction pan-y guarantees the browser allows vertical scrolling over this element!
       style={{ perspective: 1500, touchAction: 'pan-y', willChange: 'transform' }} 
       className="w-full h-[400px] z-20 group cursor-pointer"
       onMouseMove={handleMouseMove}
@@ -253,13 +252,13 @@ export default function LifestyleTab({ balance, energy, maxEnergy, ownedVehicles
                   </div>
                </button>
 
-               <button onClick={() => handleBuyFood('michelin', 1500, maxEnergy)} className="bg-black/40 border border-orange-500/30 hover:border-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.1)] hover:shadow-[0_0_40px_rgba(249,115,22,0.2)] p-6 rounded-2xl flex flex-col justify-between group transition-all duration-300 text-left relative overflow-hidden">
+               <button onClick={() => handleBuyFood('michelin', 1500, 100)} className="bg-black/40 border border-orange-500/30 hover:border-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.1)] hover:shadow-[0_0_40px_rgba(249,115,22,0.2)] p-6 rounded-2xl flex flex-col justify-between group transition-all duration-300 text-left relative overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                   <div className="flex justify-between items-start mb-6 relative z-10">
                      <div className="w-12 h-12 bg-orange-500/20 rounded-xl flex items-center justify-center text-orange-400 border border-orange-500/30 group-hover:scale-110 transition-all duration-300 shadow-lg">
                         <Trophy className="w-6 h-6"/>
                      </div>
-                     <span className="text-yellow-400 text-sm font-black font-mono bg-yellow-500/10 px-3 py-1 rounded-full border border-yellow-500/20 shadow-[0_0_15px_rgba(250,204,21,0.4)]">MAX⚡</span>
+                     <span className="text-yellow-400 text-sm font-black font-mono bg-yellow-500/10 px-3 py-1 rounded-full border border-yellow-500/20 shadow-[0_0_15px_rgba(250,204,21,0.4)]">+100⚡</span>
                   </div>
                   <div className="relative z-10">
                      <p className="font-black text-lg text-white mb-1">Michelin Star Meal</p>

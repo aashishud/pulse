@@ -214,7 +214,6 @@ export default async function ProfilePage({ params }: Props) {
     );
   }
 
-  // Generate the Custom Badges List for this User
   const userCustomBadges = customBadges[username.toLowerCase()] || [];
   const hasBadges = userCustomBadges.length > 0 || firebaseUser.steamId || firebaseUser.socials.discord_verified;
 
@@ -299,13 +298,10 @@ export default async function ProfilePage({ params }: Props) {
   if (firebaseUser.gaming?.xbox) simpleSocials.push({ name: 'Xbox', tooltip: firebaseUser.gaming.xbox, url: '#', icon: 'https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/xbox.svg' });
   if (firebaseUser.gaming?.epic) simpleSocials.push({ name: 'Epic Games', tooltip: firebaseUser.gaming.epic, url: '#', icon: 'https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/epicgames.svg' });
 
-  // === THE ENTER SCREEN WRAPPER ===
   return (
     <EnterScreen bgmUrl={firebaseUser.bgm} bgVideoUrl={firebaseUser.backgroundVideo} enterText={firebaseUser.enterText}>
       
-      {/* GLOBAL STYLES TO PERMANENTLY PREVENT SCROLLBARS */}
       <style dangerouslySetInnerHTML={{ __html: `
-        /* The Magic Bullet: Completely Nuke External Page Scrolling */
         html, body { 
           overflow: hidden !important; 
           width: 100vw; 
@@ -327,31 +323,26 @@ export default async function ProfilePage({ params }: Props) {
       `}} />
 
       {isSimpleMode ? (
-        // === SIMPLE MODE RENDER ===
         <div className={`h-screen w-screen text-white ${fontClass} overflow-hidden flex flex-col`}>
           <CursorEffects type={firebaseUser.cursorTrail} />
           <ViewCounter username={username} />
 
           <div className="fixed inset-0 z-0">
-            {/* Layer 1: Base Background Image OR Background Video */}
             {firebaseUser.backgroundVideo ? (
                 <video src={firebaseUser.backgroundVideo} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover opacity-60" />
             ) : (
                 <div className="absolute inset-0 bg-cover bg-center" style={backgroundStyle}></div>
             )}
              
-             {/* Layer 2: Shaders */}
              <BackgroundShader 
                 type={firebaseUser.shader} 
                 primaryColor={firebaseUser.primary} 
                 backgroundImage={firebaseUser.background || firebaseUser.banner} 
              />
              
-             {/* Layer 3: Dark overlay ON TOP of the shader to ensure the glassmorphism blur and text are readable */}
              <div className="absolute inset-0 bg-black/40 pointer-events-none"></div>
           </div>
 
-          {/* Top Nav (Absolute floating) */}
           <div className="absolute top-0 left-0 w-full z-50 p-4 md:p-6 flex justify-between items-center pointer-events-auto">
              <Link href="/" className="flex items-center gap-2 font-bold text-xl tracking-tighter hover:opacity-80 transition drop-shadow-md">
                <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-[0_0_20px_rgba(99,102,241,0.4)]">
@@ -367,14 +358,11 @@ export default async function ProfilePage({ params }: Props) {
              </div>
           </div>
 
-          {/* Centered Simple Card Content - LOCKED TO H-SCREEN */}
           <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-4 pt-24 pb-8 h-screen w-full pointer-events-none">
               <div className="w-full max-w-[500px] max-h-full rounded-[32px] border border-white/10 shadow-2xl flex flex-col relative overflow-hidden animate-in fade-in slide-in-from-bottom-8 duration-700 pointer-events-auto" style={leftCardStyle}>
                   
-                  {/* INNER SCROLLABLE AREA - This prevents the page from breaking! */}
                   <div className="flex-1 overflow-y-auto sleek-scrollbar w-full p-6 md:p-10 flex flex-col items-center text-center">
 
-                    {/* Avatar */}
                     <div className="relative w-32 h-32 mb-6 shrink-0">
                       <div className="absolute inset-0 rounded-full blur-xl opacity-40 z-0 animate-pulse" style={{ backgroundColor: firebaseUser.primary }}></div>
                       
@@ -388,10 +376,9 @@ export default async function ProfilePage({ params }: Props) {
                             </div>
                         </div>
                       </AvatarDecoration>
-                      {/* CUSTOM TOOLTIP: Playing Now */}
                       {profile?.gameextrainfo && (
-                        <div className="absolute bottom-2 right-2 group cursor-help z-20">
-                            <div className="w-6 h-6 rounded-full border-[4px] border-[#1e1f22] bg-green-500"></div>
+                        <div className="absolute bottom-2 right-2 group cursor-help z-20 shrink-0">
+                            <div className="w-6 h-6 rounded-full border-[4px] border-[#1e1f22] bg-green-500 shrink-0"></div>
                             <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-zinc-900 border border-white/10 rounded-lg text-[10px] font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all pointer-events-none shadow-xl scale-95 group-hover:scale-100">
                               Playing {profile.gameextrainfo}
                             </div>
@@ -399,7 +386,6 @@ export default async function ProfilePage({ params }: Props) {
                       )}
                     </div>
 
-                    {/* Identity */}
                     <div className="flex items-center justify-center gap-2 mb-2 max-w-full">
                       <h1 className={`text-4xl ${nameClasses} truncate`} style={nameStyle}>{displayName}</h1>
                       {firebaseUser.isVerified && (
@@ -412,24 +398,23 @@ export default async function ProfilePage({ params }: Props) {
                       )}
                     </div>
                     
-                    <div className="flex items-center gap-2 justify-center mb-6 flex-wrap">
+                    <div className="flex items-center gap-2 justify-center mb-6 flex-wrap shrink-0">
                       <p className="text-zinc-400 font-medium text-sm">@{username}</p>
                       
                       {parseInt(firebaseUser.views || "0") >= 0 && (
-                        <div className="flex items-center gap-1.5 text-zinc-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wide">
-                            <Eye className="w-3 h-3" /> {Number(firebaseUser.views || 0).toLocaleString()}
+                        <div className="flex items-center gap-1.5 text-zinc-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wide shrink-0">
+                            <Eye className="w-3 h-3 shrink-0" /> {Number(firebaseUser.views || 0).toLocaleString()}
                         </div>
                       )}
 
-                      {/* NEW UNIFIED BADGE PILL (Custom + Connections) */}
                       {hasBadges && (
-                        <div className="flex items-center gap-3.5 bg-black/40 border border-white/10 px-4 py-1.5 rounded-full shadow-inner backdrop-blur-md ml-1">
+                        <div className="flex items-center gap-3.5 bg-black/40 border border-white/10 px-4 py-1.5 rounded-full shadow-inner backdrop-blur-md ml-1 shrink-0">
                             
                             {userCustomBadges.map((badge, idx) => {
                               const Icon = badge.icon;
                               return (
-                                  <div key={idx} className={`relative group flex items-center justify-center cursor-help ${badge.dropShadow || ''}`}>
-                                    <Icon className={`w-4 h-4 ${badge.color} ${badge.fill || ''}`} />
+                                  <div key={idx} className={`relative group flex items-center justify-center cursor-help shrink-0 ${badge.dropShadow || ''}`}>
+                                    <Icon className={`w-4 h-4 shrink-0 ${badge.color} ${badge.fill || ''}`} />
                                     <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-zinc-900 border border-white/10 rounded-md text-[10px] font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl">
                                         {badge.tooltip}
                                     </div>
@@ -438,8 +423,8 @@ export default async function ProfilePage({ params }: Props) {
                             })}
 
                             {firebaseUser.steamId && (
-                              <div className="relative group flex items-center justify-center w-4 h-4 opacity-80 hover:opacity-100 transition cursor-help">
-                                  <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/steam.svg" alt="Steam" className="w-full h-full object-contain invert" />
+                              <div className="relative group flex items-center justify-center w-4 h-4 opacity-80 hover:opacity-100 transition cursor-help shrink-0">
+                                  <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/steam.svg" alt="Steam" className="w-full h-full object-contain invert shrink-0" />
                                   <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-zinc-900 border border-white/10 rounded-md text-[10px] font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl">
                                     Steam Connected
                                   </div>
@@ -447,8 +432,8 @@ export default async function ProfilePage({ params }: Props) {
                             )}
 
                             {firebaseUser.socials.discord_verified && (
-                              <div className="relative group flex items-center justify-center w-4 h-4 opacity-80 hover:opacity-100 transition cursor-help">
-                                  <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/discord.svg" alt="Discord" className="w-full h-full object-contain invert" />
+                              <div className="relative group flex items-center justify-center w-4 h-4 opacity-80 hover:opacity-100 transition cursor-help shrink-0">
+                                  <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/discord.svg" alt="Discord" className="w-full h-full object-contain invert shrink-0" />
                                   <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-zinc-900 border border-white/10 rounded-md text-[10px] font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl">
                                     Discord Connected
                                   </div>
@@ -458,12 +443,11 @@ export default async function ProfilePage({ params }: Props) {
                       )}
                     </div>
 
-                    {/* Community Badge */}
                     {community && (
-                      <Link href={`/c/${community.handle}`} className="mb-6 group">
+                      <Link href={`/c/${community.handle}`} className="mb-6 group shrink-0 w-full flex justify-center">
                         <div className="inline-flex items-center gap-2.5 px-4 py-2 bg-black/20 hover:bg-white/5 border border-white/5 rounded-xl transition shadow-inner">
                             <div className="w-6 h-6 rounded-md bg-zinc-800 overflow-hidden flex items-center justify-center shrink-0 border border-white/10">
-                                {community.avatar ? <img src={community.avatar} alt="Logo" className="w-full h-full object-cover" /> : <Users className="w-3 h-3 text-zinc-400" />}
+                                {community.avatar ? <img src={community.avatar} alt="Logo" className="w-full h-full object-cover shrink-0" /> : <Users className="w-3 h-3 text-zinc-400 shrink-0" />}
                             </div>
                             <div className="text-left flex flex-col justify-center leading-none">
                                 <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">Squad</span>
@@ -473,17 +457,15 @@ export default async function ProfilePage({ params }: Props) {
                       </Link>
                     )}
 
-                    {/* Bio */}
                     {firebaseUser.bio && (
-                      <p className="text-sm text-zinc-300 leading-relaxed mb-8 font-medium max-w-[340px] whitespace-pre-wrap">{firebaseUser.bio}</p>
+                      <p className="text-sm text-zinc-300 leading-relaxed mb-8 font-medium max-w-[340px] whitespace-pre-wrap shrink-0">{firebaseUser.bio}</p>
                     )}
 
-                    {/* CUSTOM TOOLTIPS: Simple Profile Social Connections */}
                     {simpleSocials.length > 0 && (
-                      <div className="flex flex-wrap justify-center gap-3 w-full mb-8">
+                      <div className="flex flex-wrap justify-center gap-3 w-full mb-8 shrink-0">
                         {simpleSocials.map((s, idx) => (
-                          <a key={idx} href={s.url !== '#' ? s.url : undefined} target={s.url !== '#' ? "_blank" : undefined} rel="noopener noreferrer" className="relative group w-12 h-12 rounded-2xl bg-black/40 hover:bg-white/10 border border-white/5 flex items-center justify-center transition-all hover:scale-110 shadow-lg">
-                            <img src={s.icon} alt={s.name} className="w-5 h-5 object-contain opacity-90 invert" />
+                          <a key={idx} href={s.url !== '#' ? s.url : undefined} target={s.url !== '#' ? "_blank" : undefined} rel="noopener noreferrer" className="relative group w-12 h-12 rounded-2xl bg-black/40 hover:bg-white/10 border border-white/5 flex items-center justify-center transition-all hover:scale-110 shadow-lg shrink-0">
+                            <img src={s.icon} alt={s.name} className="w-5 h-5 object-contain opacity-90 invert shrink-0" />
                             <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-zinc-950 border border-white/10 rounded-lg text-xs font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all pointer-events-none z-50 shadow-xl scale-95 group-hover:scale-100">
                                 {s.tooltip}
                             </div>
@@ -492,31 +474,29 @@ export default async function ProfilePage({ params }: Props) {
                       </div>
                     )}
 
-                    {/* Spotify Pill */}
                     {musicData?.nowPlaying?.isPlaying && (
-                      <a href={musicData.nowPlaying.url} target="_blank" rel="noopener noreferrer" className="w-full p-3 bg-black/40 rounded-2xl border border-[#1DB954]/30 hover:border-[#1DB954]/60 transition flex items-center gap-3 mb-8 group overflow-hidden relative shadow-lg">
+                      <a href={musicData.nowPlaying.url} target="_blank" rel="noopener noreferrer" className="w-full p-3 bg-black/40 rounded-2xl border border-[#1DB954]/30 hover:border-[#1DB954]/60 transition flex items-center gap-3 mb-8 group overflow-hidden relative shadow-lg shrink-0 min-h-[72px]">
                           <div className="absolute inset-0 bg-gradient-to-r from-[#1DB954]/5 to-transparent opacity-0 group-hover:opacity-100 transition duration-500"></div>
                           <div className="w-12 h-12 rounded-xl bg-[#1DB954]/10 flex items-center justify-center text-[#1DB954] overflow-hidden relative shrink-0 shadow-sm border border-white/5">
-                            {musicData.nowPlaying.albumArt ? <img src={musicData.nowPlaying.albumArt} className="w-full h-full object-cover" alt="Album" /> : <Music className="w-5 h-5" />}
+                            {musicData.nowPlaying.albumArt ? <img src={musicData.nowPlaying.albumArt} className="w-full h-full object-cover shrink-0" alt="Album" /> : <Music className="w-5 h-5 shrink-0" />}
                           </div>
                           <div className="flex-1 min-w-0 relative z-10 text-left">
-                            <p className="text-[10px] font-bold text-[#1DB954] uppercase tracking-wider flex items-center gap-1.5 mb-0.5"><Music className="w-3 h-3" /> Listening on Spotify</p>
+                            <p className="text-[10px] font-bold text-[#1DB954] uppercase tracking-wider flex items-center gap-1.5 mb-0.5"><Music className="w-3 h-3 shrink-0" /> Listening on Spotify</p>
                             <p className="text-sm font-bold text-white truncate leading-tight group-hover:underline">{musicData.nowPlaying.title}</p>
                             <p className="text-xs text-zinc-400 truncate mt-0.5">{musicData.nowPlaying.artist}</p>
                           </div>
                           <div className="flex items-end gap-1 h-4 px-2 shrink-0">
-                            <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-full"></span>
-                            <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-2/3" style={{ animationDelay: '200ms' }}></span>
-                            <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-4/5" style={{ animationDelay: '400ms' }}></span>
+                            <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-full shrink-0"></span>
+                            <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-2/3 shrink-0" style={{ animationDelay: '200ms' }}></span>
+                            <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-4/5 shrink-0" style={{ animationDelay: '400ms' }}></span>
                           </div>
                       </a>
                     )}
 
-                    {/* Custom Links */}
                     {firebaseUser.customLinks && firebaseUser.customLinks.length > 0 && (
-                      <div className="w-full space-y-3 mt-auto">
+                      <div className="w-full space-y-3 mt-auto shrink-0">
                         {firebaseUser.customLinks.map((link: any, idx: number) => (
-                          <a key={idx} href={ensureProtocol(link.url)} target="_blank" rel="noopener noreferrer" className="block w-full py-4 px-6 bg-black/40 hover:bg-white/10 border border-white/5 rounded-2xl font-bold text-sm transition-all hover:scale-[1.02] shadow-lg group relative overflow-hidden">
+                          <a key={idx} href={ensureProtocol(link.url)} target="_blank" rel="noopener noreferrer" className="block w-full py-4 px-6 bg-black/40 hover:bg-white/10 border border-white/5 rounded-2xl font-bold text-sm transition-all hover:scale-[1.02] shadow-lg group relative overflow-hidden shrink-0">
                             <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition"></div>
                             <span className="relative z-10 text-white flex justify-center items-center gap-2">{link.label}</span>
                           </a>
@@ -524,10 +504,9 @@ export default async function ProfilePage({ params }: Props) {
                       </div>
                     )}
                     
-                    {/* Powered by Pulse is now INSIDE the scrollable area at the bottom */}
-                    <div className="mt-8 text-center w-full pb-2">
+                    <div className="mt-8 text-center w-full pb-2 shrink-0">
                         <Link href="/" className="inline-flex items-center gap-2 text-xs font-bold text-zinc-500 hover:text-white transition bg-black/40 px-4 py-2 rounded-full border border-white/5 backdrop-blur-md">
-                          <PulseLogo className="w-3 h-3" /> Powered by Pulse
+                          <PulseLogo className="w-3 h-3 shrink-0" /> Powered by Pulse
                         </Link>
                     </div>
 
@@ -536,31 +515,26 @@ export default async function ProfilePage({ params }: Props) {
           </div>
         </div>
       ) : (
-        // === BENTO GRID RENDER (DEFAULT) ===
+        // === BENTO GRID RENDER ===
         <div className={`h-screen w-screen text-white ${fontClass} overflow-hidden flex flex-col`}>
           <CursorEffects type={firebaseUser.cursorTrail} />
           <ViewCounter username={username} />
 
           <div className="fixed inset-0 z-0">
-             {/* Layer 1: Base Background Image OR Background Video */}
              {firebaseUser.backgroundVideo ? (
                  <video src={firebaseUser.backgroundVideo} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover opacity-60" />
              ) : (
                  <div className="absolute inset-0 bg-cover bg-center" style={backgroundStyle}></div>
              )}
              
-             {/* Layer 2: Shaders */}
              <BackgroundShader 
                 type={firebaseUser.shader} 
                 primaryColor={firebaseUser.primary} 
                 backgroundImage={firebaseUser.background || firebaseUser.banner} 
              />
-             
-             {/* Layer 3: Dark gradient overlay */}
              <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/60 to-black/80 pointer-events-none"></div>
           </div>
 
-          {/* LOCKED TO EXACTLY H-SCREEN */}
           <div className="relative z-10 max-w-[1200px] w-full mx-auto p-4 md:p-8 lg:py-10 h-screen flex flex-col overflow-hidden">
             
             <div className="flex justify-between items-center mb-6 px-2 shrink-0">
@@ -570,24 +544,23 @@ export default async function ProfilePage({ params }: Props) {
                  </div>
                  Pulse
                </Link>
-               <div className="flex items-center gap-3">
+               <div className="flex items-center gap-3 shrink-0">
                   <ShareButton />
                   <a href={dashboardUrl} className="px-3 py-1.5 bg-[#1e1f22] border border-white/10 rounded-xl font-bold text-[10px] hover:bg-white hover:text-black transition flex items-center gap-2">
-                     <Zap className="w-3 h-3 text-yellow-400 fill-current" /> Edit
+                     <Zap className="w-3 h-3 text-yellow-400 fill-current shrink-0" /> Edit
                   </a>
                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 min-h-0 pb-4">
               
-              {/* LEFT SIDEBAR - Inherits min-h-0 and uses overflow-y-auto to scroll internally */}
               <div className="lg:col-span-4 h-full rounded-[32px] border border-white/5 shadow-2xl relative overflow-y-auto sleek-scrollbar" style={leftCardStyle}>
                 
-                <div className="h-28 bg-zinc-900 relative group">
+                <div className="h-28 bg-zinc-900 relative group shrink-0">
                   <Image src={firebaseUser.banner} alt="Banner" fill className="object-cover group-hover:scale-105 transition duration-700" unoptimized />
                 </div>
                 
-                <div className="px-6 pb-6 relative">
+                <div className="px-6 pb-6 relative flex flex-col min-h-max">
                   
                   <div className="relative -mt-14 mb-3 w-28 h-28 shrink-0">
                      <div className="absolute inset-0 rounded-full blur-xl opacity-40 z-0 animate-pulse" style={{ backgroundColor: firebaseUser.primary }}></div>
@@ -595,17 +568,16 @@ export default async function ProfilePage({ params }: Props) {
                      <AvatarDecoration type={firebaseUser.avatarDecoration}>
                        <div className="w-28 h-28 rounded-full bg-[#1e1f22] relative z-10 flex items-center justify-center">
                           <div className="relative w-[calc(100%-8px)] h-[calc(100%-8px)]">
-                             <img src={avatarSource} alt="Avatar" className="w-full h-full rounded-full object-cover bg-zinc-900 relative z-10" />
+                             <img src={avatarSource} alt="Avatar" className="w-full h-full rounded-full object-cover bg-zinc-900 relative z-10 shrink-0" />
                              {firebaseUser.discordDecoration && (
-                                <img src={firebaseUser.discordDecoration} alt="Decoration" className="absolute inset-0 w-full h-full z-30 pointer-events-none object-contain scale-[1.2]" />
+                                <img src={firebaseUser.discordDecoration} alt="Decoration" className="absolute inset-0 w-full h-full z-30 pointer-events-none object-contain scale-[1.2] shrink-0" />
                              )}
                           </div>
                        </div>
                      </AvatarDecoration>
-                     {/* CUSTOM TOOLTIP: Playing Now */}
                      {profile?.gameextrainfo && (
-                       <div className="absolute bottom-1 right-1 group cursor-help z-20">
-                          <div className="w-5 h-5 rounded-full border-[3px] border-[#1e1f22] bg-green-500"></div>
+                       <div className="absolute bottom-1 right-1 group cursor-help z-20 shrink-0">
+                          <div className="w-5 h-5 rounded-full border-[3px] border-[#1e1f22] bg-green-500 shrink-0"></div>
                           <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-zinc-900 border border-white/10 rounded-lg text-[10px] font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all pointer-events-none shadow-xl scale-95 group-hover:scale-100">
                              Playing {profile.gameextrainfo}
                           </div>
@@ -613,14 +585,13 @@ export default async function ProfilePage({ params }: Props) {
                      )}
                   </div>
 
-                  <div className="flex justify-between items-start mb-6 gap-4">
+                  <div className="flex justify-between items-start mb-6 gap-4 shrink-0">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-1">
                          <h1 className={`text-3xl md:text-4xl font-black leading-relaxed py-1 truncate ${nameClasses.replace('mb-1', '')}`} style={nameStyle}>{displayName}</h1>
-                         {/* VERIFIED BADGE */}
                          {firebaseUser.isVerified && (
                             <div className="relative group flex items-center justify-center shrink-0 cursor-help">
-                               <BadgeCheck className="w-6 h-6 text-white fill-white/20 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)] mt-1" />
+                               <BadgeCheck className="w-6 h-6 text-white fill-white/20 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)] mt-1 shrink-0" />
                                <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-zinc-900 border border-white/10 rounded-md text-[10px] font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl">
                                   Verified
                                </div>
@@ -632,39 +603,35 @@ export default async function ProfilePage({ params }: Props) {
                         <p className="text-zinc-400 font-medium text-sm">@{username}</p>
                         
                         {parseInt(firebaseUser.views || "0") >= 0 && (
-                           <div className="flex items-center gap-1.5 text-zinc-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wide">
-                              <Eye className="w-3 h-3" /> {Number(firebaseUser.views || 0).toLocaleString()}
+                           <div className="flex items-center gap-1.5 text-zinc-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wide shrink-0">
+                              <Eye className="w-3 h-3 shrink-0" /> {Number(firebaseUser.views || 0).toLocaleString()}
                            </div>
                         )}
 
-                        {/* NEW UNIFIED BADGE PILL (Custom + Connections) */}
                         {hasBadges && (
-                           <div className="flex items-center gap-3.5 bg-black/40 border border-white/10 px-4 py-1.5 rounded-full shadow-inner backdrop-blur-md ml-1">
-                              
+                           <div className="flex items-center gap-3.5 bg-black/40 border border-white/10 px-4 py-1.5 rounded-full shadow-inner backdrop-blur-md ml-1 shrink-0">
                               {userCustomBadges.map((badge, idx) => {
                                  const Icon = badge.icon;
                                  return (
-                                    <div key={idx} className={`relative group flex items-center justify-center cursor-help ${badge.dropShadow || ''}`}>
-                                       <Icon className={`w-4 h-4 ${badge.color} ${badge.fill || ''}`} />
+                                    <div key={idx} className={`relative group flex items-center justify-center cursor-help shrink-0 ${badge.dropShadow || ''}`}>
+                                       <Icon className={`w-4 h-4 shrink-0 ${badge.color} ${badge.fill || ''}`} />
                                        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-zinc-900 border border-white/10 rounded-md text-[10px] font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl">
                                           {badge.tooltip}
                                        </div>
                                     </div>
                                  )
                               })}
-
                               {firebaseUser.steamId && (
-                                 <div className="relative group flex items-center justify-center w-4 h-4 opacity-80 hover:opacity-100 transition cursor-help">
-                                    <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/steam.svg" alt="Steam" className="w-full h-full object-contain invert" />
+                                 <div className="relative group flex items-center justify-center w-4 h-4 opacity-80 hover:opacity-100 transition cursor-help shrink-0">
+                                    <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/steam.svg" alt="Steam" className="w-full h-full object-contain invert shrink-0" />
                                     <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-zinc-900 border border-white/10 rounded-md text-[10px] font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl">
                                        Steam Connected
                                     </div>
                                  </div>
                               )}
-
                               {firebaseUser.socials.discord_verified && (
-                                 <div className="relative group flex items-center justify-center w-4 h-4 opacity-80 hover:opacity-100 transition cursor-help">
-                                    <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/discord.svg" alt="Discord" className="w-full h-full object-contain invert" />
+                                 <div className="relative group flex items-center justify-center w-4 h-4 opacity-80 hover:opacity-100 transition cursor-help shrink-0">
+                                    <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/discord.svg" alt="Discord" className="w-full h-full object-contain invert shrink-0" />
                                     <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-zinc-900 border border-white/10 rounded-md text-[10px] font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl">
                                        Discord Connected
                                     </div>
@@ -684,7 +651,7 @@ export default async function ProfilePage({ params }: Props) {
                                 <p className="text-xs font-black text-white group-hover:text-indigo-400 transition truncate max-w-[100px] leading-none">{community.name}</p>
                              </div>
                              <div className="w-8 h-8 rounded-xl bg-zinc-800 overflow-hidden flex items-center justify-center shrink-0 border border-white/10 group-hover:scale-105 transition relative z-10 shadow-md">
-                                {community.avatar ? <img src={community.avatar} alt="Logo" className="w-full h-full object-cover" /> : <Users className="w-4 h-4 text-zinc-400" />}
+                                {community.avatar ? <img src={community.avatar} alt="Logo" className="w-full h-full object-cover shrink-0" /> : <Users className="w-4 h-4 text-zinc-400 shrink-0" />}
                              </div>
                          </div>
                       </Link>
@@ -692,49 +659,49 @@ export default async function ProfilePage({ params }: Props) {
                   </div>
 
                   {profile?.gameextrainfo && (
-                    <div className="mb-4 p-3 bg-black/40 rounded-xl border border-white/5 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400"><Gamepad2 className="w-5 h-5" /></div>
+                    <div className="mb-4 p-3 bg-black/40 rounded-xl border border-white/5 flex items-center gap-3 shrink-0">
+                        <div className="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0"><Gamepad2 className="w-5 h-5 shrink-0" /></div>
                         <div className="flex-1 min-w-0"><p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Playing now</p><p className="text-sm font-bold text-white truncate">{profile.gameextrainfo}</p></div>
                     </div>
                   )}
 
                   {musicData?.nowPlaying?.isPlaying && (
-                    <div className="mb-6 p-3 bg-black/40 rounded-xl border border-[#1DB954]/20 flex items-center gap-3 group relative overflow-hidden">
+                    <div className="mb-6 p-3 bg-black/40 rounded-xl border border-[#1DB954]/20 flex items-center gap-3 group relative overflow-hidden shrink-0 min-h-[64px]">
                         <div className="absolute inset-0 bg-gradient-to-r from-[#1DB954]/5 to-transparent opacity-0 group-hover:opacity-100 transition duration-500"></div>
                         <div className="w-10 h-10 rounded-lg bg-[#1DB954]/10 flex items-center justify-center text-[#1DB954] overflow-hidden relative shrink-0 shadow-lg shadow-[#1DB954]/10">
-                           {musicData.nowPlaying.albumArt ? <img src={musicData.nowPlaying.albumArt} className="w-full h-full object-cover" alt="Album" /> : <Music className="w-5 h-5" />}
+                           {musicData.nowPlaying.albumArt ? <img src={musicData.nowPlaying.albumArt} className="w-full h-full object-cover shrink-0" alt="Album" /> : <Music className="w-5 h-5 shrink-0" />}
                         </div>
                         <div className="flex-1 min-w-0 relative z-10">
-                           <p className="text-[10px] font-bold text-[#1DB954] uppercase tracking-wider flex items-center gap-1.5 mb-0.5"><Music className="w-3 h-3" /> Listening on Spotify</p>
+                           <p className="text-[10px] font-bold text-[#1DB954] uppercase tracking-wider flex items-center gap-1.5 mb-0.5"><Music className="w-3 h-3 shrink-0" /> Listening on Spotify</p>
                            <a href={musicData.nowPlaying.url} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-white truncate block hover:underline leading-tight">{musicData.nowPlaying.title}</a>
                            <p className="text-xs text-zinc-400 truncate mt-0.5">{musicData.nowPlaying.artist}</p>
                         </div>
                         <div className="flex items-end gap-1 h-4 px-1 shrink-0">
-                           <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-full"></span>
-                           <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-2/3" style={{ animationDelay: '200ms' }}></span>
-                           <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-4/5" style={{ animationDelay: '400ms' }}></span>
+                           <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-full shrink-0"></span>
+                           <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-2/3 shrink-0" style={{ animationDelay: '200ms' }}></span>
+                           <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-4/5 shrink-0" style={{ animationDelay: '400ms' }}></span>
                         </div>
                     </div>
                   )}
                   
                   {firebaseUser.bio && (
-                    <div className="mb-5 bg-black/20 p-4 rounded-xl border border-white/5">
+                    <div className="mb-5 bg-black/20 p-4 rounded-xl border border-white/5 shrink-0">
                       <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">ABOUT ME</h3>
                       <div className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap font-medium">{firebaseUser.bio}</div>
                     </div>
                   )}
 
                   {firebaseUser.customLinks && firebaseUser.customLinks.length > 0 && (
-                    <div className="mb-5">
+                    <div className="mb-5 shrink-0">
                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">LINKS</h3>
                        <div className="space-y-2">
                          {firebaseUser.customLinks.map((link: any, idx: number) => (
-                           <a key={idx} href={ensureProtocol(link.url)} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-3 rounded-xl bg-black/40 border border-white/5 hover:bg-white/10 transition group">
+                           <a key={idx} href={ensureProtocol(link.url)} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-3 rounded-xl bg-black/40 border border-white/5 hover:bg-white/10 transition group shrink-0">
                              <div className="flex items-center gap-3">
-                               <Globe className="w-4 h-4 text-zinc-400" />
+                               <Globe className="w-4 h-4 text-zinc-400 shrink-0" />
                                <span className="font-bold text-sm text-zinc-300 group-hover:text-white transition">{link.label}</span>
                              </div>
-                             <ArrowUpRight className="w-4 h-4 text-zinc-500 group-hover:text-white transition" />
+                             <ArrowUpRight className="w-4 h-4 text-zinc-500 group-hover:text-white transition shrink-0" />
                            </a>
                          ))}
                        </div>
@@ -742,47 +709,47 @@ export default async function ProfilePage({ params }: Props) {
                   )}
 
                   {firebaseUser.gear && Object.values(firebaseUser.gear).some((val: any) => val && (val as string).trim() !== "") && (
-                    <div className="mb-2">
+                    <div className="mb-2 shrink-0">
                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">GEAR & SPECS</h3>
                        <div className="space-y-2">
                           {firebaseUser.gear.cpu && (
-                            <div className="flex items-center gap-3 p-3 rounded-xl bg-black/40 border border-white/5">
+                            <div className="flex items-center gap-3 p-3 rounded-xl bg-black/40 border border-white/5 shrink-0">
                                <Cpu className="w-4 h-4 text-zinc-400 shrink-0" />
                                <div className="min-w-0 flex-1"><p className="text-[9px] text-zinc-500 font-bold uppercase leading-none mb-1">CPU</p><p className="text-xs font-bold text-zinc-200 truncate">{firebaseUser.gear.cpu}</p></div>
                             </div>
                           )}
                           {firebaseUser.gear.gpu && (
-                            <div className="flex items-center gap-3 p-3 rounded-xl bg-black/40 border border-white/5">
+                            <div className="flex items-center gap-3 p-3 rounded-xl bg-black/40 border border-white/5 shrink-0">
                                <Cpu className="w-4 h-4 text-zinc-400 shrink-0" />
                                <div className="min-w-0 flex-1"><p className="text-[9px] text-zinc-500 font-bold uppercase leading-none mb-1">GPU</p><p className="text-xs font-bold text-zinc-200 truncate">{firebaseUser.gear.gpu}</p></div>
                             </div>
                           )}
                           {firebaseUser.gear.ram && (
-                            <div className="flex items-center gap-3 p-3 rounded-xl bg-black/40 border border-white/5">
+                            <div className="flex items-center gap-3 p-3 rounded-xl bg-black/40 border border-white/5 shrink-0">
                                <Cpu className="w-4 h-4 text-zinc-400 shrink-0" />
                                <div className="min-w-0 flex-1"><p className="text-[9px] text-zinc-500 font-bold uppercase leading-none mb-1">RAM</p><p className="text-xs font-bold text-zinc-200 truncate">{firebaseUser.gear.ram}</p></div>
                             </div>
                           )}
                           {firebaseUser.gear.monitor && (
-                            <div className="flex items-center gap-3 p-3 rounded-xl bg-black/40 border border-white/5">
+                            <div className="flex items-center gap-3 p-3 rounded-xl bg-black/40 border border-white/5 shrink-0">
                                <Monitor className="w-4 h-4 text-zinc-400 shrink-0" />
                                <div className="min-w-0 flex-1"><p className="text-[9px] text-zinc-500 font-bold uppercase leading-none mb-1">Monitor</p><p className="text-xs font-bold text-zinc-200 truncate">{firebaseUser.gear.monitor}</p></div>
                             </div>
                           )}
                           {firebaseUser.gear.mouse && (
-                            <div className="flex items-center gap-3 p-3 rounded-xl bg-black/40 border border-white/5">
+                            <div className="flex items-center gap-3 p-3 rounded-xl bg-black/40 border border-white/5 shrink-0">
                                <Mouse className="w-4 h-4 text-zinc-400 shrink-0" />
                                <div className="min-w-0 flex-1"><p className="text-[9px] text-zinc-500 font-bold uppercase leading-none mb-1">Mouse</p><p className="text-xs font-bold text-zinc-200 truncate">{firebaseUser.gear.mouse}</p></div>
                             </div>
                           )}
                           {firebaseUser.gear.keyboard && (
-                            <div className="flex items-center gap-3 p-3 rounded-xl bg-black/40 border border-white/5">
+                            <div className="flex items-center gap-3 p-3 rounded-xl bg-black/40 border border-white/5 shrink-0">
                                <Keyboard className="w-4 h-4 text-zinc-400 shrink-0" />
                                <div className="min-w-0 flex-1"><p className="text-[9px] text-zinc-500 font-bold uppercase leading-none mb-1">Keyboard</p><p className="text-xs font-bold text-zinc-200 truncate">{firebaseUser.gear.keyboard}</p></div>
                             </div>
                           )}
                           {firebaseUser.gear.headset && (
-                            <div className="flex items-center gap-3 p-3 rounded-xl bg-black/40 border border-white/5">
+                            <div className="flex items-center gap-3 p-3 rounded-xl bg-black/40 border border-white/5 shrink-0">
                                <Headphones className="w-4 h-4 text-zinc-400 shrink-0" />
                                <div className="min-w-0 flex-1"><p className="text-[9px] text-zinc-500 font-bold uppercase leading-none mb-1">Headset</p><p className="text-xs font-bold text-zinc-200 truncate">{firebaseUser.gear.headset}</p></div>
                             </div>

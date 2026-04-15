@@ -1,12 +1,16 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithPopup, 
+  GoogleAuthProvider 
+} from "firebase/auth";
 import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { ArrowLeft, Loader2, LayoutTemplate, Layers, Gamepad2, ArrowRight } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles, LayoutTemplate, Layers, Gamepad2, ArrowRight } from "lucide-react";
 import { validateHandle } from "@/lib/validation";
 import ReCAPTCHA from "react-google-recaptcha";
 import { getSteamLoginUrl } from "@/app/setup/actions";
@@ -15,25 +19,7 @@ import PulseLogo from "@/components/PulseLogo";
 function SignupContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  
   const initialHandle = searchParams.get("handle") || "";
-  const redirectUrl = searchParams.get("redirect");
-
-  // --- SMART BACK BUTTON LOGIC ---
-  const [backUrl, setBackUrl] = useState("/");
-  const [backText, setBackText] = useState("Home");
-
-  useEffect(() => {
-    if (redirectUrl) {
-      try {
-        const url = new URL(redirectUrl);
-        setBackUrl(url.origin);
-        if (url.hostname.includes('network')) {
-          setBackText("Network");
-        }
-      } catch (e) {}
-    }
-  }, [redirectUrl]);
   
   // Wizard State
   const [step, setStep] = useState(1);
@@ -73,7 +59,7 @@ function SignupContent() {
           primary: "#1e1f22",
           cardOpacity: 0.8,
           cardBlur: 10,
-          layoutStyle: "bento",
+          layoutStyle: "bento", // Default, will be updated in Step 2
           shader: "none",
           banner: "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2600&auto=format&fit=crop"
         }
@@ -100,7 +86,7 @@ function SignupContent() {
 
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await saveUserProfile(userCredential.user);
-      setStep(2);
+      setStep(2); // Move to Layout Selection
     } catch (err: any) {
       if (err.code === 'auth/email-already-in-use') setError("Email already in use. Log in instead?");
       else setError(err.message || "Something went wrong.");
@@ -123,7 +109,7 @@ function SignupContent() {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       await saveUserProfile(result.user);
-      setStep(2);
+      setStep(2); // Move to Layout Selection
     } catch (err: any) {
       setError(err.message || "Google Sign-In failed.");
     } finally { setLoading(false); }
@@ -134,7 +120,7 @@ function SignupContent() {
     setLoading(true);
     try {
       await updateDoc(doc(db, "users", userId), { "theme.layoutStyle": style });
-      setStep(3); 
+      setStep(3); // Move to Quick Connect
     } catch (err) {
       console.error(err);
     } finally {
@@ -153,36 +139,29 @@ function SignupContent() {
     if (userId) window.location.href = `/api/auth/discord?state=${userId}`;
   };
 
-  const handleFinish = () => {
-     if (redirectUrl) {
-        window.location.href = redirectUrl;
-     } else {
-        router.push('/dashboard');
-     }
-  };
-
-  const loginLink = redirectUrl ? `/login?redirect=${encodeURIComponent(redirectUrl)}` : "/login";
-
   return (
     <div className="min-h-screen bg-[#0a0a0c] text-white flex flex-col items-center justify-center p-4 sm:p-6 font-sans selection:bg-indigo-500/30 relative overflow-hidden">
       
+      {/* Background Ambience */}
       <div className="absolute inset-0 z-0 pointer-events-none">
          <div className="absolute top-[-20%] left-[-10%] w-[100%] h-[100%] bg-[radial-gradient(ellipse_at_center,rgba(99,102,241,0.08)_0%,transparent_50%)] blur-[80px]"></div>
          <div className="absolute bottom-[-10%] right-[-20%] w-[100%] h-[100%] bg-[radial-gradient(ellipse_at_center,rgba(168,85,247,0.05)_0%,transparent_50%)] blur-[60px]"></div>
       </div>
 
+      {/* Top Nav (Absolute) */}
       <div className="absolute top-6 left-6 right-6 flex justify-between items-center z-20">
-         <Link href={backUrl} className="flex items-center gap-2 text-zinc-500 hover:text-white transition font-bold text-xs uppercase tracking-widest">
-            <ArrowLeft className="w-4 h-4" /> {backText}
+         <Link href="/" className="flex items-center gap-2 text-zinc-500 hover:text-white transition font-bold text-sm">
+            <ArrowLeft className="w-4 h-4" /> Home
          </Link>
          <Link href="/" className="flex items-center gap-2 font-bold text-xl tracking-tighter hover:opacity-80 transition">
              <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-[0_0_20px_rgba(99,102,241,0.4)]">
-                <PulseLogo className="w-4 h-4 text-white" />
-             </div>
+   <PulseLogo className="w-4 h-4 text-white" />
+</div>
              Pulse
          </Link>
       </div>
 
+      {/* Centered Wizard Window */}
       <div className="relative z-10 w-full max-w-[500px] bg-[#121214]/90 backdrop-blur-xl border border-white/5 rounded-[32px] p-6 sm:p-10 shadow-2xl mt-16 sm:mt-0">
         
         {/* STEP 1: AUTHENTICATION */}
@@ -274,7 +253,7 @@ function SignupContent() {
                 </button>
                 
                 <p className="text-center text-zinc-500 text-sm font-medium mt-4">
-                  Already have an account? <Link href={loginLink} className="text-white hover:text-indigo-400 transition hover:underline">Log in</Link>
+                  Already have an account? <Link href="/login" className="text-white hover:text-indigo-400 transition hover:underline">Log in</Link>
                 </p>
               </div>
            </div>
@@ -351,6 +330,7 @@ function SignupContent() {
               <p className="text-zinc-500 mb-8 text-sm font-medium text-center">Connect your primary accounts now so your profile isn't empty when you land on the dashboard.</p>
 
               <div className="space-y-4">
+                 {/* Steam Connect */}
                  <div className="bg-black/20 border border-white/5 rounded-[24px] p-5 flex items-center justify-between shadow-lg">
                     <div className="flex items-center gap-4">
                        <div className="w-12 h-12 bg-[#171a21] rounded-2xl flex items-center justify-center shrink-0 border border-white/10 shadow-inner">
@@ -364,6 +344,7 @@ function SignupContent() {
                     <button onClick={connectSteam} className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl transition border border-white/5">Connect</button>
                  </div>
 
+                 {/* Discord Connect */}
                  <div className="bg-black/20 border border-white/5 rounded-[24px] p-5 flex items-center justify-between shadow-lg">
                     <div className="flex items-center gap-4">
                        <div className="w-12 h-12 bg-[#5865F2] rounded-2xl flex items-center justify-center shrink-0 border border-white/10 shadow-inner text-white">
@@ -380,7 +361,7 @@ function SignupContent() {
 
                   <div className="mt-12 text-center">
                      <button 
-                        onClick={handleFinish}
+                        onClick={() => router.push('/dashboard')}
                         className="inline-flex items-center gap-2 px-8 py-4 bg-white text-black font-black rounded-2xl hover:bg-zinc-200 transition shadow-[0_0_20px_rgba(255,255,255,0.1)] active:scale-[0.98]"
                      >
                         Go to Dashboard <ArrowRight className="w-5 h-5" />
@@ -394,7 +375,7 @@ function SignupContent() {
 
       {/* Footer Links */}
       <div className="relative z-10 mt-8 flex items-center gap-2 text-xs font-bold text-zinc-600">
-         <span>© {new Date().getFullYear()} Pulse GG.</span>
+         <span>© 2026 Pulse GG.</span>
          <span className="w-1 h-1 bg-zinc-700 rounded-full"></span>
          <Link href="/terms" className="hover:text-zinc-400 transition">Terms</Link>
          <span className="w-1 h-1 bg-zinc-700 rounded-full"></span>

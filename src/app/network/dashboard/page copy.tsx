@@ -15,7 +15,6 @@ import BankingTab from '@/components/network/BankingTab';
 import RealEstateTab from '@/components/network/RealEstateTab';
 import LifestyleTab from '@/components/network/LifestyleTab';
 import MarketsTab from '@/components/network/MarketsTab';
-import PulseLogo from '@/components/PulseLogo';
 
 // --- TABS CONFIGURATION ---
 const TABS = [
@@ -118,7 +117,7 @@ export default function NetworkDashboard() {
   const [portfolio, setPortfolio] = useState<Record<string, any>>({});
   
   // THE NEW STARTUP DATA MODEL WITH BRANDING AND EQUITY AND BOOST
-  const [startupData, setStartupData] = useState<any>({ workload: 50, payroll: 50, morale: 100, is_strike: false, level: 1, companyName: "", ticker: "", equityOwned: 100, moraleBoostUntil: 0 });
+  const [startupData, setStartupData] = useState<any>({ workload: 50, payroll: 50, morale: 100, is_strike: false, level: 1, companyName: "", ticker: "", equityOwned: 100, moraleBoostUntil: 0, upgrades: [] });
   
   // DYNAMIC MAX ENERGY (Tracks Founder Level if on Founder Path, otherwise tracks Corporate Level)
   const activeLevel = playerPath === 'founder' ? (startupData.level || 1) : corporateLevel;
@@ -132,6 +131,7 @@ export default function NetworkDashboard() {
   const [nextTaxTime, setNextTaxTime] = useState<number | null>(null);
   const [taxCycleMinutes, setTaxCycleMinutes] = useState<number>(10);
   const [lazinessPenaltyUntil, setLazinessPenaltyUntil] = useState<number>(0);
+  const [energyBlockUntil, setEnergyBlockUntil] = useState<number>(0);
 
   // MACRO ECONOMY STATE
   const [marketEvent, setMarketEvent] = useState<{type: 'boom' | 'recession' | 'labor_shortage' | 'none', name: string, message: string, expiresAt: number} | null>(null);
@@ -188,6 +188,7 @@ export default function NetworkDashboard() {
   const currentLocationRef = useRef(currentLocation);
   const nextTaxTimeRef = useRef(nextTaxTime);
   const lazinessPenaltyUntilRef = useRef(lazinessPenaltyUntil);
+  const energyBlockUntilRef = useRef(energyBlockUntil);
   const taxCycleMinutesRef = useRef(taxCycleMinutes);
   const marketEventRef = useRef(marketEvent);
 
@@ -199,6 +200,7 @@ export default function NetworkDashboard() {
   useEffect(() => { currentLocationRef.current = currentLocation; }, [currentLocation]);
   useEffect(() => { nextTaxTimeRef.current = nextTaxTime; }, [nextTaxTime]);
   useEffect(() => { lazinessPenaltyUntilRef.current = lazinessPenaltyUntil; }, [lazinessPenaltyUntil]);
+  useEffect(() => { energyBlockUntilRef.current = energyBlockUntil; }, [energyBlockUntil]);
   useEffect(() => { taxCycleMinutesRef.current = taxCycleMinutes; }, [taxCycleMinutes]);
   useEffect(() => { marketEventRef.current = marketEvent; }, [marketEvent]);
 
@@ -320,11 +322,13 @@ export default function NetworkDashboard() {
           const dbNextTaxAt = localTaxData.next_tax_at != null ? Number(localTaxData.next_tax_at) : Date.now() + 10 * 60000;
           const dbTaxCycle = localTaxData.tax_cycle_minutes != null ? Number(localTaxData.tax_cycle_minutes) : 10;
           const dbLaziness = localTaxData.laziness_penalty_until != null ? Number(localTaxData.laziness_penalty_until) : 0;
+          const dbEnergyBlock = localTaxData.energy_block_until != null ? Number(localTaxData.energy_block_until) : 0;
           const dbFreeSwitch = localTaxData.free_path_switch_used != null ? Boolean(localTaxData.free_path_switch_used) : false;
 
           setNextTaxTime(dbNextTaxAt);
           setTaxCycleMinutes(dbTaxCycle);
           setLazinessPenaltyUntil(dbLaziness);
+          setEnergyBlockUntil(dbEnergyBlock);
           setFreePathSwitchUsed(dbFreeSwitch);
 
           const parseJSON = (data: any, fallback: any) => {
@@ -336,11 +340,12 @@ export default function NetworkDashboard() {
           setPortfolio(parseJSON(dbData.data.portfolio, {}));
 
           // PARSE NEW STARTUP DATA
-          const sData = parseJSON(dbData.data.startup_data, { workload: 50, payroll: 50, morale: 100, is_strike: false, level: 1, companyName: "", ticker: "", equityOwned: 100, moraleBoostUntil: 0 });
+          const sData = parseJSON(dbData.data.startup_data, { workload: 50, payroll: 50, morale: 100, is_strike: false, level: 1, companyName: "", ticker: "", equityOwned: 100, moraleBoostUntil: 0, upgrades: [] });
           if (sData.equityOwned === undefined) sData.equityOwned = 100;
           if (sData.companyName === undefined) sData.companyName = "";
           if (sData.ticker === undefined) sData.ticker = "";
           if (sData.moraleBoostUntil === undefined) sData.moraleBoostUntil = 0;
+          if (!sData.upgrades) sData.upgrades = [];
           setStartupData(sData);
 
           const level = dbData.data.corporate_level != null ? Number(dbData.data.corporate_level) : 1;
@@ -368,9 +373,20 @@ export default function NetworkDashboard() {
                  } else if (dbData.data.player_path === 'founder') {
                      const levelMult = sData.level || 1;
                      const locMulti = LOCATIONS[dbData.data.location || 'bali'].multiplier;
-                     const baseOpCost = 100 * locMulti * levelMult;
                      
-                     // Handle Offline Boost Logic perfectly
+                     // R&D UPGRADE MULTIPLIERS FOR OFFLINE CALC
+                     let upgradeGrossMult = 1;
+                     if (sData.upgrades.includes('ui_ux_overhaul')) upgradeGrossMult += 0.15;
+                     if (sData.upgrades.includes('senior_engineers')) upgradeGrossMult += 0.50;
+                     if (sData.upgrades.includes('global_marketing')) upgradeGrossMult += 0.30;
+                     if (sData.upgrades.includes('monopoly_buyout')) upgradeGrossMult += 1.00;
+
+                     if (sData.upgrades.includes('ai_algorithm')) upgradeGrossMult *= 2;
+                     if (sData.upgrades.includes('quantum_computing')) upgradeGrossMult *= 3;
+                     
+                     let premiumServerMod = sData.upgrades.includes('premium_servers') ? 0.8 : 1.0;
+                     const baseOpCost = 100 * locMulti * levelMult * premiumServerMod;
+                     
                      let minutesBoosted = 0;
                      let minutesUnboosted = minutesOffline;
                      
@@ -388,21 +404,25 @@ export default function NetworkDashboard() {
                      let finalMorale = sData.morale;
                      let didStrikeOffline = sData.is_strike;
 
-                     // Calculate Boosted Period (100% Morale, No Strikes)
+                     // Boosted Period
                      if (minutesBoosted > 0) {
                          finalMorale = 100;
                          didStrikeOffline = false;
-                         const gross = sData.workload * 15 * locMulti * levelMult;
+                         const gross = sData.workload * 15 * locMulti * levelMult * upgradeGrossMult;
                          const cost = (sData.payroll * 10 * locMulti * levelMult) + baseOpCost;
                          let rawNet = (gross - cost);
                          if (rawNet > 0) rawNet *= (sData.equityOwned / 100);
                          offlineEarnings += minutesBoosted * rawNet;
                      }
 
-                     // Calculate Unboosted Period
+                     // Unboosted Period
                      if (minutesUnboosted > 0) {
                          let moraleChangePerMin = (sData.payroll - sData.workload) * 0.5;
                          if (sData.workload > 50) moraleChangePerMin -= (sData.workload - 50) * 1.0;
+                         // HR Department Upgrade
+                         if (sData.upgrades.includes('hr_department') && moraleChangePerMin < 0) {
+                             moraleChangePerMin *= 0.7; 
+                         }
                          
                          finalMorale = finalMorale + (moraleChangePerMin * minutesUnboosted);
                          
@@ -417,7 +437,7 @@ export default function NetworkDashboard() {
                          finalMorale = Math.max(0, Math.min(100, finalMorale));
 
                          if (!didStrikeOffline) {
-                            const gross = sData.workload * 15 * locMulti * levelMult;
+                            const gross = sData.workload * 15 * locMulti * levelMult * upgradeGrossMult;
                             const cost = (sData.payroll * 10 * locMulti * levelMult) + baseOpCost;
                             let rawNet = (gross - cost);
                             if (rawNet > 0) rawNet *= (sData.equityOwned / 100);
@@ -445,7 +465,8 @@ export default function NetworkDashboard() {
           if (dbData.data.last_energy_sync) {
               const lastEnergySync = new Date(dbData.data.last_energy_sync).getTime();
               const minutesOffline = Math.floor((Date.now() - lastEnergySync) / 60000);
-              if (minutesOffline > 0 && loadedEnergy < dynamicMaxEnergy) {
+              // Prevent energy regen if the user is under a retreat block
+              if (minutesOffline > 0 && loadedEnergy < dynamicMaxEnergy && Date.now() > dbEnergyBlock) {
                  const intervals = Math.floor(minutesOffline / 2);
                  loadedEnergy = Math.min(dynamicMaxEnergy, loadedEnergy + (intervals * 5));
                  energySyncAnchor = lastEnergySync + (intervals * 120000);
@@ -475,6 +496,7 @@ export default function NetworkDashboard() {
       if (safeUpdates.next_tax_at !== undefined) { localTaxUpdates.next_tax_at = Number(safeUpdates.next_tax_at); delete safeUpdates.next_tax_at; }
       if (safeUpdates.tax_cycle_minutes !== undefined) { localTaxUpdates.tax_cycle_minutes = Number(safeUpdates.tax_cycle_minutes); delete safeUpdates.tax_cycle_minutes; }
       if (safeUpdates.laziness_penalty_until !== undefined) { localTaxUpdates.laziness_penalty_until = Number(safeUpdates.laziness_penalty_until); delete safeUpdates.laziness_penalty_until; }
+      if (safeUpdates.energy_block_until !== undefined) { localTaxUpdates.energy_block_until = Number(safeUpdates.energy_block_until); delete safeUpdates.energy_block_until; }
       if (safeUpdates.free_path_switch_used !== undefined) { localTaxUpdates.free_path_switch_used = Boolean(safeUpdates.free_path_switch_used); delete safeUpdates.free_path_switch_used; }
       
       if (Object.keys(localTaxUpdates).length > 0) {
@@ -589,18 +611,32 @@ export default function NetworkDashboard() {
                  const sData = startupDataRef.current;
                  const levelMult = sData.level || 1;
                  const locMulti = LOCATIONS[currentLocation]?.multiplier || 1;
-                 const baseOpCost = 100 * locMulti * levelMult;
+                 
+                 // APPLY R&D UPGRADE MULTIPLIERS!
+                 let upgradeGrossMult = 1;
+                 if (sData.upgrades?.includes('ui_ux_overhaul')) upgradeGrossMult += 0.15;
+                 if (sData.upgrades?.includes('senior_engineers')) upgradeGrossMult += 0.50;
+                 if (sData.upgrades?.includes('global_marketing')) upgradeGrossMult += 0.30;
+                 if (sData.upgrades?.includes('monopoly_buyout')) upgradeGrossMult += 1.00;
+
+                 if (sData.upgrades?.includes('ai_algorithm')) upgradeGrossMult *= 2;
+                 if (sData.upgrades?.includes('quantum_computing')) upgradeGrossMult *= 3;
+                 
+                 let premiumServerMod = sData.upgrades?.includes('premium_servers') ? 0.8 : 1.0;
+                 const baseOpCost = 100 * locMulti * levelMult * premiumServerMod;
 
                  let grossMult = 1;
                  let payrollCostMult = 1;
                  if (evt && now < evt.expiresAt) {
                      if (evt.type === 'boom') grossMult = 1.5;
                      if (evt.type === 'recession') grossMult = 0.7;
-                     if (evt.type === 'labor_shortage') payrollCostMult = 1.4;
+                     if (evt.type === 'labor_shortage') {
+                         payrollCostMult = sData.upgrades?.includes('premium_servers') ? 1.2 : 1.4;
+                     }
                  }
 
                  if (!sData.is_strike) {
-                    const gross = sData.workload * 15 * locMulti * levelMult * grossMult;
+                    const gross = sData.workload * 15 * locMulti * levelMult * grossMult * upgradeGrossMult;
                     const cost = (sData.payroll * 10 * locMulti * levelMult * payrollCostMult) + baseOpCost;
                     
                     let rawProfitPerSec = (gross - cost) / 60;
@@ -619,18 +655,21 @@ export default function NetworkDashboard() {
              const isBoosted = Date.now() < (sData.moraleBoostUntil || 0);
 
              if (isBoosted) {
-                 // RETREAT ACTIVE: Lock Morale at 100!
                  if (sData.morale !== 100 || sData.is_strike) {
                     setStartupData({ ...sData, morale: 100, is_strike: false });
                  }
              } else {
-                 // NORMAL MORALE DRAIN
                  let moraleChangePerMin = (sData.payroll - sData.workload) * 0.5;
                  if (sData.workload > 50) {
                      moraleChangePerMin -= (sData.workload - 50) * 1.0; 
                  }
-                 let moraleChange = secondsPassed * (moraleChangePerMin / 60);
                  
+                 // APPLY HR DEPARTMENT R&D UPGRADE
+                 if (sData.upgrades?.includes('hr_department') && moraleChangePerMin < 0) {
+                     moraleChangePerMin *= 0.7; // 30% slower drain
+                 }
+                 
+                 let moraleChange = secondsPassed * (moraleChangePerMin / 60);
                  let newMorale = sData.morale + moraleChange;
                  newMorale = Math.max(0, Math.min(100, newMorale));
                  
@@ -670,6 +709,12 @@ export default function NetworkDashboard() {
   // --- SLEEP SYSTEM ---
   const handleSleep = async () => {
      const now = Date.now();
+     
+     if (now < energyBlockUntilRef.current) {
+         const minsLeft = Math.ceil((energyBlockUntilRef.current - now) / 60000);
+         return await showAlert("Energy Blocked", `You cannot sleep to regain energy right now. Your energy is locked for another ${minsLeft} minute(s) due to your recent Corporate Retreat hangover.`);
+     }
+
      if (now < lazinessPenaltyUntilRef.current) {
          const minsLeft = Math.ceil((lazinessPenaltyUntilRef.current - now) / 60000);
          return await showAlert("Laziness Penalty Active", `You slept too much! Your earnings are paused for another ${minsLeft} minute(s). Wake up!`);
@@ -1024,7 +1069,7 @@ export default function NetworkDashboard() {
         updates.savings_balance = finalSav;
         updates.loan_account_balance = finalLoan;
         
-        const defaultStartup = { workload: 50, payroll: 50, morale: 100, is_strike: false, level: 1, companyName: "", ticker: "", equityOwned: 100, moraleBoostUntil: 0 };
+        const defaultStartup = { workload: 50, payroll: 50, morale: 100, is_strike: false, level: 1, companyName: "", ticker: "", equityOwned: 100, moraleBoostUntil: 0, upgrades: [] };
         setStartupData(defaultStartup);
         updates.startup_data = defaultStartup;
     } else if (newPath === 'corporate') { 
@@ -1050,8 +1095,10 @@ export default function NetworkDashboard() {
      if (isNaN(amountToAdd)) return await showAlert("Error", "Invalid number entered.");
 
      const newBal = Number(balance) + amountToAdd;
-     const newStartupData = { workload: 50, payroll: 50, morale: 100, is_strike: false, level: 1, companyName: startupData.companyName, ticker: startupData.ticker, equityOwned: startupData.equityOwned, moraleBoostUntil: startupData.moraleBoostUntil };
-     const newMaxEnergy = 100 + ((playerPath === 'founder' ? 1 : corporateLevel) - 1) * 50;
+     const newStartupData = { workload: 50, payroll: 50, morale: 100, is_strike: false, level: startupData.level || 1, companyName: startupData.companyName, ticker: startupData.ticker, equityOwned: startupData.equityOwned, moraleBoostUntil: 0, upgrades: startupData.upgrades || [] };
+     
+     const activeLevel = playerPath === 'founder' ? (startupData.level || 1) : corporateLevel;
+     const newMaxEnergy = 100 + ((activeLevel - 1) * 50);
      
      setBalance(newBal); 
      setEnergy(newMaxEnergy); 
@@ -1063,6 +1110,8 @@ export default function NetworkDashboard() {
      setLastLocalSync(Date.now()); 
      setLastEnergySyncState(Date.now());
      setStartupData(newStartupData);
+     setEnergyBlockUntil(0);
+     setLazinessPenaltyUntil(0);
      
      saveGameState({ 
        bank_balance: newBal, 
@@ -1074,16 +1123,18 @@ export default function NetworkDashboard() {
        pending_salary: playerPath === 'corporate' ? monthlySalaryTarget : 0, 
        last_salary_sync: new Date().toISOString(), 
        last_energy_sync: new Date().toISOString(),
-       startup_data: newStartupData
+       startup_data: newStartupData,
+       energy_block_until: 0,
+       laziness_penalty_until: 0
      });
-     await showAlert("God Mode Activated", `Added $${amountToAdd.toLocaleString()}, FICO 850, Loans Cleared, Strikes Resolved.`);
+     await showAlert("God Mode Activated", `Added $${amountToAdd.toLocaleString()}, FICO 850, Loans Cleared, Strikes/Hangovers Resolved.`);
   };
 
   const handleResetState = async () => {
      const confirmReset = await showConfirm("Hard Reset", "Are you sure you want to hard reset your entire game state? This will wipe your money, level, assets, and startup data back to 0.");
      if (!confirmReset) return;
 
-     const defaultStartup = { workload: 50, payroll: 50, morale: 100, is_strike: false, level: 1, companyName: "", ticker: "", equityOwned: 100, moraleBoostUntil: 0 };
+     const defaultStartup = { workload: 50, payroll: 50, morale: 100, is_strike: false, level: 1, companyName: "", ticker: "", equityOwned: 100, moraleBoostUntil: 0, upgrades: [] };
 
      setBalance(0);
      setSavingsBalance(0);
@@ -1098,6 +1149,8 @@ export default function NetworkDashboard() {
      setPortfolio({});
      setStartupData(defaultStartup);
      setCorporateLevel(1);
+     setEnergyBlockUntil(0);
+     setLazinessPenaltyUntil(0);
 
      // Wipe localStorage vars too!
      localStorage.removeItem('pulse_tax_state');
@@ -1119,7 +1172,9 @@ export default function NetworkDashboard() {
          path_updated_at: null,
          free_path_switch_used: false,
          last_salary_sync: new Date().toISOString(),
-         last_energy_sync: new Date().toISOString()
+         last_energy_sync: new Date().toISOString(),
+         energy_block_until: 0,
+         laziness_penalty_until: 0
      });
 
      await showAlert("Success", "Game state successfully hard reset.");
@@ -1242,10 +1297,10 @@ export default function NetworkDashboard() {
                 if (success) {
                    const newLevel = corporateLevel + 1;
                    setCorporateLevel(newLevel);
+                   // Leveling up your company permanently increases your Energy Cap, but DOES NOT fill it for free!
                    const newMaxEnergy = 100 + ((newLevel - 1) * 50);
-                   setEnergy(newMaxEnergy);
                    await showAlert("Rank Up!", `You leveled up to Level ${newLevel}! Your Max Energy has increased to ${newMaxEnergy}.`);
-                   saveGameState({ corporate_level: newLevel, energy: newMaxEnergy });
+                   saveGameState({ corporate_level: newLevel });
                 } else { await showAlert("Failed", `Time's up! You failed the challenge. No rank up this time.`); }
                 return;
              }
@@ -1256,11 +1311,10 @@ export default function NetworkDashboard() {
                    const newLevel = (sData.level || 1) + 1;
                    const newSData = { ...sData, level: newLevel };
                    
-                   // Leveling up your company permanently increases your Energy Cap!
+                   // Leveling up your company permanently increases your Energy Cap, but DOES NOT fill it for free!
                    const newMaxEnergy = 100 + ((newLevel - 1) * 50);
-                   setEnergy(newMaxEnergy);
                    setStartupData(newSData);
-                   saveGameState({ startup_data: newSData, energy: newMaxEnergy });
+                   saveGameState({ startup_data: newSData });
                    
                    await showAlert("Expansion Successful!", `Your startup is now Level ${newLevel}. Your Max Energy has increased to ${newMaxEnergy}, and revenue and costs have scaled up!`);
                 } else {
@@ -1387,8 +1441,18 @@ export default function NetworkDashboard() {
       )}
 
       {/* --- Main Content Area --- */}
-      <main className="flex-1 flex flex-col h-screen overflow-y-auto relative z-10">
+      <main className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden relative z-10 min-h-0" style={{ transform: 'translateZ(0)' }}>
         
+        {/* Global Sleek Scrollbar Enforcement */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          html, body { overflow: hidden !important; }
+          ::-webkit-scrollbar { width: 6px; height: 0px; } /* No horizontal scrollbar */
+          ::-webkit-scrollbar-track { background: transparent; }
+          ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+          ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+          * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent; }
+        `}} />
+
         {/* Header - MOBILE OPTIMIZED */}
         <header className="p-4 sm:p-6 md:px-8 flex justify-between items-center sticky top-0 z-30 bg-[#050505]/80 backdrop-blur-md border-b border-white/5">
           <div className="flex items-center gap-2 sm:gap-4">
@@ -1433,6 +1497,11 @@ export default function NetworkDashboard() {
                    [LAZY]
                 </div>
              )}
+             {Date.now() < energyBlockUntil && (
+                <div className="hidden lg:flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest mr-2 animate-pulse">
+                   [BLOCKED]
+                </div>
+             )}
              {displayName.toLowerCase() === 'sour' && (
                <div className="hidden lg:flex items-center gap-2">
                  <button onClick={handleResetState} className="flex items-center gap-2 bg-orange-500/10 border border-orange-500/30 text-orange-500 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-orange-500/20 transition shadow-[0_0_15px_rgba(249,115,22,0.2)]">
@@ -1459,7 +1528,7 @@ export default function NetworkDashboard() {
           {activeTab === 'overview' && (
              <OverviewTab 
                 netWorth={totalNetWorth} balance={balance} savingsBalance={savingsBalance} loanAccountBalance={loanAccountBalance} assetValue={assetValue} loanBalance={loanBalance} fico={fico} playerPath={playerPath} netWorthHistory={netWorthHistory} currentLocName={locStats.name} energy={energy} ownedVehicles={ownedVehicles} setBalance={setBalance} setEnergy={setEnergy} setActiveJob={setActiveJob} saveGameState={saveGameState} handleSwitchPathClick={handleSwitchPathClick} corporateLevel={corporateLevel} currentRole={currentRole} displaySalary={displaySalaryRef.current} pendingSalary={pendingSalary} monthlySalaryTarget={monthlySalaryTarget} salaryProgressPercentage={Math.min(100, (Number(pendingSalary) / monthlySalaryTarget) * 100)} handleClaimSalary={handleClaimSalary} currentLocation={currentLocation} ownedProperties={ownedProperties} startupData={startupData} setStartupData={setStartupData} locMultiplier={locStats.multiplier}
-                showAlert={showAlert} showConfirm={showConfirm} showPrompt={showPrompt} nextTaxTime={nextTaxTime} taxCycleMinutes={taxCycleMinutes} marketEvent={marketEvent}
+                showAlert={showAlert} showConfirm={showConfirm} showPrompt={showPrompt} nextTaxTime={nextTaxTime} taxCycleMinutes={taxCycleMinutes} marketEvent={marketEvent} energyBlockUntil={energyBlockUntil} setEnergyBlockUntil={setEnergyBlockUntil}
              />
           )}
           {activeTab === 'banking' && (
@@ -1477,7 +1546,7 @@ export default function NetworkDashboard() {
           )}
           {activeTab === 'lifestyle' && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-               <LifestyleTab balance={balance} energy={energy} ownedVehicles={ownedVehicles} setBalance={setBalance} setEnergy={setEnergy} setOwnedVehicles={setOwnedVehicles} saveGameState={saveGameState} showAlert={showAlert} showConfirm={showConfirm} selectedBank={selectedBank} />
+               <LifestyleTab balance={balance} energy={energy} maxEnergy={maxEnergy} ownedVehicles={ownedVehicles} setBalance={setBalance} setEnergy={setEnergy} setOwnedVehicles={setOwnedVehicles} saveGameState={saveGameState} showAlert={showAlert} showConfirm={showConfirm} showAccountSelect={showAccountSelect} selectedBank={selectedBank} savingsBalance={savingsBalance} loanAccountBalance={loanAccountBalance} setSavingsBalance={setSavingsBalance} setLoanAccountBalance={setLoanAccountBalance} energyBlockUntil={energyBlockUntil} />
             </div>
           )}
           {activeTab === 'markets' && (
