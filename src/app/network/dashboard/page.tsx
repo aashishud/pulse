@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { auth, db } from '@/lib/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Activity, Globe, MapPin, Zap, ChevronDown, Loader2, LogOut, X, Landmark, TrendingUp, ShoppingBag, Briefcase, Lock, Building2, RefreshCw, AlertCircle, Check, Moon, Menu } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -241,7 +241,8 @@ export default function NetworkDashboard() {
         const querySnapshot = await getDocs(q);
         let username = "Agent";
         if (!querySnapshot.empty) { const p = querySnapshot.docs[0].data(); setPulseProfile(p); username = p.username || p.displayName || "Agent"; }
-        const res = await fetch("/api/bank", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ firebaseUid: user.uid, username }) });
+        const token = await user.getIdToken();
+        const res = await fetch("/api/bank", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }, body: JSON.stringify({ username }) });
         const dbData = await res.json();
         
         if (dbData.data) {
@@ -321,8 +322,37 @@ export default function NetworkDashboard() {
       if(safe.free_path_switch_used!==undefined){lT.free_path_switch_used=Boolean(safe.free_path_switch_used); delete safe.free_path_switch_used;}
       if(Object.keys(lT).length>0) localStorage.setItem('pulse_tax_state', JSON.stringify({ ...JSON.parse(localStorage.getItem('pulse_tax_state')||'{}'), ...lT }));
       ['owned_properties','owned_vehicles','portfolio','startup_data'].forEach(k => { if(safe[k]!==undefined) safe[k]=JSON.stringify(safe[k]); });
-      await fetch("/api/bank", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ firebaseUid: auth.currentUser.uid, updates: safe }) });
+      const token = await auth.currentUser.getIdToken();
+      await fetch("/api/bank", { method: "PATCH", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }, body: JSON.stringify({ updates: safe }) });
     } catch (e) { console.error("Save state error:", e); }
+  };
+
+  const executeTreasuryAction = async (action: string, payload: any) => {
+    if (!auth.currentUser) return null;
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const res = await fetch("/api/game/treasury", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ action, payload })
+      });
+      const data = await res.json();
+      if (!res.ok) { await showAlert("Transaction Failed", data.error || "Server rejected transaction."); return null; }
+      
+      // Sycnchronize local state with Server Truth
+      if (data.data) {
+         if (data.data.bank_balance !== undefined) setBalance(data.data.bank_balance);
+         if (data.data.savings_balance !== undefined) setSavingsBalance(data.data.savings_balance);
+         if (data.data.loan_account_balance !== undefined) setLoanAccountBalance(data.data.loan_account_balance);
+         if (data.data.owned_properties !== undefined) setOwnedProperties(JSON.parse(data.data.owned_properties));
+         if (data.data.owned_vehicles !== undefined) setOwnedVehicles(JSON.parse(data.data.owned_vehicles));
+         if (data.data.portfolio !== undefined) setPortfolio(JSON.parse(data.data.portfolio));
+      }
+      return data;
+    } catch (e) {
+      await showAlert("Error", "Network error during secure transaction.");
+      return null;
+    }
   };
 
   useEffect(() => {
@@ -455,18 +485,18 @@ export default function NetworkDashboard() {
     if (!pInfo) return; const pr = pInfo.price;
     const accs = [{ id:"1", initials:"CA", name:"Current Account", details:`Avail: $${balance.toLocaleString()}` }, { id:"2", initials:"SV", name:"Savings Vault", details:`Avail: $${savingsBalance.toLocaleString()}` }, { id:"3", initials:"LA", name:"Loan Account", details:`Avail: $${loanAccountBalance.toLocaleString()}` }];
     const ch = await showAccountSelect("Purchase Property", `Purchasing ${pInfo.name}`, pr, accs); if (!ch) return;
-    const nP = [...ownedProperties, pInfo.id]; let upds:any = { owned_properties: nP }; let nb=balance, ns=savingsBalance, nl=loanAccountBalance;
-    if(ch==="1"){ if(balance<pr) return await showAlert("Error", `Need $${pr.toLocaleString()}`); nb-=pr; setBalance(nb); upds.bank_balance=nb; }
-    else if(ch==="2"){ if(savingsBalance<pr) return await showAlert("Error", `Need $${pr.toLocaleString()}`); ns-=pr; setSavingsBalance(ns); upds.savings_balance=ns; }
-    else if(ch==="3"){ if(loanAccountBalance<pr) return await showAlert("Error", `Need $${pr.toLocaleString()}`); nl-=pr; setLoanAccountBalance(nl); upds.loan_account_balance=nl; }
-    setOwnedProperties(nP); saveGameState(upds); await showAlert("Purchase Successful", `Owned ${pInfo.name} in ${cInfo.name}! Rent permanently waived.`);
+    
+    // SECURE SERVER TRANSACTION
+    const res = await executeTreasuryAction("BUY_PROPERTY", { propertyId, accountType: ch });
+    if (res) await showAlert("Purchase Successful", `Owned ${pInfo.name}! Rent permanently waived.`);
   };
 
   const handleSellProperty = async (propertyId: string) => {
     let pInfo:any=null; for (const [c, pps] of Object.entries(REAL_ESTATE)) { const f = pps.find(p => p.id === propertyId); if(f){ pInfo=f; break; } } if(!pInfo) return;
     const cf = await showConfirm("Sell Property", `Sell ${pInfo.name} for $${pInfo.price.toLocaleString()}?`); if (!cf) return;
-    const nb = Number(balance) + pInfo.price; const nP = ownedProperties.filter(id => id !== propertyId);
-    setBalance(nb); setOwnedProperties(nP); saveGameState({ bank_balance: nb, owned_properties: nP }); await showAlert("Property Sold", `$${pInfo.price.toLocaleString()} deposited.`);
+    // SECURE SERVER TRANSACTION
+    const res = await executeTreasuryAction("SELL_PROPERTY", { propertyId });
+    if (res) await showAlert("Property Sold", `$${pInfo.price.toLocaleString()} deposited.`);
   };
 
   const handleClaimSalary = async () => {
@@ -572,7 +602,40 @@ export default function NetworkDashboard() {
          </div>
       </div>
       {isMobileMenuOpen && (
-         <div className="lg:hidden fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm animate-in fade-in duration-200 flex flex-col justify-end"><div className="absolute inset-0" onClick={() => setIsMobileMenuOpen(false)}></div><div className="bg-[#121214] border-t border-white/10 rounded-t-[32px] p-6 pb-8 shadow-[0_-20px_50px_rgba(0,0,0,0.5)] animate-in slide-in-from-bottom-8 relative z-10"><div className="flex justify-between items-center mb-6"><h2 className="text-xl font-black text-white">Network Hub</h2><button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-white/5 hover:bg-white/10 rounded-full transition"><X className="w-5 h-5"/></button></div><div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mb-6">{TABS.map(tab => (<button key={tab.id} onClick={() => { setActiveTab(tab.id); setIsMobileMenuOpen(false); }} className={`flex flex-col items-center justify-center gap-3 p-4 rounded-2xl border transition-all ${activeTab === tab.id ? 'bg-indigo-600/20 border-indigo-500 text-indigo-400' : 'bg-black/40 border-white/5 text-zinc-400 hover:bg-white/5 hover:text-white'}`}><tab.icon className="w-6 h-6" /><span className="text-[9px] font-bold uppercase tracking-wider text-center leading-tight">{tab.label.replace(' & ', '\n& ')}</span></button>))}</div><div className="pt-6 border-t border-white/5 space-y-3">{displayName.toLowerCase() === 'sour' && (<div className="flex gap-3 mb-3"><button onClick={() => { handleResetState(); setIsMobileMenuOpen(false); }} className="flex-1 flex items-center justify-center gap-2 bg-orange-500/10 border border-orange-500/30 text-orange-500 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-500/20 transition"><RefreshCw className="w-4 h-4" /> Reset</button><button onClick={() => { handleDevBypass(); setIsMobileMenuOpen(false); }} className="flex-1 flex items-center justify-center gap-2 bg-red-500/10 border border-red-500/30 text-red-500 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500/20 transition"><Zap className="w-4 h-4" /> God Mode</button></div>)}</div></div></div>
+         <div className="lg:hidden fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm animate-in fade-in duration-200 flex flex-col justify-end">
+            <div className="absolute inset-0" onClick={() => setIsMobileMenuOpen(false)}></div>
+            <div className="bg-[#121214] border-t border-white/10 rounded-t-[32px] p-6 pb-8 shadow-[0_-20px_50px_rgba(0,0,0,0.5)] animate-in slide-in-from-bottom-8 relative z-10">
+               <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-black text-white">Network Hub</h2>
+                  <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-white/5 hover:bg-white/10 rounded-full transition"><X className="w-5 h-5"/></button>
+               </div>
+               <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mb-6">
+                  {TABS.map(tab => (
+                     <button key={tab.id} onClick={() => { setActiveTab(tab.id); setIsMobileMenuOpen(false); }} className={`flex flex-col items-center justify-center gap-3 p-4 rounded-2xl border transition-all ${activeTab === tab.id ? 'bg-indigo-600/20 border-indigo-500 text-indigo-400' : 'bg-black/40 border-white/5 text-zinc-400 hover:bg-white/5 hover:text-white'}`}>
+                        <tab.icon className="w-6 h-6" />
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-center leading-tight">{tab.label.replace(' & ', '\n& ')}</span>
+                     </button>
+                  ))}
+               </div>
+               <div className="pt-6 border-t border-white/5 space-y-3">
+                  {displayName.toLowerCase() === 'sour' && (
+                     <div className="flex gap-3 mb-3">
+                        <button onClick={() => { handleResetState(); setIsMobileMenuOpen(false); }} className="flex-1 flex items-center justify-center gap-2 bg-orange-500/10 border border-orange-500/30 text-orange-500 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-500/20 transition"><RefreshCw className="w-4 h-4" /> Reset</button>
+                        <button onClick={() => { handleDevBypass(); setIsMobileMenuOpen(false); }} className="flex-1 flex items-center justify-center gap-2 bg-red-500/10 border border-red-500/30 text-red-500 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500/20 transition"><Zap className="w-4 h-4" /> God Mode</button>
+                     </div>
+                  )}
+                  <button
+                    onClick={async () => {
+                       await signOut(auth);
+                       window.location.href = '/';
+                    }}
+                    className="w-full flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border border-red-500/20 transition shadow-[0_0_15px_rgba(239,68,68,0.1)]"
+                  >
+                    <LogOut className="w-4 h-4" /> Disconnect
+                  </button>
+               </div>
+            </div>
+         </div>
       )}
       <main className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden relative z-10 min-h-0" style={{ transform: 'translateZ(0)' }}>
         <style dangerouslySetInnerHTML={{ __html: `html, body { overflow: hidden !important; } ::-webkit-scrollbar { width: 6px; height: 0px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; } ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); } * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent; }`}} />
@@ -592,13 +655,33 @@ export default function NetworkDashboard() {
              {Date.now() < lazinessPenaltyUntil && <div className="hidden lg:flex items-center gap-2 bg-red-500/10 border border-red-500/30 text-red-500 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest mr-2 animate-pulse">[LAZY]</div>}
              {Date.now() < energyBlockUntil && <div className="hidden lg:flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest mr-2 animate-pulse">[BLOCKED]</div>}
              {displayName.toLowerCase() === 'sour' && (<div className="hidden lg:flex items-center gap-2"><button onClick={handleResetState} className="flex items-center gap-2 bg-orange-500/10 border border-orange-500/30 text-orange-500 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-orange-500/20 transition shadow-[0_0_15px_rgba(249,115,22,0.2)]"><RefreshCw className="w-3 h-3" /> Reset</button><button onClick={handleDevBypass} className="flex items-center gap-2 bg-red-500/10 border border-red-500/30 text-red-500 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-red-500/20 transition shadow-[0_0_15px_rgba(239,68,68,0.2)]"><Zap className="w-3 h-3" /> God Mode</button></div>)}
-             <div className="flex items-center gap-2 sm:gap-3 bg-[#121214] border border-white/10 rounded-full pl-2 sm:pl-4 pr-1 py-1 shadow-md cursor-pointer hover:bg-white/5 transition-colors"><div className="hidden sm:flex flex-col items-end"><span className="text-[9px] font-bold tracking-widest text-zinc-500 uppercase">Agent</span><span className="text-sm font-bold text-white tracking-wide">{displayName}</span></div><img src={avatarUrl} alt="Avatar" className="w-7 h-7 sm:w-10 sm:h-10 rounded-full border-2 border-zinc-800 bg-zinc-900 object-cover" /><ChevronDown className="hidden sm:block w-4 h-4 text-zinc-500 mr-2" /></div>
+             <div className="flex items-center gap-2 sm:gap-3 bg-[#121214] border border-white/10 rounded-full pl-2 sm:pl-4 pr-1 py-1 shadow-md cursor-pointer hover:bg-white/5 transition-colors">
+               <div className="hidden sm:flex flex-col items-end">
+                 <span className="text-[9px] font-bold tracking-widest text-zinc-500 uppercase">Agent</span>
+                 <span className="text-sm font-bold text-white tracking-wide">{displayName}</span>
+               </div>
+               <img src={avatarUrl} alt="Avatar" className="w-7 h-7 sm:w-10 sm:h-10 rounded-full border-2 border-zinc-800 bg-zinc-900 object-cover" />
+               <ChevronDown className="hidden sm:block w-4 h-4 text-zinc-500 mr-2" />
+             </div>
+             
+             {/* Desktop Logout Button */}
+             <button
+               onClick={async () => {
+                 await signOut(auth);
+                 window.location.href = '/';
+               }}
+               className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-500 rounded-full transition shadow-lg shrink-0"
+               title="Disconnect"
+             >
+               <LogOut className="w-4 h-4" />
+             </button>
+             
           </div>
         </header>
         <div className="p-4 sm:p-6 md:p-8 pt-4 pb-32 lg:pb-12">
-          {activeTab === 'overview' && (
+           {activeTab === 'overview' && (
              <OverviewTab 
-                netWorth={totalNetWorth} balance={balance} savingsBalance={savingsBalance} loanAccountBalance={loanAccountBalance} assetValue={assetValue} loanBalance={loanBalance} fico={fico} playerPath={playerPath} netWorthHistory={netWorthHistory} currentLocName={locStats.name} energy={energy} ownedVehicles={ownedVehicles} setBalance={setBalance} setSavingsBalance={setSavingsBalance} setLoanAccountBalance={setLoanAccountBalance} setEnergy={setEnergy} setActiveJob={setActiveJob} saveGameState={saveGameState} handleSwitchPathClick={handleSwitchPathClick} corporateLevel={corporateLevel} currentRole={currentRole} displaySalary={displaySalaryRef.current} pendingSalary={pendingSalary} monthlySalaryTarget={monthlySalaryTarget} salaryProgressPercentage={Math.min(100, (Number(pendingSalary) / monthlySalaryTarget) * 100)} handleClaimSalary={handleClaimSalary} currentLocation={currentLocation} ownedProperties={ownedProperties} startupData={startupData} setStartupData={setStartupData} locMultiplier={locStats.multiplier} getStartupMultipliers={getStartupMultipliers} showAlert={showAlert} showConfirm={showConfirm} showPrompt={showPrompt} nextTaxTime={nextTaxTime} taxCycleMinutes={taxCycleMinutes} marketEvent={marketEvent} energyBlockUntil={energyBlockUntil} setEnergyBlockUntil={setEnergyBlockUntil} showAccountSelect={showAccountSelect}
+                netWorth={totalNetWorth} balance={balance} savingsBalance={savingsBalance} loanAccountBalance={loanAccountBalance} assetValue={assetValue} loanBalance={loanBalance} fico={fico} playerPath={playerPath} netWorthHistory={netWorthHistory} currentLocName={locStats.name} energy={energy} ownedVehicles={ownedVehicles} setBalance={setBalance} setSavingsBalance={setSavingsBalance} setLoanAccountBalance={setLoanAccountBalance} setEnergy={setEnergy} setActiveJob={setActiveJob} saveGameState={saveGameState} executeTreasuryAction={executeTreasuryAction} handleSwitchPathClick={handleSwitchPathClick} corporateLevel={corporateLevel} currentRole={currentRole} displaySalary={displaySalaryRef.current} pendingSalary={pendingSalary} monthlySalaryTarget={monthlySalaryTarget} salaryProgressPercentage={Math.min(100, (Number(pendingSalary) / monthlySalaryTarget) * 100)} handleClaimSalary={handleClaimSalary} currentLocation={currentLocation} ownedProperties={ownedProperties} startupData={startupData} setStartupData={setStartupData} locMultiplier={locStats.multiplier} getStartupMultipliers={getStartupMultipliers} showAlert={showAlert} showConfirm={showConfirm} showPrompt={showPrompt} nextTaxTime={nextTaxTime} taxCycleMinutes={taxCycleMinutes} marketEvent={marketEvent} energyBlockUntil={energyBlockUntil} setEnergyBlockUntil={setEnergyBlockUntil} showAccountSelect={showAccountSelect}
              />
           )}
           {activeTab === 'banking' && (
@@ -613,12 +696,12 @@ export default function NetworkDashboard() {
           )}
           {activeTab === 'lifestyle' && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-               <LifestyleTab balance={balance} energy={energy} maxEnergy={maxEnergy} ownedVehicles={ownedVehicles} setBalance={setBalance} setEnergy={setEnergy} setOwnedVehicles={setOwnedVehicles} saveGameState={saveGameState} showAlert={showAlert} showConfirm={showConfirm} showAccountSelect={showAccountSelect} selectedBank={selectedBank} savingsBalance={savingsBalance} loanAccountBalance={loanAccountBalance} setSavingsBalance={setSavingsBalance} setLoanAccountBalance={setLoanAccountBalance} energyBlockUntil={energyBlockUntil} />
+               <LifestyleTab balance={balance} energy={energy} maxEnergy={maxEnergy} ownedVehicles={ownedVehicles} setBalance={setBalance} setEnergy={setEnergy} setOwnedVehicles={setOwnedVehicles} saveGameState={saveGameState} executeTreasuryAction={executeTreasuryAction} showAlert={showAlert} showConfirm={showConfirm} showAccountSelect={showAccountSelect} selectedBank={selectedBank} savingsBalance={savingsBalance} loanAccountBalance={loanAccountBalance} setSavingsBalance={setSavingsBalance} setLoanAccountBalance={setLoanAccountBalance} energyBlockUntil={energyBlockUntil} />
             </div>
           )}
           {activeTab === 'markets' && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-               <MarketsTab balance={balance} portfolio={portfolio} setBalance={setBalance} setPortfolio={setPortfolio} saveGameState={saveGameState} showAlert={showAlert} showConfirm={showConfirm} showPrompt={showPrompt} selectedBank={selectedBank} />
+               <MarketsTab balance={balance} portfolio={portfolio} setBalance={setBalance} setPortfolio={setPortfolio} saveGameState={saveGameState} executeTreasuryAction={executeTreasuryAction} showAlert={showAlert} showConfirm={showConfirm} showPrompt={showPrompt} selectedBank={selectedBank} />
             </div>
           )}
         </div>

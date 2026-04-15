@@ -1,18 +1,39 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { adminAuth } from '@/lib/firebaseAdmin';
+
+// Helper to verify ID token
+async function verifyAuth(request: Request) {
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) return null;
+  const token = authHeader.split('Bearer ')[1];
+  
+  try {
+    if (!adminAuth) {
+        console.error("Firebase Admin not configured! Denying request.");
+        return null;
+    }
+    const decodedToken = await adminAuth.verifyIdToken(token);
+    return decodedToken.uid;
+  } catch (error) {
+    console.error("Token verification failed:", error);
+    return null;
+  }
+}
 
 // GET or CREATE the user's game profile
 export async function POST(request: Request) {
   try {
-    const { firebaseUid, username } = await request.json();
+    const verifiedUid = await verifyAuth(request);
+    if (!verifiedUid) return NextResponse.json({ error: "Unauthorized: Invalid or missing token" }, { status: 401 });
 
-    if (!firebaseUid) return NextResponse.json({ error: "Missing UID" }, { status: 400 });
+    const { username } = await request.json();
 
     // 1. Try to find the user
     let { data: userAccount, error: fetchError } = await supabaseAdmin
       .from('network_users')
       .select('*')
-      .eq('firebase_uid', firebaseUid)
+      .eq('firebase_uid', verifiedUid)
       .single();
 
     // 2. If they don't exist, create a new game profile with starter stats!
@@ -20,7 +41,7 @@ export async function POST(request: Request) {
       const { data: newAccount, error: insertError } = await supabaseAdmin
         .from('network_users')
         .insert([{ 
-            firebase_uid: firebaseUid, 
+            firebase_uid: verifiedUid, 
             username: username || "Unknown Player",
             bank_balance: 150.00, // Give them $150 starter cash
             fico_score: 700,
@@ -46,16 +67,19 @@ export async function POST(request: Request) {
 // UPDATE the user's game profile (Balance, Energy, Path)
 export async function PATCH(request: Request) {
   try {
-    const { firebaseUid, updates } = await request.json();
+    const verifiedUid = await verifyAuth(request);
+    if (!verifiedUid) return NextResponse.json({ error: "Unauthorized: Invalid or missing token" }, { status: 401 });
 
-    if (!firebaseUid || !updates) {
+    const { updates } = await request.json();
+
+    if (!updates) {
       return NextResponse.json({ error: "Missing data" }, { status: 400 });
     }
 
     const { data, error } = await supabaseAdmin
       .from('network_users')
       .update(updates)
-      .eq('firebase_uid', firebaseUid)
+      .eq('firebase_uid', verifiedUid)
       .select()
       .single();
 

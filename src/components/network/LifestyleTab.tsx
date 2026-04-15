@@ -114,7 +114,7 @@ const InteractiveCarCard = ({ id, car, isOwned, handleBuyCar, handleSellCar }: a
 // ============================================================================
 // MAIN LIFESTYLE TAB COMPONENT
 // ============================================================================
-export default function LifestyleTab({ balance, energy, maxEnergy, ownedVehicles, setBalance, setEnergy, setOwnedVehicles, saveGameState, showAlert, showConfirm, showAccountSelect, selectedBank, savingsBalance, loanAccountBalance, setSavingsBalance, setLoanAccountBalance, energyBlockUntil }: any) {
+export default function LifestyleTab({ balance, energy, maxEnergy, ownedVehicles, setBalance, setEnergy, setOwnedVehicles, saveGameState, executeTreasuryAction, showAlert, showConfirm, showAccountSelect, selectedBank, savingsBalance, loanAccountBalance, setSavingsBalance, setLoanAccountBalance, energyBlockUntil }: any) {
    
    const handleBuyFood = async (item: string, cost: number, regen: number) => {
       if (balance < cost) return await showAlert("Insufficient Funds", "You don't have enough liquid funds for this meal.");
@@ -145,43 +145,12 @@ export default function LifestyleTab({ balance, energy, maxEnergy, ownedVehicles
           { id: "3", initials: "LA", name: "Loan Account", details: `Available: $${loanAccountBalance.toLocaleString('en-US', {maximumFractionDigits: 2})}` }
       ];
 
-      const accountChoice = await showAccountSelect(
-        "Purchase Vehicle",
-        `Purchasing ${car.name}`, 
-        car.price,
-        accounts
-      );
-
+      const accountChoice = await showAccountSelect("Purchase Vehicle", `Purchasing ${car.name}`, car.price, accounts);
       if (!accountChoice) return;
 
-      const newVehicles = [...ownedVehicles, id];
-      let updates: any = { owned_vehicles: newVehicles };
-
-      let newBal = balance;
-      let newSav = savingsBalance;
-      let newLoanAcc = loanAccountBalance;
-
-      if (accountChoice === "1") {
-         if (balance < car.price) return await showAlert("Error", `Insufficient liquid funds in Current Account. You need $${car.price.toLocaleString()}.`);
-         newBal -= car.price;
-         setBalance(newBal);
-         updates.bank_balance = newBal;
-      } else if (accountChoice === "2") {
-         if (savingsBalance < car.price) return await showAlert("Error", `Insufficient funds in Savings Vault. You need $${car.price.toLocaleString()}.`);
-         newSav -= car.price;
-         setSavingsBalance(newSav);
-         updates.savings_balance = newSav;
-      } else if (accountChoice === "3") {
-         if (loanAccountBalance < car.price) return await showAlert("Error", `Insufficient funds in Loan Account. You need $${car.price.toLocaleString()}.`);
-         newLoanAcc -= car.price;
-         setLoanAccountBalance(newLoanAcc);
-         updates.loan_account_balance = newLoanAcc;
-      }
-
-      setOwnedVehicles(newVehicles);
-      saveGameState(updates);
-      
-      await showAlert("Keys Acquired!", `Congratulations! You are the proud new owner of a ${car.name}.`);
+      // SECURE SERVER TRANSACTION
+      const res = await executeTreasuryAction("BUY_VEHICLE", { vehicleId: id, accountType: accountChoice });
+      if (res) await showAlert("Keys Acquired!", `Congratulations! You are the proud new owner of a ${car.name}.`);
    };
 
    const handleSellCar = async (id: string) => {
@@ -193,14 +162,9 @@ export default function LifestyleTab({ balance, energy, maxEnergy, ownedVehicles
       const confirm = await showConfirm("Sell Vehicle", `Are you sure you want to sell your ${car.name} for $${sellPrice.toLocaleString('en-US')}?\n\nA 20% depreciation fee is applied to all vehicle sales.`);
       if (!confirm) return;
 
-      const newBal = balance + sellPrice;
-      const newVehicles = ownedVehicles.filter((vId: string) => vId !== id);
-      
-      setBalance(newBal); 
-      setOwnedVehicles(newVehicles);
-      saveGameState({ bank_balance: newBal, owned_vehicles: newVehicles });
-      
-      await showAlert("Vehicle Sold", `You successfully sold the ${car.name} for $${sellPrice.toLocaleString('en-US')}. The funds have been deposited into your Current Account.`);
+      // SECURE SERVER TRANSACTION
+      const res = await executeTreasuryAction("SELL_VEHICLE", { vehicleId: id });
+      if (res) await showAlert("Vehicle Sold", `You successfully sold the ${car.name} for $${sellPrice.toLocaleString('en-US')}. The funds have been deposited into your Current Account.`);
    };
 
    return (

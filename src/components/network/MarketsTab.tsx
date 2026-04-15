@@ -113,7 +113,7 @@ const CandlestickChart = ({ data, minPrice, maxPrice }: { data: any[], minPrice:
    );
 };
 
-export default function MarketsTab({ balance, portfolio, setBalance, setPortfolio, saveGameState, showAlert, showConfirm, showPrompt, selectedBank }: any) {
+export default function MarketsTab({ balance, portfolio, setBalance, setPortfolio, saveGameState, executeTreasuryAction, showAlert, showConfirm, showPrompt, selectedBank }: any) {
    const [prices, setPrices] = useState<Record<string, number>>({});
    const [prevPrices, setPrevPrices] = useState<Record<string, number>>({});
    const [priceHistory, setPriceHistory] = useState<Record<string, any[]>>({});
@@ -217,44 +217,9 @@ export default function MarketsTab({ balance, portfolio, setBalance, setPortfoli
       const shares = parseFloat(sharesStr);
       if (isNaN(shares) || shares <= 0) return await showAlert("Error", "Please enter a valid number of shares.");
       
-      // Support new and old portfolio structures
-      const stocks = portfolio.stocks || {};
-      const currentShares = stocks[ticker]?.shares || portfolio[ticker]?.shares || 0;
-      const currentAvgPrice = stocks[ticker]?.avgPrice || portfolio[ticker]?.avgPrice || 0;
-
-      if (action === 'buy') {
-         const cost = currentPrice * shares;
-         if (balance < cost) return await showAlert("Insufficient Funds", `You need $${cost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} to buy this.`);
-         
-         const newAvgPrice = currentShares === 0 ? currentPrice : ((currentShares * currentAvgPrice) + cost) / (currentShares + shares);
-         const newBal = balance - cost;
-         const newPortfolio = { ...portfolio, stocks: { ...stocks, [ticker]: { shares: currentShares + shares, avgPrice: newAvgPrice } } };
-         
-         // Clean up legacy flat structure if it exists
-         if (newPortfolio[ticker]) delete newPortfolio[ticker];
-
-         setBalance(newBal); setPortfolio(newPortfolio);
-         saveGameState({ bank_balance: newBal, portfolio: newPortfolio });
-         
-      } else if (action === 'sell') {
-         if (currentShares < shares) return await showAlert("Error", "You don't own that many shares.");
-         
-         const revenue = currentPrice * shares;
-         const newBal = balance + revenue;
-         
-         const newPortfolio = { ...portfolio, stocks: { ...stocks } };
-         if (currentShares - shares <= 0.000001) {
-             delete newPortfolio.stocks[ticker]; 
-         } else {
-             newPortfolio.stocks[ticker] = { shares: currentShares - shares, avgPrice: currentAvgPrice };
-         }
-         
-         // Clean up legacy flat structure if it exists
-         if (newPortfolio[ticker]) delete newPortfolio[ticker];
-         
-         setBalance(newBal); setPortfolio(newPortfolio);
-         saveGameState({ bank_balance: newBal, portfolio: newPortfolio });
-      }
+      // SECURE SERVER TRANSACTION
+      const res = await executeTreasuryAction("MARKET_TRADE", { ticker, amount: sharesStr, tradeType: action, assetClass: marketView });
+      if (res) await showAlert("Trade Executed", `Successfully ${action === 'buy' ? 'bought' : 'sold'} ${sharesStr} shares of ${ticker}.`);
    };
 
    const handleFundTransaction = async (fundId: string, action: 'deposit'|'withdraw') => {
@@ -298,67 +263,28 @@ export default function MarketsTab({ balance, portfolio, setBalance, setPortfoli
       const deal = ANGEL_DEALS.find(d => d.id === dealId);
       if (!deal) return;
 
-      if (balance < deal.cost) return showAlert("Insufficient Funds", `You need $${deal.cost.toLocaleString()} to enter this funding round.`);
-
-      const confirm = await showConfirm("Sign Term Sheet", `Are you sure you want to lock up $${deal.cost.toLocaleString()} in ${deal.name}?\n\nThis investment will mature in ${deal.minTime} minutes. It has a ${(deal.winChance * 100).toFixed(0)}% chance of success.`);
+      const confirm = await showConfirm("Sign Term Sheet", `Are you sure you want to lock up $${deal.cost.toLocaleString()} in ${deal.name}?`);
       if (!confirm) return;
 
-      const newBal = balance - deal.cost;
-      const activeDeals = portfolio.angel || [];
-      const newDeal = {
-          uid: Math.random().toString(36).substring(7),
-          id: deal.id,
-          name: deal.name,
-          invested: deal.cost,
-          maturesAt: Date.now() + (deal.minTime * 60000),
-          status: 'pending',
-          payout: 0,
-          winChance: deal.winChance,
-          maxMulti: deal.maxMulti
-      };
-
-      const newPortfolio = { ...portfolio, angel: [...activeDeals, newDeal] };
-      setBalance(newBal); setPortfolio(newPortfolio);
-      saveGameState({ bank_balance: newBal, portfolio: newPortfolio });
-      showAlert("Investment Locked", `You are now a verified Angel Investor in ${deal.name}. Check your active portfolio in ${deal.minTime} minutes to resolve the exit.`);
+      // SECURE SERVER TRANSACTION
+      const res = await executeTreasuryAction("ANGEL_INVEST", { name: deal.name, amount: deal.cost });
+      if (res) await showAlert("Investment Locked", `You are now a verified Angel Investor in ${deal.name}. Check your active portfolio later to resolve the exit.`);
    };
 
    const handleResolveAngel = async (uid: string) => {
-      const activeDeals = portfolio.angel || [];
-      const dealIndex = activeDeals.findIndex((d: any) => d.uid === uid);
-      if (dealIndex === -1) return;
-
-      const deal = activeDeals[dealIndex];
-      if (Date.now() < deal.maturesAt) return; // Anti-cheat
-
-      const roll = Math.random();
-      let multi = 0;
-      let title = "Company Bankrupt";
-      let msg = `${deal.name} burned through their runway and went under. You lost your entire $${deal.invested.toLocaleString()} investment.`;
-
-      if (roll < deal.winChance) {
-          // Success! Determine how big of a success.
-          const successRoll = Math.random();
-          if (successRoll < 0.1) multi = deal.maxMulti; // 10% chance for max return (Unicorn)
-          else if (successRoll < 0.4) multi = Math.max(2, deal.maxMulti / 2); // 30% chance for mid return
-          else multi = 1.5; // 60% chance for small return
-
-          title = multi === deal.maxMulti ? "🦄 UNICORN EXIT! 🦄" : "Successful Acquisition!";
-          msg = `Your equity in ${deal.name} was bought out! You turned $${deal.invested.toLocaleString()} into $${(deal.invested * multi).toLocaleString()}!`;
+      // SECURE SERVER TRANSACTION
+      const res = await executeTreasuryAction("ANGEL_RESOLVE", { dealId: uid });
+      if (res) {
+          const updatedPortfolio = res.data.portfolio ? JSON.parse(res.data.portfolio) : portfolio;
+          const resolvedDeal = updatedPortfolio.angel.find((d: any) => d.id === uid);
+          if (resolvedDeal) {
+              if (resolvedDeal.status === 'won' || resolvedDeal.status === 'unicorn') {
+                  showAlert(resolvedDeal.status === 'unicorn' ? "🦄 UNICORN EXIT! 🦄" : "Successful Acquisition!", `Your equity in ${resolvedDeal.name} was bought out! You received $${resolvedDeal.payout.toLocaleString()}!`);
+              } else {
+                  showAlert("Company Bankrupt", `${resolvedDeal.name} burned through their runway and went under. You lost your entire investment.`);
+              }
+          }
       }
-
-      const payout = deal.invested * multi;
-      
-      // Update UI and trigger payout
-      const updatedDeals = [...activeDeals];
-      updatedDeals[dealIndex] = { ...deal, status: multi > 0 ? 'won' : 'lost', payout };
-      
-      const newBal = balance + payout;
-      const newPortfolio = { ...portfolio, angel: updatedDeals };
-
-      setBalance(newBal); setPortfolio(newPortfolio);
-      saveGameState({ bank_balance: newBal, portfolio: newPortfolio });
-      showAlert(title, msg);
    };
 
    const clearResolvedDeals = () => {

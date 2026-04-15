@@ -23,6 +23,13 @@ export function middleware(req: NextRequest) {
   // 2. SERVE THE SUBDOMAIN: If they are on the network subdomain, 
   // secretly serve the /network folder while keeping the URL bar clean.
   if (isNetworkSubdomain) {
+    // Share the main login and signup pages across subdomains 
+    // so Firebase Auth tokens stay under the subdomain's domain
+    const sharedRoutes = ['/login', '/signup'];
+    if (sharedRoutes.some(route => url.pathname.startsWith(route))) {
+      return NextResponse.rewrite(url);
+    }
+    
     url.pathname = `/network${url.pathname}`;
     return NextResponse.rewrite(url);
   }
