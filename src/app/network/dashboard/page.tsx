@@ -501,23 +501,28 @@ export default function NetworkDashboard() {
 
   const handleClaimSalary = async () => {
     const cS = Number(pendingSalary);
-    if (playerPath === 'corporate') {
-       if (cS < monthlySalaryTarget) return await showAlert("Error", `Need $${monthlySalaryTarget.toLocaleString()} accumulated.`);
-       const tA = cS * locStats.tax; const nA = cS - tA;
-       if (!selectedBank && balance+nA>50000) return await showAlert("Wallet Full", "Cannot hold >$50k without a bank account.");
-       const nb = balance + nA; setBalance(nb); setPendingSalary(0); setLastLocalSync(Date.now()); saveGameState({ bank_balance: nb, pending_salary: 0, last_salary_sync: new Date().toISOString() });
-       await showAlert("Payday!", `Gross: $${cS.toLocaleString()}\nTax: -$${tA.toLocaleString()}\nNet: $${nA.toLocaleString()}`);
-    } else if (playerPath === 'founder') {
-       if (cS >= 0) {
-          const tA = cS * locStats.tax; const nA = cS - tA;
-          if (!selectedBank && balance+nA>50000) return await showAlert("Wallet Full", "Cannot hold >$50k without a bank.");
-          const nb = balance + nA; setBalance(nb); setPendingSalary(0); setLastLocalSync(Date.now()); saveGameState({ bank_balance: nb, pending_salary: 0, last_salary_sync: new Date().toISOString() });
-          await showAlert("Dividend Claimed", `Gross Profit: $${cS.toLocaleString()}\nCorp Tax: -$${tA.toLocaleString()}\nNet: $${nA.toLocaleString()}`);
-       } else {
-          const d = Math.abs(cS); if (balance < d) return await showAlert("Warning", `Company in $${d.toLocaleString()} debt, insufficient funds to cover!`);
-          const nb = balance - d; setBalance(nb); setPendingSalary(0); setLastLocalSync(Date.now()); saveGameState({ bank_balance: nb, pending_salary: 0, last_salary_sync: new Date().toISOString() });
-          await showAlert("Debt Paid", `Wired $${d.toLocaleString()} to keep startup afloat.`);
-       }
+    if (cS === 0) return;
+    
+    // Check local requirements first before pinging server
+    if (playerPath === 'corporate' && cS < monthlySalaryTarget) {
+         return await showAlert("Error", `Need $${monthlySalaryTarget.toLocaleString()} accumulated.`);
+    }
+
+    const isDebt = playerPath === 'founder' && cS < 0;
+
+    // SECURE SERVER TRANSACTION
+    const res = await executeTreasuryAction("CLAIM_SALARY", { claimedAmount: cS, playerPath, locTax: locStats.tax, isDebt });
+    if (res) {
+        setPendingSalary(0); 
+        setLastLocalSync(Date.now()); 
+        saveGameState({ last_salary_sync: new Date().toISOString() });
+        
+        if (playerPath === 'corporate' || (playerPath === 'founder' && !isDebt)) {
+            const tA = cS * locStats.tax; const nA = cS - tA;
+            await showAlert(playerPath === 'corporate' ? "Payday!" : "Dividend Claimed", `Gross: $${cS.toLocaleString()}\nTax: -$${tA.toLocaleString()}\nNet: $${nA.toLocaleString()}`);
+        } else {
+            await showAlert("Debt Paid", `Wired $${Math.abs(cS).toLocaleString()} to keep startup afloat.`);
+        }
     }
   };
 

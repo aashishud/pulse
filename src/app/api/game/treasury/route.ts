@@ -223,12 +223,75 @@ export async function POST(request: Request) {
         updates.portfolio = JSON.stringify(portfolio);
     }
 
+    else if (action === "FUND_TRANSACTION") {
+        const { fundId, tradeType, amount } = payload;
+        const reqAmount = parseFloat(amount);
+        if (isNaN(reqAmount) || reqAmount <= 0) return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
+
+        const funds = portfolio.funds || {};
+        const currentFundBal = funds[fundId] || 0;
+
+        if (tradeType === 'deposit') {
+            if (newBalance < reqAmount) return NextResponse.json({ error: "Insufficient funds" }, { status: 400 });
+            if (fundId === 'citadel' && reqAmount < 100000 && currentFundBal === 0) return NextResponse.json({ error: "Minimum Deposit is $100k for Citadel" }, { status: 400 });
+
+            newBalance -= reqAmount;
+            portfolio.funds = { ...funds, [fundId]: currentFundBal + reqAmount };
+        } else if (tradeType === 'withdraw') {
+            if (currentFundBal < reqAmount) return NextResponse.json({ error: "Insufficient fund balance" }, { status: 400 });
+            
+            newBalance += reqAmount;
+            portfolio.funds = { ...funds, [fundId]: currentFundBal - reqAmount };
+        } else {
+            return NextResponse.json({ error: "Invalid trade type" }, { status: 400 });
+        }
+
+        updates.bank_balance = newBalance;
+        updates.portfolio = JSON.stringify(portfolio);
+    }
+
+    else if (action === "CLAIM_SALARY") {
+        const { claimedAmount, playerPath, locTax, isDebt } = payload;
+        const amount = parseFloat(claimedAmount);
+        if (isNaN(amount)) return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
+
+        const taxRate = parseFloat(locTax) || 0;
+        
+        let netAmount = 0;
+        let taxPaid = 0;
+
+        if (playerPath === 'corporate' || (playerPath === 'founder' && !isDebt)) {
+             if (amount <= 0) return NextResponse.json({ error: "No salary accumulated" }, { status: 400 });
+             taxPaid = amount * taxRate;
+             netAmount = amount - taxPaid;
+             // Enforce Wallet Limit without Bank
+             const hasBank = userRecord.selected_bank !== '' && userRecord.selected_bank !== null && userRecord.selected_bank !== 'none' && userRecord.selected_bank !== undefined;
+             if (!hasBank && (newBalance + netAmount > 50000)) return NextResponse.json({ error: "Wallet Full", message: "Cannot hold >$50k without a bank account." }, { status: 400 });
+             
+             newBalance += netAmount;
+        } else if (playerPath === 'founder' && isDebt) {
+             if (amount <= 0) return NextResponse.json({ error: "No debt" }, { status: 400 });
+             if (newBalance < amount) return NextResponse.json({ error: "Insufficient funds to cover debt" }, { status: 400 });
+             newBalance -= amount;
+             netAmount = -amount;
+        }
+
+        updates.bank_balance = newBalance;
+        updates.pending_salary = 0;
+    }
+
     else {
       return NextResponse.json({ error: "Unknown action" }, { status: 400 });
     }
 
     // Process all updates securely directly over database!
     if (Object.keys(updates).length > 0) {
+        // Enforce integer types for Supabase Postgres bigint columns
+        if (updates.bank_balance !== undefined) updates.bank_balance = Math.floor(updates.bank_balance);
+        if (updates.savings_balance !== undefined) updates.savings_balance = Math.floor(updates.savings_balance);
+        if (updates.loan_account_balance !== undefined) updates.loan_account_balance = Math.floor(updates.loan_account_balance);
+        if (updates.pending_salary !== undefined) updates.pending_salary = Math.floor(updates.pending_salary);
+        
         const { error: updateError } = await supabaseAdmin
             .from('network_users')
             .update(updates)

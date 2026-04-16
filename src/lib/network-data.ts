@@ -1,9 +1,9 @@
 export const LOCATIONS: Record<string, any> = {
-  bali: { name: "Bali", tax: 0.10, rent: 30, living: 15, multiplier: 0.5, perk: "Low Cost of Living" },
-  london: { name: "London", tax: 0.25, rent: 120, living: 50, multiplier: 1.2, perk: "Balanced Lifestyle" },
-  new_york: { name: "New York", tax: 0.38, rent: 300, living: 100, multiplier: 2.5, perk: "High Salary Multiplier" },
-  zurich: { name: "Zurich", tax: 0.15, rent: 600, living: 200, multiplier: 1.0, perk: "The Banking Capital" },
-  dubai: { name: "Dubai", tax: 0.00, rent: 800, living: 300, multiplier: 1.8, perk: "Tax Haven (0%)" }
+  bali: { name: "Bali", tax: 0.10, rent: 30, living: 15, multiplier: 0.5, perk: "Low Cost of Living", lat: -8.65, lng: 115.21 },
+  london: { name: "London", tax: 0.25, rent: 120, living: 50, multiplier: 1.2, perk: "Balanced Lifestyle", lat: 51.51, lng: -0.13 },
+  new_york: { name: "New York", tax: 0.38, rent: 300, living: 100, multiplier: 2.5, perk: "High Salary Multiplier", lat: 40.71, lng: -74.00 },
+  zurich: { name: "Zurich", tax: 0.15, rent: 600, living: 200, multiplier: 1.0, perk: "The Banking Capital", lat: 47.37, lng: 8.54 },
+  dubai: { name: "Dubai", tax: 0.00, rent: 800, living: 300, multiplier: 1.8, perk: "Tax Haven (0%)", lat: 25.20, lng: 55.27 }
 };
 
 export const REAL_ESTATE: Record<string, { id: string, name: string, price: number }[]> = {

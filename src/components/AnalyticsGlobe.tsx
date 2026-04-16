@@ -32,7 +32,8 @@ export default function AnalyticsGlobe({
   className = "",
   speed = 0.003,
   totalViews = 0, 
-}: GlobePulseProps) {
+  focusLocation = null
+}: GlobePulseProps & { focusLocation?: [number, number] | null }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const pointerInteracting = useRef<{ x: number; y: number } | null>(null)
   const dragOffset = useRef({ phi: 0, theta: 0 })
@@ -79,27 +80,31 @@ export default function AnalyticsGlobe({
     const canvas = canvasRef.current
     let globe: ReturnType<typeof createGlobe> | null = null
     let animationId: number
-    let phi = 0
+    let currentPhi = 0
+    let currentTheta = 0.2
 
     function init() {
       const width = canvas.offsetWidth
       if (width === 0 || globe) return
+
+      let dynamicMarkers = markers.map((m) => ({ location: m.location, size: 0.025, id: m.id }));
+      if (focusLocation) dynamicMarkers.push({ location: focusLocation, size: 0.08, id: 'focus_active' });
 
       globe = createGlobe(canvas, {
         devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
         width, 
         height: width,
         phi: 0, 
-        theta: 0.2, 
+        theta: 0, 
         dark: 1, 
         diffuse: 1.5,
         mapSamples: 16000, 
         mapBrightness: 10,
-        baseColor: [0.05, 0.05, 0.08], // Pulse dark bg
-        markerColor: [0.388, 0.4, 0.945], // Pulse Indigo (#6366f1)
+        baseColor: [0.05, 0.05, 0.08],
+        markerColor: [0.388, 0.4, 0.945],
         glowColor: [0.1, 0.1, 0.2],
         markerElevation: 0,
-        markers: markers.map((m) => ({ location: m.location, size: 0.025, id: m.id })),
+        markers: dynamicMarkers,
         arcs: [], 
         arcColor: [0.388, 0.4, 0.945],
         arcWidth: 0.5, 
@@ -108,10 +113,13 @@ export default function AnalyticsGlobe({
       })
 
       function animate() {
-        if (!isPausedRef.current) phi += speed
+        if (!isPausedRef.current) {
+             currentPhi += speed;
+        }
+
         if (globe) {
           globe.update({
-            phi: phi + phiOffsetRef.current + dragOffset.current.phi,
+            phi: currentPhi + phiOffsetRef.current + dragOffset.current.phi,
             theta: 0.2 + thetaOffsetRef.current + dragOffset.current.theta,
           })
         }
@@ -138,7 +146,7 @@ export default function AnalyticsGlobe({
       if (animationId) cancelAnimationFrame(animationId)
       if (globe) globe.destroy()
     }
-  }, [markers, speed])
+  }, [markers, speed, focusLocation])
 
   return (
     <div className={`relative aspect-square w-full select-none ${className}`}>

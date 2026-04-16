@@ -195,6 +195,13 @@ export default function OverviewTab({
   const [showVCModal, setShowVCModal] = useState(false); 
   const [showUpgradesModal, setShowUpgradesModal] = useState(false); 
   const [showMAModal, setShowMAModal] = useState(false);
+  const [isClaiming, setIsClaiming] = useState(false);
+
+  const handleClaimWrapper = async () => {
+     setIsClaiming(true);
+     await handleClaimSalary();
+     setIsClaiming(false);
+  };
 
   const handleIncorporate = async () => {
     const cleanName = tempName.trim(); 
@@ -810,10 +817,11 @@ export default function OverviewTab({
                         )}
                       </div>
                       <button 
-                        onClick={handleClaimSalary} 
-                        className="px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-emerald-500/20 whitespace-nowrap"
+                        onClick={handleClaimWrapper} 
+                        disabled={isClaiming}
+                        className="px-5 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 disabled:text-emerald-300 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-emerald-500/20 whitespace-nowrap"
                       >
-                        Claim Dividend
+                        {isClaiming ? "Processing..." : "Claim Dividend"}
                       </button>
                     </div>
                   </div>
@@ -891,11 +899,11 @@ export default function OverviewTab({
                   </p>
                 </div>
                 <button 
-                  onClick={handleClaimSalary} 
-                  disabled={pendingSalary < monthlySalaryTarget} 
+                  onClick={handleClaimWrapper} 
+                  disabled={pendingSalary < monthlySalaryTarget || isClaiming} 
                   className="w-full sm:w-auto px-6 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-white/5 disabled:text-zinc-600 disabled:border-transparent text-white border border-indigo-500/30 rounded-xl text-xs font-bold transition shadow-lg shadow-indigo-500/20"
                 >
-                  {pendingSalary < monthlySalaryTarget ? "Work Target Incomplete" : "Claim Paycheck"}
+                  {isClaiming ? "Processing..." : pendingSalary < monthlySalaryTarget ? "Work Target Incomplete" : "Claim Paycheck"}
                 </button>
               </div>
             </div>

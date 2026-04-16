@@ -228,32 +228,14 @@ export default function MarketsTab({ balance, portfolio, setBalance, setPortfoli
       const amount = parseFloat(depositAmount);
       if (isNaN(amount) || amount <= 0) return showAlert("Error", "Invalid amount.");
 
-      const funds = portfolio.funds || {};
-      const currentFundBal = funds[fundId] || 0;
-
-      if (action === 'deposit') {
-          if (balance < amount) return showAlert("Insufficient Funds", "You do not have enough liquid cash in your Current Account.");
-          if (fundId === 'citadel' && amount < 100000 && currentFundBal === 0) return showAlert("Minimum Deposit", "The Citadel High-Yield Fund requires a minimum initial deposit of $100,000.");
-          
-          const newBal = balance - amount;
-          const newFundBal = currentFundBal + amount;
-          const newPortfolio = { ...portfolio, funds: { ...funds, [fundId]: newFundBal } };
-          
-          setBalance(newBal);
-          setPortfolio(newPortfolio);
-          saveGameState({ bank_balance: newBal, portfolio: newPortfolio });
-          showAlert("Deposit Successful", `$${amount.toLocaleString()} added to ${fundId.toUpperCase()}. It will now generate passive yield.`);
-      } else {
-          if (currentFundBal < amount) return showAlert("Error", "You do not have that much money in this fund.");
-          
-          const newBal = balance + amount;
-          const newFundBal = currentFundBal - amount;
-          const newPortfolio = { ...portfolio, funds: { ...funds, [fundId]: newFundBal } };
-          
-          setBalance(newBal);
-          setPortfolio(newPortfolio);
-          saveGameState({ bank_balance: newBal, portfolio: newPortfolio });
-          showAlert("Withdrawal Successful", `$${amount.toLocaleString()} moved to your Current Account.`);
+      // SECURE SERVER TRANSACTION
+      const res = await executeTreasuryAction("FUND_TRANSACTION", { fundId, tradeType: action, amount });
+      if (res) {
+          if (action === 'deposit') {
+              showAlert("Deposit Successful", `$${amount.toLocaleString()} added to ${fundId.toUpperCase()}. It will now generate passive yield.`);
+          } else {
+              showAlert("Withdrawal Successful", `$${amount.toLocaleString()} moved to your Current Account.`);
+          }
       }
       setDepositAmount("");
    };
