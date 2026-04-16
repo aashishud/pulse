@@ -56,6 +56,13 @@ export async function POST(request: Request) {
     }
 
     if (fetchError && fetchError.code !== 'PGRST116') throw fetchError;
+    
+    // Auto-sync username if the client provides a fresh one
+    if (userAccount && username && userAccount.username !== username && username !== "Agent") {
+        await supabaseAdmin.from('network_users').update({ username }).eq('firebase_uid', verifiedUid);
+        userAccount.username = username;
+    }
+
     return NextResponse.json({ message: "Found", data: userAccount });
 
   } catch (error: any) {

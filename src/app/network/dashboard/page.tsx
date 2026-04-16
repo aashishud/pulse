@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { Activity, Globe, MapPin, Zap, ChevronDown, Loader2, LogOut, X, Landmark, TrendingUp, ShoppingBag, Briefcase, Lock, Building2, RefreshCw, AlertCircle, Check, Moon, Menu } from 'lucide-react';
+import { Activity, Globe, MapPin, Zap, ChevronDown, Loader2, LogOut, X, Landmark, TrendingUp, ShoppingBag, Briefcase, Lock, Building2, RefreshCw, AlertCircle, Check, Moon, Menu, Trophy } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { LOCATIONS, REAL_ESTATE, VEHICLES, CRYPTO_ASSETS, STOCK_ASSETS } from '@/lib/network-data';
@@ -15,6 +15,7 @@ import BankingTab from '@/components/network/BankingTab';
 import RealEstateTab from '@/components/network/RealEstateTab';
 import LifestyleTab from '@/components/network/LifestyleTab';
 import MarketsTab from '@/components/network/MarketsTab';
+import LeaderboardTab from '@/components/network/LeaderboardTab';
 
 // --- TABS CONFIGURATION ---
 const TABS = [
@@ -22,12 +23,14 @@ const TABS = [
   { id: 'banking', icon: Landmark, label: 'Banking' },
   { id: 'markets', icon: TrendingUp, label: 'Stock Markets' },
   { id: 'real_estate', icon: Globe, label: 'Real Estate' },
-  { id: 'lifestyle', icon: ShoppingBag, label: 'Lifestyle & Cars' }
+  { id: 'lifestyle', icon: ShoppingBag, label: 'Lifestyle & Cars' },
+  { id: 'leaderboard', icon: Trophy, label: 'Global Rank' }
 ];
 
 const MOBILE_TABS = [
   { id: 'overview', icon: Activity, label: 'Overview' },
   { id: 'banking', icon: Landmark, label: 'Banking' },
+  { id: 'leaderboard', icon: Trophy, label: 'Rank' },
   { id: 'markets', icon: TrendingUp, label: 'Markets' },
   { id: 'lifestyle', icon: ShoppingBag, label: 'Lifestyle' }
 ];
@@ -323,8 +326,16 @@ export default function NetworkDashboard() {
       if(Object.keys(lT).length>0) localStorage.setItem('pulse_tax_state', JSON.stringify({ ...JSON.parse(localStorage.getItem('pulse_tax_state')||'{}'), ...lT }));
       ['owned_properties','owned_vehicles','portfolio','startup_data'].forEach(k => { if(safe[k]!==undefined) safe[k]=JSON.stringify(safe[k]); });
       const token = await auth.currentUser.getIdToken();
-      await fetch("/api/bank", { method: "PATCH", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }, body: JSON.stringify({ updates: safe }) });
-    } catch (e) { console.error("Save state error:", e); }
+      const res = await fetch("/api/bank", { method: "PATCH", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }, body: JSON.stringify({ updates: safe }) });
+      if (!res.ok) {
+          const errData = await res.json();
+          console.error("DATABASE SYNC FAILED:", errData.error);
+          alert(`CRITICAL SERVER ERROR: ${errData.error} (Your progress was NOT saved)`);
+      }
+    } catch (e) { 
+        console.error("Save state error:", e); 
+        alert("CRITICAL: Network error prevented saving your progress.");
+    }
   };
 
   const executeTreasuryAction = async (action: string, payload: any) => {
@@ -708,6 +719,9 @@ export default function NetworkDashboard() {
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                <MarketsTab balance={balance} portfolio={portfolio} setBalance={setBalance} setPortfolio={setPortfolio} saveGameState={saveGameState} executeTreasuryAction={executeTreasuryAction} showAlert={showAlert} showConfirm={showConfirm} showPrompt={showPrompt} selectedBank={selectedBank} />
             </div>
+          )}
+          {activeTab === 'leaderboard' && (
+             <LeaderboardTab />
           )}
         </div>
       </main>
