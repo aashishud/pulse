@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { Activity, Globe, MapPin, Zap, ChevronDown, Loader2, LogOut, X, Landmark, TrendingUp, ShoppingBag, Briefcase, Lock, Building2, RefreshCw, AlertCircle, Check, Moon, Menu, Trophy } from 'lucide-react';
+import { Activity, Globe, MapPin, Zap, ChevronDown, Loader2, LogOut, X, Landmark, TrendingUp, ShoppingBag, Briefcase, Lock, Building2, RefreshCw, AlertCircle, Check, Moon, Menu, Trophy, MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { LOCATIONS, REAL_ESTATE, VEHICLES, CRYPTO_ASSETS, STOCK_ASSETS } from '@/lib/network-data';
@@ -16,6 +16,8 @@ import RealEstateTab from '@/components/network/RealEstateTab';
 import LifestyleTab from '@/components/network/LifestyleTab';
 import MarketsTab from '@/components/network/MarketsTab';
 import LeaderboardTab from '@/components/network/LeaderboardTab';
+import PulsePhone from '@/components/network/PulsePhone';
+import ConnectionsTab from '@/components/network/ConnectionsTab';
 
 // --- TABS CONFIGURATION ---
 const TABS = [
@@ -118,7 +120,13 @@ export default function NetworkDashboard() {
   
   const [startupData, setStartupData] = useState<any>({ workload: 50, payroll: 50, morale: 100, is_strike: false, level: 1, companyName: "", ticker: "", equityOwned: 100, moraleBoostUntil: 0, upgrades: [], acquisitions: [] });
   
-  const activeLevel = playerPath === 'founder' ? (startupData.level || 1) : corporateLevel;
+  // Ghost Path State
+  const [heatLevel, setHeatLevel] = useState(0);
+  const [dirtyCash, setDirtyCash] = useState(0);
+  const [criminalLevel, setCriminalLevel] = useState(1);
+  const [launderingEfficiency, setLaunderingEfficiency] = useState(0.5);
+  
+  const activeLevel = playerPath === 'founder' ? (startupData.level || 1) : playerPath === 'ghost' ? criminalLevel : corporateLevel;
   const maxEnergy = 100 + ((activeLevel - 1) * 50); 
 
   const [pendingSalary, setPendingSalary] = useState(0); 
@@ -134,7 +142,6 @@ export default function NetworkDashboard() {
 
   const [activeTab, setActiveTab] = useState('overview');
   const [activeJob, setActiveJob] = useState<any>(null);
-  const [showPathSelection, setShowPathSelection] = useState(false);
   const [transferAmount, setTransferAmount] = useState("");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -149,7 +156,7 @@ export default function NetworkDashboard() {
   const showAccountSelect = (title: string, message: string, amount: number, accounts: any[]) => new Promise<string | null>((resolve) => setModal({ isOpen: true, type: 'account-select', title, message, placeholder: '', resolve, accounts, amount }));
   const closeModal = (result: any) => { if (modal.resolve) modal.resolve(result); setModal(prev => ({ ...prev, isOpen: false })); };
 
-  const displaySalaryRef = useRef(pendingSalary); const startupDataRef = useRef(startupData); const balanceRef = useRef(balance); const ficoRef = useRef(fico); const ownedPropertiesRef = useRef(ownedProperties); const currentLocationRef = useRef(currentLocation); const nextTaxTimeRef = useRef(nextTaxTime); const lazinessPenaltyUntilRef = useRef(lazinessPenaltyUntil); const energyBlockUntilRef = useRef(energyBlockUntil); const taxCycleMinutesRef = useRef(taxCycleMinutes); const marketEventRef = useRef(marketEvent); const portfolioRef = useRef(portfolio);
+  const displaySalaryRef = useRef(pendingSalary); const startupDataRef = useRef(startupData); const balanceRef = useRef(balance); const ficoRef = useRef(fico); const ownedPropertiesRef = useRef(ownedProperties); const currentLocationRef = useRef(currentLocation); const nextTaxTimeRef = useRef(nextTaxTime); const lazinessPenaltyUntilRef = useRef(lazinessPenaltyUntil); const energyBlockUntilRef = useRef(energyBlockUntil); const taxCycleMinutesRef = useRef(taxCycleMinutes); const marketEventRef = useRef(marketEvent); const portfolioRef = useRef(portfolio); const heatLevelRef = useRef(heatLevel); const dirtyCashRef = useRef(dirtyCash);
   
   useEffect(() => { displaySalaryRef.current = pendingSalary; }, [pendingSalary]); 
   useEffect(() => { startupDataRef.current = startupData; }, [startupData]); 
@@ -157,6 +164,8 @@ export default function NetworkDashboard() {
   useEffect(() => { ficoRef.current = fico; }, [fico]); 
   useEffect(() => { ownedPropertiesRef.current = ownedProperties; }, [ownedProperties]); 
   useEffect(() => { currentLocationRef.current = currentLocation; }, [currentLocation]); 
+  useEffect(() => { heatLevelRef.current = heatLevel; }, [heatLevel]);
+  useEffect(() => { dirtyCashRef.current = dirtyCash; }, [dirtyCash]); 
   useEffect(() => { nextTaxTimeRef.current = nextTaxTime; }, [nextTaxTime]); 
   useEffect(() => { lazinessPenaltyUntilRef.current = lazinessPenaltyUntil; }, [lazinessPenaltyUntil]); 
   useEffect(() => { energyBlockUntilRef.current = energyBlockUntil; }, [energyBlockUntil]); 
@@ -250,7 +259,7 @@ export default function NetworkDashboard() {
         
         if (dbData.data) {
           const d = dbData.data;
-          setBalance(Number(d.bank_balance||0)); setFico(Number(d.fico_score||700)); setPlayerPath(d.player_path||null); setPathUpdatedAt(d.path_updated_at||null); setSelectedBank(d.selected_bank||null); setAccountNumber(d.account_number||null); setSavingsBalance(Number(d.savings_balance||0)); setLoanAccountBalance(Number(d.loan_account_balance||0)); setLoanBalance(Number(d.loan_balance||0)); setCurrentLocation(d.location||'bali');
+          setBalance(Number(d.bank_balance||0)); setFico(Number(d.fico_score||700)); setPlayerPath(d.player_path||'hustler'); setPathUpdatedAt(d.path_updated_at||null); setSelectedBank(d.selected_bank||null); setAccountNumber(d.account_number||null); setSavingsBalance(Number(d.savings_balance||0)); setLoanAccountBalance(Number(d.loan_account_balance||0)); setLoanBalance(Number(d.loan_balance||0)); setCurrentLocation(d.location||'bali');
           
           const lT = JSON.parse(localStorage.getItem('pulse_tax_state') || '{}');
           setNextTaxTime(Number(lT.next_tax_at||Date.now()+(10*60000))); setTaxCycleMinutes(Number(lT.tax_cycle_minutes||10)); setLazinessPenaltyUntil(Number(lT.laziness_penalty_until||0)); setEnergyBlockUntil(Number(lT.energy_block_until||0)); setFreePathSwitchUsed(Boolean(lT.free_path_switch_used||false));
@@ -263,7 +272,9 @@ export default function NetworkDashboard() {
           if(!sData.upgrades) sData.upgrades=[]; if(!sData.acquisitions) sData.acquisitions=[]; setStartupData(sData);
           
           const level = Number(d.corporate_level||1); setCorporateLevel(level);
-          const eLevel = d.player_path === 'founder' ? (sData.level||1) : level; const dMaxE = 100+((eLevel-1)*50); let lE = Number(d.energy!=null?d.energy:dMaxE);
+          setHeatLevel(Number(d.heat_level||0)); setDirtyCash(Number(d.dirty_cash||0)); setCriminalLevel(Number(d.criminal_level||1)); setLaunderingEfficiency(Number(d.laundering_efficiency||0.5));
+          
+          const eLevel = d.player_path === 'founder' ? (sData.level||1) : d.player_path === 'ghost' ? Number(d.criminal_level||1) : level; const dMaxE = 100+((eLevel-1)*50); let lE = Number(d.energy!=null?d.energy:dMaxE);
           let offE = 0; let sSync = Date.now();
           
           if ((d.player_path === 'corporate' || d.player_path === 'founder') && d.last_salary_sync) {
@@ -538,8 +549,7 @@ export default function NetworkDashboard() {
   };
 
   const handleSwitchPathClick = async () => {
-    if (pathUpdatedAt) { const h = (Date.now() - new Date(pathUpdatedAt).getTime()) / 3600000; if (h < 24) { if (!freePathSwitchUsed) { const c = await showConfirm("Free Switch", `Use your 1 free switch now?`); if(!c) return; } else return await showAlert("Access Denied", `Wait ${Math.ceil(24-h)} hrs to switch.`); } }
-    setShowPathSelection(true);
+     // Optional: If you want to allow changing paths from settings later. For now, it's organically handled.
   };
 
   const handlePathSelect = async (newPath: string) => {
@@ -551,28 +561,59 @@ export default function NetworkDashboard() {
         setBalance(fB); setSavingsBalance(fS); setLoanAccountBalance(fL);
     }
     let uFS = freePathSwitchUsed; if(pathUpdatedAt && (Date.now()-new Date(pathUpdatedAt).getTime())/3600000 < 24 && !freePathSwitchUsed){ uFS=true; setFreePathSwitchUsed(true); }
-    const ns = new Date().toISOString(); setPlayerPath(newPath); setPathUpdatedAt(ns); setShowPathSelection(false);
+    const ns = new Date().toISOString(); setPlayerPath(newPath); setPathUpdatedAt(ns);
     const u:any = { player_path: newPath, path_updated_at: ns, free_path_switch_used: uFS, last_salary_sync: ns, last_energy_sync: lastEnergySyncState?new Date(lastEnergySyncState).toISOString():ns };
+    let activeLvl = 1;
     if (newPath === 'founder') { u.bank_balance=fB; u.savings_balance=fS; u.loan_account_balance=fL; const dS={ workload: 50, payroll: 50, morale: 100, is_strike: false, level: 1, companyName: "", ticker: "", equityOwned: 100, moraleBoostUntil: 0, upgrades: [], acquisitions: [] }; setStartupData(dS); u.startup_data=dS; } 
-    else if (newPath === 'corporate') { setPendingSalary(0); setLastLocalSync(Date.now()); }
-    const nE = 100+(((newPath==='founder'?1:corporateLevel)-1)*50); if(energy>nE){setEnergy(nE); u.energy=nE;} saveGameState(u);
+    else if (newPath === 'corporate') { setPendingSalary(0); setLastLocalSync(Date.now()); setCorporateLevel(1); u.corporate_level = 1; }
+    else if (newPath === 'ghost') { setCriminalLevel(1); u.criminal_level = 1; }
+    
+    const nE = 100+((activeLvl-1)*50); if(energy>nE){setEnergy(nE); u.energy=nE;} saveGameState(u);
   };
 
   const handleDevBypass = async () => {
      const i = await showPrompt("God Mode", "Add Cash:", "1000000"); if (!i) return; const a = parseFloat(i); if (isNaN(a)) return;
-     const nb = balance+a; const nm = 100+(((playerPath==='founder'?(startupData.level||1):corporateLevel)-1)*50);
-     const sd = {...startupData, upgrades:startupData.upgrades||[], acquisitions:startupData.acquisitions||[]};
+     const l = await showPrompt("God Mode", "Set Level:", "10"); if (!l) return; const lvl = parseInt(l); if(isNaN(lvl)) return;
+     
+     const nb = balance+a; const nm = 100+((lvl-1)*50);
+     const sd = {...startupData, upgrades:startupData.upgrades||[], acquisitions:startupData.acquisitions||[], level: playerPath === 'founder' ? lvl : (startupData.level || 1)};
+     const corpLvl = playerPath === 'corporate' || playerPath === 'hustler' || !playerPath ? lvl : corporateLevel;
+     const crimLvl = playerPath === 'ghost' ? lvl : criminalLevel;
+     
      setBalance(nb); setEnergy(nm); setFico(850); setLoanBalance(0); setPathUpdatedAt(null); setFreePathSwitchUsed(false); setPendingSalary(playerPath==='corporate'?monthlySalaryTarget:0); setLastLocalSync(Date.now()); setLastEnergySyncState(Date.now()); setStartupData(sd); setEnergyBlockUntil(0); setLazinessPenaltyUntil(0);
-     saveGameState({ bank_balance: nb, energy: nm, fico_score: 850, loan_balance: 0, path_updated_at: null, free_path_switch_used: false, pending_salary: playerPath==='corporate'?monthlySalaryTarget:0, last_salary_sync: new Date().toISOString(), last_energy_sync: new Date().toISOString(), startup_data: sd, energy_block_until: 0, laziness_penalty_until: 0 });
-     await showAlert("God Mode", `Added $${a.toLocaleString()}, max FICO, clears debt/hangovers.`);
+     setCorporateLevel(corpLvl); setCriminalLevel(crimLvl);
+     
+     saveGameState({ bank_balance: nb, energy: nm, fico_score: 850, loan_balance: 0, path_updated_at: null, free_path_switch_used: false, pending_salary: playerPath==='corporate'?monthlySalaryTarget:0, last_salary_sync: new Date().toISOString(), last_energy_sync: new Date().toISOString(), startup_data: sd, energy_block_until: 0, laziness_penalty_until: 0, corporate_level: corpLvl, criminal_level: crimLvl });
+     await showAlert("God Mode", `Added $${a.toLocaleString()}, set Level to ${lvl}, max FICO, clears debt/hangovers.`);
   };
 
   const handleResetState = async () => {
-     const c = await showConfirm("Hard Reset", "Wipe game state back to 0?"); if (!c) return;
+     const c = await showConfirm("Hard Reset", "Wipe game state back to $250?"); if (!c) return;
      const ds = { workload: 50, payroll: 50, morale: 100, is_strike: false, level: 1, companyName: "", ticker: "", equityOwned: 100, moraleBoostUntil: 0, upgrades: [], acquisitions: [] };
-     setBalance(0); setSavingsBalance(0); setLoanAccountBalance(0); setLoanBalance(0); setFico(700); setEnergy(100); setPendingSalary(0); setCurrentLocation('bali'); setOwnedProperties([]); setOwnedVehicles([]); setPortfolio({ funds: {}, stocks: {}, angel: [] }); setStartupData(ds); setCorporateLevel(1); setEnergyBlockUntil(0); setLazinessPenaltyUntil(0); localStorage.removeItem('pulse_tax_state');
-     saveGameState({ bank_balance: 0, savings_balance: 0, loan_account_balance: 0, loan_balance: 0, fico_score: 700, energy: 100, pending_salary: 0, location: 'bali', owned_properties: [], owned_vehicles: [], portfolio: { funds: {}, stocks: {}, angel: [] }, startup_data: ds, corporate_level: 1, path_updated_at: null, free_path_switch_used: false, last_salary_sync: new Date().toISOString(), last_energy_sync: new Date().toISOString(), energy_block_until: 0, laziness_penalty_until: 0 });
-     await showAlert("Success", "Game state reset.");
+     
+     // 1. Reset Local State
+     setBalance(250); setSavingsBalance(0); setLoanAccountBalance(0); setLoanBalance(0); setFico(700); setEnergy(100); 
+     setPendingSalary(0); setCurrentLocation('bali'); setOwnedProperties([]); setOwnedVehicles([]); 
+     setPortfolio({ funds: {}, stocks: {}, angel: [] }); setStartupData(ds); setCorporateLevel(1); 
+     setEnergyBlockUntil(0); setLazinessPenaltyUntil(0); setPlayerPath('hustler'); setPathUpdatedAt(null); 
+     setHeatLevel(0); setDirtyCash(0); setCriminalLevel(1); setLaunderingEfficiency(0.5);
+     setFreePathSwitchUsed(false); 
+     localStorage.removeItem('pulse_tax_state');
+     localStorage.removeItem('pulse_secure_comm');
+     
+     // 2. Sync to Server
+     await saveGameState({ 
+        bank_balance: 250, savings_balance: 0, loan_account_balance: 0, loan_balance: 0, fico_score: 700, 
+        energy: 100, pending_salary: 0, location: 'bali', owned_properties: [], owned_vehicles: [], 
+        portfolio: { funds: {}, stocks: {}, angel: [] }, startup_data: ds, corporate_level: 1, 
+        player_path: 'hustler', path_updated_at: null, free_path_switch_used: false, 
+        heat_level: 0, dirty_cash: 0, criminal_level: 1, laundering_efficiency: 0.5,
+        last_salary_sync: new Date().toISOString(), last_energy_sync: new Date().toISOString(), 
+        energy_block_until: 0, laziness_penalty_until: 0 
+     });
+     
+     await showAlert("System Reset", "Neural link purged. Welcome back to the beginning, Agent.");
+     window.location.reload();
   };
 
   if (loading) return <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center text-white"><Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-4" /><p className="text-zinc-500 font-mono text-sm uppercase tracking-widest animate-pulse">Syncing Secure Database...</p></div>;
@@ -589,28 +630,23 @@ export default function NetworkDashboard() {
           )}
         </div>
       )}
-      {(!playerPath || showPathSelection) && !modal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#050505]/95 backdrop-blur-2xl p-4 overflow-y-auto">
-           {playerPath && <button onClick={() => setShowPathSelection(false)} className="absolute top-8 right-8 text-zinc-500 hover:text-white transition-colors bg-white/5 p-2 rounded-full"><X className="w-6 h-6" /></button>}
-           <div className="max-w-5xl w-full py-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
-              <div className="text-center mb-12"><h1 className="text-5xl md:text-6xl font-black tracking-tighter text-white mb-4">Choose Your Path</h1><p className="text-zinc-400 text-lg max-w-xl mx-auto">Your choice determines your gameplay mechanics, income style, and risks.</p></div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                 <button onClick={() => handlePathSelect('hustler')} className={`group border rounded-3xl p-8 text-left transition-all flex flex-col justify-between min-h-[400px] cursor-pointer ${playerPath === 'hustler' ? 'bg-emerald-500/10 border-emerald-500/50 shadow-[0_0_40px_rgba(16,185,129,0.15)]' : 'bg-[#121214] border-white/10 hover:border-emerald-500/50 hover:-translate-y-2'}`}><div><div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center border border-emerald-500/20 mb-6"><Zap className="w-7 h-7 text-emerald-400" /></div><h3 className="text-2xl font-black text-white mb-2">The Street Hustler</h3><p className="text-zinc-400 text-sm leading-relaxed mb-6">Active gameplay. Take on gig economy jobs. Click to complete tasks. Finish fast for bonuses.</p></div></button>
-                 <button onClick={() => handlePathSelect('corporate')} className={`group border rounded-3xl p-8 text-left transition-all flex flex-col justify-between min-h-[400px] cursor-pointer ${playerPath === 'corporate' ? 'bg-indigo-500/10 border-indigo-500/50 shadow-[0_0_40px_rgba(99,102,241,0.15)]' : 'bg-[#121214] border-white/10 hover:border-indigo-500/50 hover:-translate-y-2'}`}><div><div className="w-14 h-14 bg-indigo-500/10 rounded-2xl flex items-center justify-center border border-indigo-500/20 mb-6"><Briefcase className="w-7 h-7 text-indigo-400" /></div><h3 className="text-2xl font-black text-white mb-2">Corporate Worker</h3><p className="text-zinc-400 text-sm leading-relaxed mb-6">Stable passive income. Accrue salary per minute and claim monthly. Perform "Boss Tasks" to earn promotions.</p></div></button>
-                 <button onClick={() => handlePathSelect('founder')} className={`group border rounded-3xl p-8 text-left transition-all flex flex-col justify-between min-h-[400px] cursor-pointer relative overflow-hidden ${playerPath === 'founder' ? 'bg-orange-500/10 border-orange-500/50 shadow-[0_0_40px_rgba(249,115,22,0.15)]' : 'bg-[#121214] border-white/10 hover:border-orange-500/50 hover:-translate-y-2'}`}><div><div className="w-14 h-14 bg-orange-500/10 rounded-2xl flex items-center justify-center border border-orange-500/20 mb-6"><Building2 className="w-7 h-7 text-orange-400" /></div><h3 className="text-2xl font-black text-white mb-2">The Founder</h3><p className="text-zinc-400 text-sm leading-relaxed mb-6">Manage a global startup. Balance workload and payroll. Highly volatile income, massive upside potential, but strikes can bankrupt you.</p></div><div className="mt-auto pt-6"><p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest border border-orange-500/20 bg-orange-500/10 px-3 py-1.5 rounded-lg inline-block w-max">Requires $50,000 Investment</p></div></button>
-              </div>
-           </div>
-        </div>
-      )}
       {activeJob && (
-        <ActiveJobModal job={activeJob} onClose={() => setActiveJob(null)} onComplete={async (success, tRem) => { setActiveJob(null); let nBal = Number(balance); if (activeJob.isPromotion) { if (success) { const nLvl = corporateLevel + 1; setCorporateLevel(nLvl); const nE = 100 + ((nLvl - 1) * 50); await showAlert("Rank Up!", `You leveled up to Level ${nLvl}! Max Energy increased to ${nE}.`); saveGameState({ corporate_level: nLvl }); } else { await showAlert("Failed", `Time's up! You failed the challenge.`); } return; } if (activeJob.isExpansion) { if (success) { const sD = startupDataRef.current; const nLvl = (sD.level || 1) + 1; const nSD = { ...sD, level: nLvl }; const nE = 100 + ((nLvl - 1) * 50); setStartupData(nSD); saveGameState({ startup_data: nSD }); await showAlert("Expansion Successful!", `Startup is now Level ${nLvl}. Max Energy is ${nE}, revenue/costs scaled up!`); } else { await showAlert("Expansion Failed", `Time's up! Expansion failed. Better luck next time.`); } return; } if (success) { const bonus = tRem * 0.50; let tE = activeJob.basePay + bonus; if (!selectedBank && nBal + tE > 50000) { const a = 50000 - nBal; if (a <= 0) { await showAlert("Wallet Full!", "Pockets are full! Need bank account. Job payout discarded."); tE = 0; } else { await showAlert("Wallet Full!", `Only room for $${a.toFixed(2)}. Claimed partial payout.`); tE = a; } } else { await showAlert("Job Complete!", `Earned $${activeJob.basePay} + $${bonus.toFixed(2)} speed bonus!`); } nBal += tE; } else { const pen = activeJob.basePay * 0.20; nBal -= pen; await showAlert("Job Failed", `Failed job. Fined $${pen.toFixed(2)}!`); } setBalance(nBal); saveGameState({ bank_balance: nBal }); }} />
+        <ActiveJobModal job={activeJob} onClose={() => setActiveJob(null)} onComplete={async (success, tRem) => { setActiveJob(null); let nBal = Number(balance); if (activeJob.isPromotion) { if (success) { const nLvl = corporateLevel + 1; setCorporateLevel(nLvl); const nE = 100 + ((nLvl - 1) * 50); await showAlert("Rank Up!", `You leveled up to Level ${nLvl}! Max Energy increased to ${nE}.`); saveGameState({ corporate_level: nLvl }); } else { await showAlert("Failed", `Time's up! You failed the challenge.`); } return; } if (activeJob.isExpansion) { if (success) { const sD = startupDataRef.current; const nLvl = (sD.level || 1) + 1; const nSD = { ...sD, level: nLvl }; const nE = 100 + ((nLvl - 1) * 50); setStartupData(nSD); saveGameState({ startup_data: nSD }); await showAlert("Expansion Successful!", `Startup is now Level ${nLvl}. Max Energy is ${nE}, revenue/costs scaled up!`); } else { await showAlert("Expansion Failed", `Time's up! Expansion failed. Better luck next time.`); } return; } if (success) { const bonus = tRem * 0.50; let tE = activeJob.basePay + bonus; if (activeJob.isGhostJob) { let nDirty = dirtyCashRef.current + tE; setDirtyCash(nDirty); let heatAdd = 5; if (activeJob.id === 'ghost2') heatAdd = 10; if (activeJob.id === 'ghost3') heatAdd = 15; let nHeat = Math.min(100, heatLevelRef.current + heatAdd); setHeatLevel(nHeat); saveGameState({ dirty_cash: nDirty, heat_level: nHeat }); await showAlert("Job Complete!", `Earned $${activeJob.basePay} + $${bonus.toFixed(2)} speed bonus (Unlaundered)!\nHeat Level increased by ${heatAdd}.`); } else { if (!selectedBank && nBal + tE > 50000) { const a = 50000 - nBal; if (a <= 0) { await showAlert("Wallet Full!", "Pockets are full! Need bank account. Job payout discarded."); tE = 0; } else { await showAlert("Wallet Full!", `Only room for $${a.toFixed(2)}. Claimed partial payout.`); tE = a; } } else { await showAlert("Job Complete!", `Earned $${activeJob.basePay} + $${bonus.toFixed(2)} speed bonus!`); } nBal += tE; setBalance(nBal); saveGameState({ bank_balance: nBal }); } } else { const pen = activeJob.basePay * 0.20; if (activeJob.isGhostJob) { let nHeat = Math.min(100, heatLevelRef.current + 10); setHeatLevel(nHeat); saveGameState({ heat_level: nHeat }); await showAlert("Job Failed", `The job went south! No payout, and your Heat Level spiked by 10!`); } else { nBal -= pen; await showAlert("Job Failed", `Failed job. Fined $${pen.toFixed(2)}!`); setBalance(nBal); saveGameState({ bank_balance: nBal }); } } }} />
       )}
-      <aside className="hidden lg:flex w-64 bg-[#0a0a0c]/80 backdrop-blur-xl border-r border-white/5 flex-col z-20 shrink-0">
-        <div className="p-6 border-b border-white/5 flex items-center gap-3"><img src="/icon.svg" alt="Pulse" className="w-7 h-7 object-contain" /><span className="font-black text-xl tracking-tighter text-white">Pulse<span className="text-zinc-600">Network</span></span></div>
-        <div className="flex-1 px-4 py-6 space-y-8 overflow-y-auto">
-          <div><p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest ml-2 mb-3">Central Hub</p><div className="space-y-1">{TABS.map(tab => (<button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-colors ${activeTab === tab.id ? 'bg-gradient-to-r from-indigo-500/10 to-transparent text-indigo-400 border-l-2 border-indigo-500 shadow-[inset_0_0_20px_rgba(99,102,241,0.05)]' : 'text-zinc-400 hover:bg-white/5 hover:text-white font-medium'}`}><tab.icon className="w-4 h-4" /> {tab.label}</button>))}</div></div>
-        </div>
-      </aside>
+      {/* ── DESKTOP: PULSE PHONE ── */}
+      <div className="hidden lg:flex items-center justify-center w-[400px] shrink-0 z-20 py-4 pl-4">
+        <PulsePhone
+          playerPath={playerPath}
+          balance={balance}
+          netWorth={totalNetWorth}
+          energy={energy}
+          maxEnergy={maxEnergy}
+          displayName={displayName}
+          onAppOpen={(appId) => setActiveTab(appId)}
+          activeApp={activeTab}
+          messageBadge={0}
+        />
+      </div>
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-[60] bg-[#0a0a0c]/90 backdrop-blur-xl border-t border-white/10 pb-safe shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
          <div className="flex justify-between items-center px-2 py-2">
             {MOBILE_TABS.map(tab => (<button key={tab.id} onClick={() => { setActiveTab(tab.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex flex-col items-center gap-1 p-2 rounded-xl transition-colors ${activeTab === tab.id && !isMobileMenuOpen ? 'text-indigo-400' : 'text-zinc-500 hover:text-zinc-300'}`}><div className={`p-1.5 rounded-lg transition-colors ${activeTab === tab.id && !isMobileMenuOpen ? 'bg-indigo-500/20' : 'bg-transparent'}`}><tab.icon className="w-5 h-5" /></div><span className="text-[9px] font-bold tracking-widest uppercase truncate max-w-[60px]">{tab.label.split(' ')[0]}</span></button>))}
@@ -670,7 +706,16 @@ export default function NetworkDashboard() {
           <div className="flex items-center gap-2 sm:gap-3">
              {Date.now() < lazinessPenaltyUntil && <div className="hidden lg:flex items-center gap-2 bg-red-500/10 border border-red-500/30 text-red-500 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest mr-2 animate-pulse">[LAZY]</div>}
              {Date.now() < energyBlockUntil && <div className="hidden lg:flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest mr-2 animate-pulse">[BLOCKED]</div>}
-             {displayName.toLowerCase() === 'sour' && (<div className="hidden lg:flex items-center gap-2"><button onClick={handleResetState} className="flex items-center gap-2 bg-orange-500/10 border border-orange-500/30 text-orange-500 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-orange-500/20 transition shadow-[0_0_15px_rgba(249,115,22,0.2)]"><RefreshCw className="w-3 h-3" /> Reset</button><button onClick={handleDevBypass} className="flex items-center gap-2 bg-red-500/10 border border-red-500/30 text-red-500 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-red-500/20 transition shadow-[0_0_15px_rgba(239,68,68,0.2)]"><Zap className="w-3 h-3" /> God Mode</button></div>)}
+             <div className="hidden lg:flex items-center gap-2">
+                <button onClick={handleResetState} className="flex items-center gap-2 bg-orange-500/10 border border-orange-500/30 text-orange-500 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-orange-500/20 transition shadow-[0_0_15px_rgba(249,115,22,0.2)]">
+                  <RefreshCw className="w-3 h-3" /> Reset
+                </button>
+                {displayName.toLowerCase() === 'sour' && (
+                  <button onClick={handleDevBypass} className="flex items-center gap-2 bg-red-500/10 border border-red-500/30 text-red-500 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-red-500/20 transition shadow-[0_0_15px_rgba(239,68,68,0.2)]">
+                    <Zap className="w-3 h-3" /> God Mode
+                  </button>
+                )}
+             </div>
              <div className="flex items-center gap-2 sm:gap-3 bg-[#121214] border border-white/10 rounded-full pl-2 sm:pl-4 pr-1 py-1 shadow-md cursor-pointer hover:bg-white/5 transition-colors">
                <div className="hidden sm:flex flex-col items-end">
                  <span className="text-[9px] font-bold tracking-widest text-zinc-500 uppercase">Agent</span>
@@ -697,7 +742,7 @@ export default function NetworkDashboard() {
         <div className="p-4 sm:p-6 md:p-8 pt-4 pb-32 lg:pb-12">
            {activeTab === 'overview' && (
              <OverviewTab 
-                netWorth={totalNetWorth} balance={balance} savingsBalance={savingsBalance} loanAccountBalance={loanAccountBalance} assetValue={assetValue} loanBalance={loanBalance} fico={fico} playerPath={playerPath} netWorthHistory={netWorthHistory} currentLocName={locStats.name} energy={energy} ownedVehicles={ownedVehicles} setBalance={setBalance} setSavingsBalance={setSavingsBalance} setLoanAccountBalance={setLoanAccountBalance} setEnergy={setEnergy} setActiveJob={setActiveJob} saveGameState={saveGameState} executeTreasuryAction={executeTreasuryAction} handleSwitchPathClick={handleSwitchPathClick} corporateLevel={corporateLevel} currentRole={currentRole} displaySalary={displaySalaryRef.current} pendingSalary={pendingSalary} monthlySalaryTarget={monthlySalaryTarget} salaryProgressPercentage={Math.min(100, (Number(pendingSalary) / monthlySalaryTarget) * 100)} handleClaimSalary={handleClaimSalary} currentLocation={currentLocation} ownedProperties={ownedProperties} startupData={startupData} setStartupData={setStartupData} locMultiplier={locStats.multiplier} getStartupMultipliers={getStartupMultipliers} showAlert={showAlert} showConfirm={showConfirm} showPrompt={showPrompt} nextTaxTime={nextTaxTime} taxCycleMinutes={taxCycleMinutes} marketEvent={marketEvent} energyBlockUntil={energyBlockUntil} setEnergyBlockUntil={setEnergyBlockUntil} showAccountSelect={showAccountSelect}
+                netWorth={totalNetWorth} balance={balance} savingsBalance={savingsBalance} loanAccountBalance={loanAccountBalance} assetValue={assetValue} loanBalance={loanBalance} fico={fico} playerPath={playerPath} netWorthHistory={netWorthHistory} currentLocName={locStats.name} energy={energy} ownedVehicles={ownedVehicles} setBalance={setBalance} setSavingsBalance={setSavingsBalance} setLoanAccountBalance={setLoanAccountBalance} setEnergy={setEnergy} setActiveJob={setActiveJob} saveGameState={saveGameState} executeTreasuryAction={executeTreasuryAction} handleSwitchPathClick={handleSwitchPathClick} corporateLevel={corporateLevel} currentRole={currentRole} displaySalary={displaySalaryRef.current} pendingSalary={pendingSalary} monthlySalaryTarget={monthlySalaryTarget} salaryProgressPercentage={Math.min(100, (Number(pendingSalary) / monthlySalaryTarget) * 100)} handleClaimSalary={handleClaimSalary} currentLocation={currentLocation} ownedProperties={ownedProperties} startupData={startupData} setStartupData={setStartupData} locMultiplier={locStats.multiplier} getStartupMultipliers={getStartupMultipliers} showAlert={showAlert} showConfirm={showConfirm} showPrompt={showPrompt} nextTaxTime={nextTaxTime} taxCycleMinutes={taxCycleMinutes} marketEvent={marketEvent} energyBlockUntil={energyBlockUntil} setEnergyBlockUntil={setEnergyBlockUntil} showAccountSelect={showAccountSelect} heatLevel={heatLevel} dirtyCash={dirtyCash} criminalLevel={criminalLevel} setDirtyCash={setDirtyCash} setHeatLevel={setHeatLevel}
              />
           )}
           {activeTab === 'banking' && (
@@ -718,6 +763,37 @@ export default function NetworkDashboard() {
           {activeTab === 'markets' && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                <MarketsTab balance={balance} portfolio={portfolio} setBalance={setBalance} setPortfolio={setPortfolio} saveGameState={saveGameState} executeTreasuryAction={executeTreasuryAction} showAlert={showAlert} showConfirm={showConfirm} showPrompt={showPrompt} selectedBank={selectedBank} />
+            </div>
+          )}
+          {activeTab === 'messages' && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+               <div className="max-w-6xl mx-auto">
+                 <ConnectionsTab 
+                    balance={balance} 
+                    savingsBalance={savingsBalance}
+                    loanAccountBalance={loanAccountBalance}
+                    fico={fico} 
+                    playerPath={playerPath} 
+                    corporateLevel={corporateLevel} 
+                    criminalLevel={criminalLevel}
+                    startupData={startupData}
+                    handlePathSelect={handlePathSelect}
+                    showAlert={showAlert}
+                 />
+               </div>
+            </div>
+          )}
+          {activeTab === 'navigator' && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="max-w-4xl mx-auto">
+                <div className="bg-[#121214] border border-white/10 rounded-[32px] p-12 text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mx-auto mb-6">
+                    <Globe className="w-8 h-8 text-blue-400" />
+                  </div>
+                  <h2 className="text-2xl font-black text-white mb-2">Navigator</h2>
+                  <p className="text-zinc-500">City map loading. Satellite uplink in progress...</p>
+                </div>
+              </div>
             </div>
           )}
           {activeTab === 'leaderboard' && (

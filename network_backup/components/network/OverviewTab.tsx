@@ -29,6 +29,12 @@ const HUSTLER_JOBS = [
   { id: 'gig7', title: 'Corporate Heist', type: 'timing', difficulty: 'hard', pay: 3000, cost: 250, timeLimit: 30, icon: AlertTriangle, minLevel: 4, desc: "Extreme precision needed." }
 ];
 
+const GHOST_JOBS = [
+  { id: 'ghost1', title: 'Package Delivery', type: 'sorter', difficulty: 'easy', pay: 1500, cost: 20, timeLimit: 15, icon: Truck, minLevel: 1, desc: "Quick drop. +5 Heat." },
+  { id: 'ghost2', title: 'ATM Hack', type: 'timing', difficulty: 'medium', pay: 4000, cost: 40, timeLimit: 20, icon: Cpu, minLevel: 1, desc: "Break the encryption. +10 Heat." },
+  { id: 'ghost3', title: 'Warehouse Heist', type: 'memory', difficulty: 'hard', pay: 20000, cost: 60, timeLimit: 30, icon: ShieldAlert, minLevel: 2, desc: "High stakes infiltration. +15 Heat." },
+];
+
 const RND_TREES = [
   { 
     baseId: 'viral', name: 'Viral Campaigns', icon: TrendingUp, tiers: [ 
@@ -170,7 +176,8 @@ export default function OverviewTab({
   monthlySalaryTarget, salaryProgressPercentage, handleClaimSalary, currentLocation, 
   ownedProperties, startupData, setStartupData, locMultiplier, getStartupMultipliers, 
   showAlert, showConfirm, showPrompt, nextTaxTime, taxCycleMinutes, marketEvent, 
-  energyBlockUntil, setEnergyBlockUntil, showAccountSelect 
+  energyBlockUntil, setEnergyBlockUntil, showAccountSelect,
+  heatLevel, dirtyCash, criminalLevel, setDirtyCash, setHeatLevel
 }: any) {
   
   const chartData = netWorthHistory.map((val: number, i: number) => ({ index: i, netWorth: val }));
@@ -985,6 +992,90 @@ export default function OverviewTab({
                     <div className="flex justify-between items-end">
                       <p className="text-xs text-zinc-500">{isLocked ? `Unlocks at Lv.${job.minLevel}` : job.desc}</p>
                       <p className="text-emerald-400 font-mono font-bold text-sm">${job.pay}</p>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {playerPath === 'ghost' && (
+          <div className="lg:col-span-8 bg-[#121214] border border-red-500/20 rounded-[32px] p-6 sm:p-8 flex flex-col shadow-2xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-red-500/5 blur-3xl rounded-full pointer-events-none transition-transform group-hover:scale-110"></div>
+            
+            <div className="flex justify-between items-start mb-6 relative z-10">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-red-400 mb-1">Underground Network</p>
+                <h3 className="text-2xl font-black text-white">The Syndicate <span className="text-sm text-zinc-500 font-mono">(Rank {criminalLevel})</span></h3>
+              </div>
+              <button 
+                onClick={safeSwitchPath} 
+                className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-bold text-zinc-300 transition"
+              >
+                Switch Path
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 relative z-10">
+               {/* Dirty Cash Display */}
+               <div className="bg-black/40 border border-white/5 rounded-2xl p-5 flex flex-col justify-center">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">Unlaundered Funds</p>
+                  <p className="text-3xl font-black font-mono text-red-400 tracking-tight">
+                    ${dirtyCash.toLocaleString('en-US', {minimumFractionDigits: 2})}
+                  </p>
+                  <p className="text-[10px] text-zinc-500 font-mono mt-2">Requires Shell Company to clean</p>
+               </div>
+
+               {/* Heat Meter */}
+               <div className="bg-black/40 border border-white/5 rounded-2xl p-5 flex flex-col justify-center">
+                  <div className="flex justify-between text-xs font-bold text-zinc-400 mb-3 uppercase tracking-widest">
+                     <span className="flex items-center gap-1"><ShieldAlert className="w-3.5 h-3.5" /> Heat Level</span>
+                     <span className={heatLevel > 80 ? "text-red-500 animate-pulse" : heatLevel > 50 ? "text-yellow-500" : "text-emerald-500"}>
+                       {Math.floor(heatLevel)} / 100
+                     </span>
+                  </div>
+                  <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden mb-2">
+                     <div 
+                        className={`h-full transition-all duration-300 ${heatLevel > 80 ? "bg-red-500" : heatLevel > 50 ? "bg-yellow-500" : "bg-emerald-500"}`} 
+                        style={{ width: `${Math.min(100, heatLevel)}%` }}
+                     />
+                  </div>
+                  <p className="text-[10px] font-mono text-zinc-500">
+                     {heatLevel > 80 ? "⚠️ RAID IMMINENT! High risk of asset seizure." : heatLevel > 50 ? "Caution: Law enforcement is investigating." : "Safe. Activity undetected."}
+                  </p>
+               </div>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 relative z-10 max-h-[250px] overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/20 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.1)_transparent]">
+              {GHOST_JOBS.map(job => {
+                const isLocked = criminalLevel < job.minLevel;
+                return (
+                  <button 
+                    key={job.id} 
+                    onClick={() => { 
+                      if (isLocked) return showAlert("Locked", `Need Syndicate Rank ${job.minLevel}.`); 
+                      if (energy < job.cost) return showAlert("Not Enough Energy", `Need ${job.cost} Energy to operate!`); 
+                      if (heatLevel > 85) return showAlert("Too Hot", "Heat is too high! Wait for it to cool down or you'll get raided.");
+                      setActiveJob({ 
+                        id: job.id, title: job.title, gameType: job.type, difficulty: job.difficulty, 
+                        basePay: job.pay, timeLimit: job.timeLimit, icon: job.icon, isGhostJob: true 
+                      }); 
+                      setEnergy(energy - job.cost); 
+                      saveGameState({ energy: energy - job.cost }); 
+                    }} 
+                    className={`p-4 bg-black/40 border border-white/5 rounded-2xl text-left transition group/btn ${isLocked ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:border-red-500/30'}`}
+                  >
+                    <div className="flex justify-between items-center mb-2">
+                      <div className="flex items-center gap-2">
+                        <job.icon className={`w-4 h-4 ${isLocked ? 'text-zinc-500' : 'text-red-400'}`} />
+                        <span className="font-bold text-white group-hover/btn:text-red-400 transition">{job.title}</span>
+                      </div>
+                      <span className="text-[10px] font-mono bg-white/10 px-2 py-1 rounded text-zinc-300">-{job.cost} ⚡</span>
+                    </div>
+                    <div className="flex justify-between items-end">
+                      <p className="text-xs text-zinc-500">{isLocked ? `Unlocks at Rank ${job.minLevel}` : job.desc}</p>
+                      <p className="text-red-400 font-mono font-bold text-sm">+${job.pay}</p>
                     </div>
                   </button>
                 )

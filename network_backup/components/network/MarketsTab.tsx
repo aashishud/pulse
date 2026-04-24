@@ -249,7 +249,7 @@ export default function MarketsTab({ balance, portfolio, setBalance, setPortfoli
       if (!confirm) return;
 
       // SECURE SERVER TRANSACTION
-      const res = await executeTreasuryAction("ANGEL_INVEST", { name: deal.name, amount: deal.cost });
+      const res = await executeTreasuryAction("ANGEL_INVEST", { name: deal.name, amount: deal.cost, duration: deal.minTime, winChance: deal.winChance, maxMulti: deal.maxMulti });
       if (res) await showAlert("Investment Locked", `You are now a verified Angel Investor in ${deal.name}. Check your active portfolio later to resolve the exit.`);
    };
 
@@ -591,7 +591,7 @@ export default function MarketsTab({ balance, portfolio, setBalance, setPortfoli
                                            </button>
                                         ) : (
                                            <div className="w-full py-3 bg-black/40 border border-white/5 text-zinc-500 font-bold uppercase tracking-widest text-[10px] text-center rounded-xl flex items-center justify-center gap-2">
-                                               <Clock className="w-3 h-3" /> Matures in {Math.ceil((deal.maturesAt - Date.now()) / 60000)}m
+                                               <Clock className="w-3 h-3" /> Matures in {deal.maturesAt ? `${Math.max(0, Math.ceil((deal.maturesAt - Date.now()) / 60000))}m` : '...'}
                                            </div>
                                         )
                                     ) : (

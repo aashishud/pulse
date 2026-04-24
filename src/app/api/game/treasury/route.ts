@@ -150,7 +150,9 @@ export async function POST(request: Request) {
             status: 'pending',
             multiplier: 0,
             payout: 0,
-            resolveAt: Date.now() + (12 * 60 * 60 * 1000) // 12 realtime hours
+            winChance: payload.winChance || 0.5,
+            maxMulti: payload.maxMulti || 2,
+            maturesAt: Date.now() + (payload.duration * 60 * 1000)
         };
         portfolio.angel.push(newDeal);
         updates.portfolio = JSON.stringify(portfolio);
@@ -162,18 +164,32 @@ export async function POST(request: Request) {
         if (dealIndex === -1) return NextResponse.json({ error: "Deal not found or already resolved" }, { status: 400 });
         const deal = portfolio.angel[dealIndex];
         
-        // Wait, did 12 hours actually pass?
-        // if (Date.now() < deal.resolveAt) return NextResponse.json({ error: "Deal still maturing" }, { status: 400 });
+        // Wait, did the duration actually pass?
+        if (Date.now() < deal.maturesAt) return NextResponse.json({ error: "Deal still maturing" }, { status: 400 });
 
-        // SERVER RANDOMLY RESOLVES DEAL!
+        // SERVER RANDOMLY RESOLVES DEAL BASED ON STORED STATS!
         const roll = Math.random();
-        let status = 'bankrupt'; let mult = 0;
-        if (roll < 0.05) { status = 'unicorn'; mult = Math.floor(Math.random() * 41) + 10; } // 10x-50x
-        else if (roll < 0.15) { status = 'won'; mult = Math.floor(Math.random() * 6) + 5; } // 5x-10x
-        else if (roll < 0.40) { status = 'won'; mult = Math.floor(Math.random() * 3) + 2; } // 2x-4x
-        else if (roll < 0.55) { status = 'stagnant'; mult = 1; }
+        const winChance = deal.winChance || 0.5;
+        const maxMulti = deal.maxMulti || 2;
 
-        const payout = deal.invested * mult;
+        let status = 'bankrupt'; 
+        let mult = 0;
+
+        if (roll < 0.05) { 
+            // 5% chance for a "Unicorn" boost regardless of deal stats
+            status = 'unicorn'; 
+            mult = Math.floor(Math.random() * 11) + maxMulti; // maxMulti + (0-10)
+        } else if (roll < winChance) {
+            status = 'won';
+            // Randomly pick a multiplier between 1.1x and maxMulti
+            mult = Number((Math.random() * (maxMulti - 1.1) + 1.1).toFixed(2));
+        } else if (roll < winChance + 0.15) {
+            // 15% chance to just break even (stagnant) if you didn't "win"
+            status = 'stagnant';
+            mult = 1;
+        }
+
+        const payout = Math.floor(deal.invested * mult);
         portfolio.angel[dealIndex].status = status;
         portfolio.angel[dealIndex].multiplier = mult;
         portfolio.angel[dealIndex].payout = payout;
