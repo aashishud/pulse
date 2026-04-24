@@ -40,3 +40,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 to-do list
+.agent/rules/graphify.md
+.agent/workflows/graphify.md
