@@ -44,3 +44,4 @@ to-do list
 .agent/workflows/graphify.md
 graphify-out/.graphify_detect.json
 graphify-out/.graphify_python
+graphify-out/
