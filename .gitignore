@@ -42,3 +42,5 @@ next-env.d.ts
 to-do list
 .agent/rules/graphify.md
 .agent/workflows/graphify.md
+graphify-out/.graphify_detect.json
+graphify-out/.graphify_python
