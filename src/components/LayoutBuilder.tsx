@@ -54,56 +54,70 @@ function WidgetCard({
   item, 
   isOverlay = false, 
   onToggleEnable, 
-  onToggleSize 
+  onToggleSize,
+  dragListeners,
+  dragAttributes
 }: { 
   item: LayoutItem; 
   isOverlay?: boolean;
   onToggleEnable?: (id: string) => void; 
   onToggleSize?: (id: string) => void; 
+  dragListeners?: any;
+  dragAttributes?: any;
 }) {
   const info = WIDGET_INFO[item.id] || { title: item.id, icon: User, description: "Widget" };
   const Icon = info.icon;
   const isFull = item.size === 'full';
 
   return (
-    <div className={`relative flex flex-col justify-between p-4 rounded-[24px] border transition-all duration-200 text-left overflow-hidden w-full h-[110px]
+    <div 
+      {...dragListeners} 
+      {...dragAttributes}
+      className={`relative flex flex-col p-5 rounded-[28px] border transition-all duration-300 text-left overflow-hidden w-full h-[140px] group cursor-grab active:cursor-grabbing focus:outline-none
       ${isOverlay 
-         ? 'bg-[#18181b] border-indigo-500 shadow-2xl z-50 ring-2 ring-indigo-500/20 cursor-grabbing' 
-         : 'bg-[#0c0c0e] border-white/5 hover:border-white/20 shadow-lg'
+         ? 'bg-indigo-500/10 border-indigo-500/50 shadow-2xl z-50 ring-4 ring-indigo-500/20 scale-105 backdrop-blur-3xl' 
+         : 'bg-white/[0.03] border-white/10 hover:border-white/20 hover:bg-white/[0.06] shadow-xl backdrop-blur-md'
       }
-      ${!item.enabled && !isOverlay ? 'opacity-40 grayscale' : ''}
+      ${!item.enabled && !isOverlay ? 'opacity-30 grayscale hover:opacity-50' : ''}
     `}>
-       {/* Top Row: Icon + Hover Controls */}
-       <div className="flex justify-between items-start">
-         <div className={`w-10 h-10 rounded-[12px] flex items-center justify-center border shadow-inner shrink-0 ${isOverlay ? 'bg-indigo-500/20 border-indigo-500/30 text-indigo-400' : 'bg-white/5 border-white/10 text-zinc-400 group-hover:text-white transition-colors'}`}>
-           <Icon className="w-5 h-5" />
-         </div>
-         
-         {/* Action Buttons - Only visible on hover in the main grid */}
+       {/* Background gradient hint */}
+       <div className={`absolute top-0 right-0 w-32 h-32 bg-indigo-500/20 rounded-full blur-[40px] pointer-events-none transition-opacity ${isOverlay ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}></div>
+
+       {/* Top Row: Action Buttons */}
+       <div className="flex justify-end items-start relative z-10 w-full">
          {!isOverlay && onToggleSize && onToggleEnable && (
-           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/80 p-1 rounded-xl backdrop-blur-md border border-white/5 shadow-xl shrink-0">
+           <div 
+             onPointerDown={(e) => e.stopPropagation()} 
+             onClick={(e) => e.stopPropagation()}
+             className="flex items-center gap-1 bg-black/60 p-1.5 rounded-xl backdrop-blur-md border border-white/10 shadow-2xl opacity-0 group-hover:opacity-100 transition duration-200 cursor-default"
+           >
               <button 
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleSize(item.id); }} 
-                className="p-1.5 rounded-lg hover:bg-indigo-600 text-zinc-400 hover:text-white transition"
+                className="p-1.5 rounded-lg hover:bg-indigo-600 text-zinc-400 hover:text-white transition focus:outline-none"
                 title={isFull ? "Make Half Width" : "Make Full Width"}
               >
-                {isFull ? <Minimize2 className="w-3.5 h-3.5"/> : <Maximize2 className="w-3.5 h-3.5"/>}
+                {isFull ? <Minimize2 className="w-4 h-4"/> : <Maximize2 className="w-4 h-4"/>}
               </button>
               <button 
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleEnable(item.id); }} 
-                className="p-1.5 rounded-lg hover:bg-red-500 text-zinc-400 hover:text-white transition"
+                className="p-1.5 rounded-lg hover:bg-red-500 text-zinc-400 hover:text-white transition focus:outline-none"
                 title={item.enabled ? "Hide Widget" : "Show Widget"}
               >
-                {item.enabled ? <Eye className="w-3.5 h-3.5"/> : <EyeOff className="w-3.5 h-3.5"/>}
+                {item.enabled ? <Eye className="w-4 h-4"/> : <EyeOff className="w-4 h-4"/>}
               </button>
            </div>
          )}
        </div>
 
-       {/* Bottom Row: Identity (Bento Style) */}
-       <div className="mt-auto pt-2">
-         <div className="font-black text-[13px] text-white truncate">{info.title}</div>
-         <div className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest truncate mt-0.5">{info.description}</div>
+       {/* Bottom Row: Icon & Identity */}
+       <div className="mt-auto flex items-end gap-3.5 relative z-10">
+         <div className={`w-12 h-12 rounded-[14px] flex items-center justify-center border shadow-inner shrink-0 transition-colors ${isOverlay ? 'bg-indigo-500/20 border-indigo-500/30 text-indigo-400' : 'bg-white/5 border-white/5 text-zinc-400 group-hover:text-white group-hover:bg-white/10 group-hover:border-white/10'}`}>
+           <Icon className="w-6 h-6" />
+         </div>
+         <div className="flex-1 min-w-0 pb-1">
+           <div className="font-black text-[15px] text-white truncate tracking-tight">{info.title}</div>
+           <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest truncate mt-0.5">{info.description}</div>
+         </div>
        </div>
     </div>
   );
@@ -114,26 +128,24 @@ function SortableWidget({ item, onToggleEnable, onToggleSize }: { item: LayoutIt
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   
   const style = {
-    // BUGFIX: We MUST use Translate instead of Transform for CSS Grids! 
-    // This stops dnd-kit from trying to squish/stretch the cards during the swap animation.
     transform: CSS.Translate.toString(transform),
     transition,
     zIndex: isDragging ? 50 : 1,
-    opacity: isDragging ? 0.3 : 1,
+    opacity: isDragging ? 0.4 : 1,
   };
 
   return (
     <div 
       ref={setNodeRef} 
       style={style} 
-      {...attributes} 
-      {...listeners} 
-      className={`touch-none cursor-grab active:cursor-grabbing w-full ${item.size === 'full' ? 'col-span-2' : 'col-span-1'}`}
+      className={`relative group w-full ${item.size === 'full' ? 'col-span-2' : 'col-span-1'}`}
     >
        <WidgetCard 
          item={item} 
          onToggleEnable={onToggleEnable} 
          onToggleSize={onToggleSize} 
+         dragListeners={listeners}
+         dragAttributes={attributes}
        />
     </div>
   );
@@ -254,7 +266,9 @@ export default function LayoutBuilder({
          </div>
 
          {/* DRAGGABLE RIGHT GRID */}
-         <div className="flex-1 w-full max-w-[480px] bg-black/20 p-6 md:p-8 rounded-[32px] border border-white/5 shadow-inner flex justify-center">
+         <div className="flex-1 w-full max-w-[500px] bg-[#0c0c0e] p-6 md:p-8 rounded-[40px] border border-white/5 shadow-2xl flex flex-col relative overflow-hidden">
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff02_1px,transparent_1px),linear-gradient(to_bottom,#ffffff02_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none"></div>
+            
             <DndContext 
               sensors={sensors} 
               collisionDetection={closestCenter} 
@@ -266,7 +280,7 @@ export default function LayoutBuilder({
               <SortableContext items={items.map(i => i.id)} strategy={rectSortingStrategy}>
                 
                 {/* Max-width applied to container, items flex perfectly inside */}
-                <div className="grid grid-cols-2 gap-4 w-full max-w-[400px]">
+                <div className="grid grid-cols-2 gap-4 w-full relative z-10 auto-rows-[140px]">
                   {items.map((item) => (
                     <SortableWidget 
                       key={item.id} 
@@ -280,7 +294,7 @@ export default function LayoutBuilder({
               </SortableContext>
 
               {/* OVERLAY BUGFIX: We apply the exact pixel dimensions recorded on drag start! */}
-              <DragOverlay dropAnimation={{ sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: '0.4' } } }) }}>
+              <DragOverlay dropAnimation={{ sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: '0.2' } } }) }}>
                  {activeItem && activeNodeRect ? (
                     <div style={{ width: activeNodeRect.width, height: activeNodeRect.height }}>
                       <WidgetCard item={activeItem} isOverlay={true} />

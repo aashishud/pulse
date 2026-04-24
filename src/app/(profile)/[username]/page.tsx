@@ -13,6 +13,7 @@ import EnterScreen from '@/components/EnterScreen';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import PulseLogo from "@/components/PulseLogo"; 
+import TiltCard from '@/components/TiltCard';
 
 // --- IMPORT YOUR NEW CUSTOM BADGES ---
 import { customBadges } from '@/config/badges';
@@ -359,7 +360,7 @@ export default async function ProfilePage({ params }: Props) {
           </div>
 
           <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-4 pt-24 pb-8 h-screen w-full pointer-events-none">
-              <div className="w-full max-w-[500px] max-h-full rounded-[32px] border border-white/10 shadow-2xl flex flex-col relative overflow-hidden animate-in fade-in slide-in-from-bottom-8 duration-700 pointer-events-auto" style={leftCardStyle}>
+              <TiltCard className="w-full max-w-[500px] max-h-full rounded-[32px] border border-white/10 shadow-2xl flex flex-col relative animate-in fade-in slide-in-from-bottom-8 duration-700 pointer-events-auto" style={leftCardStyle}>
                   
                   <div className="flex-1 overflow-y-auto sleek-scrollbar w-full p-6 md:p-10 flex flex-col items-center text-center">
 
@@ -386,8 +387,8 @@ export default async function ProfilePage({ params }: Props) {
                       )}
                     </div>
 
-                    <div className="flex items-center justify-center gap-2 mb-2 max-w-full">
-                      <h1 className={`text-4xl ${nameClasses} truncate`} style={nameStyle}>{displayName}</h1>
+                    <div className="flex items-center justify-center gap-2 mb-2 w-full px-2">
+                      <h1 className={`text-4xl ${nameClasses} break-words whitespace-normal max-w-full`} style={nameStyle}>{displayName}</h1>
                       {firebaseUser.isVerified && (
                           <div className="relative group flex items-center justify-center shrink-0 cursor-help">
                             <BadgeCheck className="w-7 h-7 text-white fill-white/20 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" />
@@ -466,7 +467,7 @@ export default async function ProfilePage({ params }: Props) {
                         {simpleSocials.map((s, idx) => (
                           <a key={idx} href={s.url !== '#' ? s.url : undefined} target={s.url !== '#' ? "_blank" : undefined} rel="noopener noreferrer" className="relative group w-12 h-12 rounded-2xl bg-black/40 hover:bg-white/10 border border-white/5 flex items-center justify-center transition-all hover:scale-110 shadow-lg shrink-0">
                             <img src={s.icon} alt={s.name} className="w-5 h-5 object-contain opacity-90 invert shrink-0" />
-                            <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-zinc-950 border border-white/10 rounded-lg text-xs font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all pointer-events-none z-50 shadow-xl scale-95 group-hover:scale-100">
+                            <div className={`absolute bottom-full mb-3 ${idx >= simpleSocials.length / 2 ? 'right-0 origin-bottom-right' : 'left-0 origin-bottom-left'} px-3 py-1.5 bg-zinc-950 border border-white/10 rounded-lg text-xs font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all pointer-events-none z-[100] shadow-xl scale-95 group-hover:scale-100`}>
                                 {s.tooltip}
                             </div>
                           </a>
@@ -511,7 +512,7 @@ export default async function ProfilePage({ params }: Props) {
                     </div>
 
                   </div>
-              </div>
+              </TiltCard>
           </div>
         </div>
       ) : (
@@ -588,7 +589,7 @@ export default async function ProfilePage({ params }: Props) {
                   <div className="flex justify-between items-start mb-6 gap-4 shrink-0">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                         <h1 className={`text-3xl md:text-4xl font-black leading-relaxed py-1 truncate ${nameClasses.replace('mb-1', '')}`} style={nameStyle}>{displayName}</h1>
+                         <h1 className={`text-3xl md:text-4xl font-black leading-relaxed py-1 break-words whitespace-normal ${nameClasses.replace('mb-1', '')}`} style={nameStyle}>{displayName}</h1>
                          {firebaseUser.isVerified && (
                             <div className="relative group flex items-center justify-center shrink-0 cursor-help">
                                <BadgeCheck className="w-6 h-6 text-white fill-white/20 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)] mt-1 shrink-0" />
