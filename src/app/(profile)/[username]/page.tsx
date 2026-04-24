@@ -360,7 +360,11 @@ export default async function ProfilePage({ params }: Props) {
           </div>
 
           <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-4 pt-24 pb-8 h-screen w-full pointer-events-none">
-              <TiltCard className="w-full max-w-[500px] max-h-full rounded-[32px] border border-white/10 shadow-2xl flex flex-col relative animate-in fade-in slide-in-from-bottom-8 duration-700 pointer-events-auto" style={leftCardStyle}>
+              <TiltCard 
+                containerClassName="w-full max-w-[500px] max-h-full flex flex-col relative animate-in fade-in slide-in-from-bottom-8 duration-700 pointer-events-auto"
+                className="rounded-[32px] border border-white/10 shadow-2xl flex flex-col"
+                style={leftCardStyle}
+              >
                   
                   <div className="flex-1 overflow-y-auto sleek-scrollbar w-full p-6 md:p-10 flex flex-col items-center text-center">
 

@@ -2,7 +2,7 @@
 
 import React, { useRef, useState } from 'react';
 
-export default function TiltCard({ children, className, style }: { children: React.ReactNode, className?: string, style?: React.CSSProperties }) {
+export default function TiltCard({ children, className, containerClassName, style }: { children: React.ReactNode, className?: string, containerClassName?: string, style?: React.CSSProperties }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [rotateX, setRotateX] = useState(0);
   const [rotateY, setRotateY] = useState(0);
@@ -40,13 +40,13 @@ export default function TiltCard({ children, className, style }: { children: Rea
   return (
     <div 
       style={{ perspective: "1500px" }}
-      className={className}
+      className={containerClassName}
     >
       <div
         ref={cardRef}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        className="w-full h-full relative rounded-[inherit]"
+        className={`w-full h-full relative ${className || ''}`}
         style={{
           ...style,
           transform: `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`,
