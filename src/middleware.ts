@@ -4,34 +4,28 @@ import type { NextRequest } from 'next/server';
 export function middleware(req: NextRequest) {
   const url = req.nextUrl.clone();
   
-  // Get the host (e.g., 'network.pulsegg.in', 'network.lvh.me:3000', or 'localhost:3000')
+  // Get the host (e.g., 'sour.pulsegg.in', 'localhost:3000')
   const hostname = req.headers.get('host') || '';
-
-  const isNetworkSubdomain = hostname.startsWith('network.');
-
-  // 1. STRICT ENFORCEMENT: If they manually type /network on the main site, 
-  // redirect them instantly to the actual subdomain.
-  if (!isNetworkSubdomain && url.pathname.startsWith('/network')) {
-    const newUrl = new URL(req.url);
-    // Replace current host with network subdomain counterpart
-    newUrl.hostname = `network.${hostname.split(':')[0]}`;
-    // Strip the /network from the path
-    newUrl.pathname = url.pathname.replace('/network', '') || '/';
-    return NextResponse.redirect(newUrl);
+  const cleanHostname = hostname.split(':')[0];
+  
+  // Supported base domains
+  const mainDomains = ['pulsegg.in', 'localhost', 'lvh.me'];
+  let subdomain = null;
+  
+  for (const domain of mainDomains) {
+    if (cleanHostname.endsWith(`.${domain}`) && cleanHostname !== domain) {
+      subdomain = cleanHostname.replace(`.${domain}`, '');
+      break;
+    }
   }
 
-  // 2. SERVE THE SUBDOMAIN: If they are on the network subdomain, 
-  // secretly serve the /network folder while keeping the URL bar clean.
-  if (isNetworkSubdomain) {
-    // Share the main login and signup pages across subdomains 
-    // so Firebase Auth tokens stay under the subdomain's domain
-    const sharedRoutes = ['/login', '/signup'];
-    if (sharedRoutes.some(route => url.pathname.startsWith(route))) {
+  // If there's a custom subdomain (and it's not 'www'), route it to the user's profile
+  if (subdomain && subdomain !== 'www') {
+    // Rewrite root path to the profile path /[username]
+    if (url.pathname === '/') {
+      url.pathname = `/${subdomain}`;
       return NextResponse.rewrite(url);
     }
-    
-    url.pathname = `/network${url.pathname}`;
-    return NextResponse.rewrite(url);
   }
 
   return NextResponse.next();

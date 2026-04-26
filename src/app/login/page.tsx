@@ -24,10 +24,6 @@ function LoginContent() {
       try {
         const url = new URL(redirectUrl);
         setBackUrl(url.origin);
-        // Detect if the redirect is pointing back to the Network subdomain
-        if (url.hostname.includes('network')) {
-          setBackText("Back to Network");
-        }
       } catch (e) {
         console.error("Invalid redirect URL:", e);
       }

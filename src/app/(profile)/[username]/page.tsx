@@ -14,6 +14,7 @@ import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firesto
 import { db } from '@/lib/firebase';
 import PulseLogo from "@/components/PulseLogo"; 
 import TiltCard from '@/components/TiltCard';
+import OwnerOnly from '@/components/OwnerOnly';
 
 // --- IMPORT YOUR NEW CUSTOM BADGES ---
 import { customBadges } from '@/config/badges';
@@ -139,6 +140,7 @@ async function getFirebaseUser(username: string) {
       bgm: fields.theme?.mapValue?.fields?.bgm?.stringValue || "",
       backgroundVideo: fields.theme?.mapValue?.fields?.backgroundVideo?.stringValue || "",
       enterText: fields.theme?.mapValue?.fields?.enterText?.stringValue || "",
+      hideBranding: fields.theme?.mapValue?.fields?.hideBranding?.booleanValue || false,
       bio: fields.bio?.stringValue || "",
       views: fields.views?.integerValue || "0", 
       primaryCommunity: fields.primaryCommunity?.stringValue ?? null,
@@ -345,17 +347,21 @@ export default async function ProfilePage({ params }: Props) {
           </div>
 
           <div className="absolute top-0 left-0 w-full z-50 p-4 md:p-6 flex justify-between items-center pointer-events-auto">
-             <Link href="/" className="flex items-center gap-2 font-bold text-xl tracking-tighter hover:opacity-80 transition drop-shadow-md">
-               <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-[0_0_20px_rgba(99,102,241,0.4)]">
-                 <PulseLogo className="w-4 h-4 text-white" />
-               </div>
-               Pulse
-             </Link>
-             <div className="flex items-center gap-3">
+             {!firebaseUser.hideBranding && (
+               <Link href="/" className="flex items-center gap-2 font-bold text-xl tracking-tighter hover:opacity-80 transition drop-shadow-md">
+                 <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-[0_0_20px_rgba(99,102,241,0.4)]">
+                   <PulseLogo className="w-4 h-4 text-white" />
+                 </div>
+                 Pulse
+               </Link>
+             )}
+             <div className="flex items-center gap-3 ml-auto">
                 <ShareButton />
-                <a href={dashboardUrl} className="px-3 py-1.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl font-bold text-[10px] hover:bg-white hover:text-black transition flex items-center gap-2 shadow-lg">
-                   <Zap className="w-3 h-3 text-yellow-400 fill-current" /> Edit
-                </a>
+                <OwnerOnly ownerUid={firebaseUser.owner_uid}>
+                  <a href={dashboardUrl} className="px-3 py-1.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl font-bold text-[10px] hover:bg-white hover:text-black transition flex items-center gap-2 shadow-lg">
+                     <Zap className="w-3 h-3 text-yellow-400 fill-current" /> Edit
+                  </a>
+                </OwnerOnly>
              </div>
           </div>
 
@@ -509,11 +515,13 @@ export default async function ProfilePage({ params }: Props) {
                       </div>
                     )}
                     
-                    <div className="mt-8 text-center w-full pb-2 shrink-0">
-                        <Link href="/" className="inline-flex items-center gap-2 text-xs font-bold text-zinc-500 hover:text-white transition bg-black/40 px-4 py-2 rounded-full border border-white/5 backdrop-blur-md">
-                          <PulseLogo className="w-3 h-3 shrink-0" /> Powered by Pulse
-                        </Link>
-                    </div>
+                    {!firebaseUser.hideBranding && (
+                      <div className="mt-8 text-center w-full pb-2 shrink-0">
+                          <Link href="/" className="inline-flex items-center gap-2 text-xs font-bold text-zinc-500 hover:text-white transition bg-black/40 px-4 py-2 rounded-full border border-white/5 backdrop-blur-md">
+                            <PulseLogo className="w-3 h-3 shrink-0" /> Powered by Pulse
+                          </Link>
+                      </div>
+                    )}
 
                   </div>
               </TiltCard>
@@ -543,17 +551,21 @@ export default async function ProfilePage({ params }: Props) {
           <div className="relative z-10 max-w-[1200px] w-full mx-auto p-4 md:p-8 lg:py-10 h-screen flex flex-col overflow-hidden">
             
             <div className="flex justify-between items-center mb-6 px-2 shrink-0">
-               <Link href="/" className="flex items-center gap-2 font-bold text-xl tracking-tighter hover:opacity-80 transition">
-                 <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-                    <PulseLogo className="w-4 h-4 text-white" />
-                 </div>
-                 Pulse
-               </Link>
-               <div className="flex items-center gap-3 shrink-0">
+               {!firebaseUser.hideBranding && (
+                 <Link href="/" className="flex items-center gap-2 font-bold text-xl tracking-tighter hover:opacity-80 transition">
+                   <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+                      <PulseLogo className="w-4 h-4 text-white" />
+                   </div>
+                   Pulse
+                 </Link>
+               )}
+               <div className="flex items-center gap-3 shrink-0 ml-auto">
                   <ShareButton />
-                  <a href={dashboardUrl} className="px-3 py-1.5 bg-[#1e1f22] border border-white/10 rounded-xl font-bold text-[10px] hover:bg-white hover:text-black transition flex items-center gap-2">
-                     <Zap className="w-3 h-3 text-yellow-400 fill-current shrink-0" /> Edit
-                  </a>
+                  <OwnerOnly ownerUid={firebaseUser.owner_uid}>
+                    <a href={dashboardUrl} className="px-3 py-1.5 bg-[#1e1f22] border border-white/10 rounded-xl font-bold text-[10px] hover:bg-white hover:text-black transition flex items-center gap-2">
+                       <Zap className="w-3 h-3 text-yellow-400 fill-current shrink-0" /> Edit
+                    </a>
+                  </OwnerOnly>
                </div>
             </div>
 

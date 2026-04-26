@@ -28,9 +28,6 @@ function SignupContent() {
       try {
         const url = new URL(redirectUrl);
         setBackUrl(url.origin);
-        if (url.hostname.includes('network')) {
-          setBackText("Network");
-        }
       } catch (e) {}
     }
   }, [redirectUrl]);

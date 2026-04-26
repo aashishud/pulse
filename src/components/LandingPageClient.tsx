@@ -229,11 +229,7 @@ export default function LandingPageClient() {
           
           {/* LEFT: Copy & Input (Brutalist, Confident) */}
           <div className="flex-1 text-left w-full max-w-2xl lg:max-w-none mx-auto lg:mx-0">
-             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-mono uppercase tracking-widest text-zinc-400 mb-6 backdrop-blur-md">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                Public Beta Live
-             </div>
-             
+
              <h1 className="text-6xl sm:text-7xl lg:text-[5.5rem] font-black tracking-tighter leading-[0.95] mb-6 drop-shadow-2xl">
                 Your gaming <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">

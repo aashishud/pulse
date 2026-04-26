@@ -1442,7 +1442,22 @@ function DashboardContent() {
                                 )}
                              </div>
                           </div>
-                       
+                       {/* Pulse Branding */}
+                       <div className="col-span-full border-t border-white/5 pt-6 mt-2 mb-2">
+                          <label className="flex items-center gap-3 cursor-pointer p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl hover:bg-indigo-500/20 transition">
+                             <input 
+                                type="checkbox" 
+                                checked={theme.hideBranding || false} 
+                                onChange={(e) => setTheme({...theme, hideBranding: e.target.checked})}
+                                className="w-5 h-5 rounded border-indigo-500/50 bg-black/40 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-0 accent-indigo-500"
+                             />
+                             <div>
+                               <p className="text-sm font-bold text-white">Hide Pulse Branding</p>
+                               <p className="text-[10px] text-indigo-400 uppercase tracking-widest font-bold">Premium Feature (Enabled for testing)</p>
+                             </div>
+                          </label>
+                       </div>
+
                        {/* Cursor Effects */}
                        <div className="col-span-full">
                           <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Cursor Trail Effects</label>
