@@ -46,7 +46,7 @@ function DashboardContent() {
     color: "indigo", mode: "dark", banner: "", background: "", avatar: "", avatarDecoration: "none",
     cursorTrail: "none", customCursor: "", customCursorHover: "", nameEffect: "solid",
     nameColor: "white", primary: "#1e1f22", font: "inter", cardOpacity: 0.8, cardBlur: 10, 
-    layoutStyle: "bento", shader: "none", discordDecoration: "", bgm: "", backgroundVideo: "", enterText: ""
+    layoutStyle: "bento", shader: "none", discordDecoration: "", bgm: "", backgroundVideo: "", enterText: "", hideBranding: false
   });
   
   const [gear, setGear] = useState({ cpu: "", gpu: "", ram: "", mouse: "", keyboard: "", headset: "", monitor: "" });
@@ -198,7 +198,8 @@ function DashboardContent() {
             discordDecoration: userData.theme?.discordDecoration || "",
             bgm: userData.theme?.bgm || "",
             backgroundVideo: userData.theme?.backgroundVideo || "",
-            enterText: userData.theme?.enterText || ""
+            enterText: userData.theme?.enterText || "",
+            hideBranding: userData.theme?.hideBranding || false
         });
 
         setSocials({ 
