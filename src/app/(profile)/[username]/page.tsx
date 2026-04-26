@@ -141,6 +141,7 @@ async function getFirebaseUser(username: string) {
       backgroundVideo: fields.theme?.mapValue?.fields?.backgroundVideo?.stringValue || "",
       enterText: fields.theme?.mapValue?.fields?.enterText?.stringValue || "",
       hideBranding: fields.theme?.mapValue?.fields?.hideBranding?.booleanValue || false,
+      qrCodeUrl: fields.theme?.mapValue?.fields?.qrCodeUrl?.stringValue || "",
       bio: fields.bio?.stringValue || "",
       views: fields.views?.integerValue || "0", 
       primaryCommunity: fields.primaryCommunity?.stringValue ?? null,
@@ -526,6 +527,19 @@ export default async function ProfilePage({ params }: Props) {
                   </div>
               </TiltCard>
           </div>
+          
+          {firebaseUser.qrCodeUrl && (
+             <a href={ensureProtocol(firebaseUser.qrCodeUrl)} target="_blank" rel="noopener noreferrer" className="fixed bottom-6 right-6 z-50 p-2 bg-black/40 backdrop-blur-xl border border-white/10 hover:border-white/20 hover:scale-105 transition-all rounded-2xl shadow-2xl animate-in fade-in slide-in-from-bottom-8 duration-700">
+               <div className="bg-white p-2 rounded-xl">
+                 <img 
+                   src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(ensureProtocol(firebaseUser.qrCodeUrl))}`} 
+                   alt="Profile QR" 
+                   className="w-[70px] h-[70px] object-contain rounded-lg"
+                 />
+               </div>
+               <p className="text-[9px] font-bold text-center text-zinc-400 mt-2 uppercase tracking-widest">Scan Me</p>
+             </a>
+          )}
         </div>
       ) : (
         // === BENTO GRID RENDER ===

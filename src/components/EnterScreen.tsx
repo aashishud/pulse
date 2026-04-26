@@ -159,7 +159,7 @@ export default function EnterScreen({ bgmUrl, bgVideoUrl, enterText, children }:
       {/* --- FLOATING VOLUME CONTROLLER --- */}
       {hasEntered && bgmUrl && (
         /* Increased padding and gap to give more room for sloppy cursor movements */
-        <div className="fixed bottom-6 right-6 z-[99999] group flex items-center gap-3 bg-[#121214]/80 backdrop-blur-xl border border-white/10 p-3 rounded-full shadow-2xl transition-all duration-500 hover:bg-[#18181b] animate-in fade-in slide-in-from-bottom-8">
+        <div className="fixed bottom-6 left-6 z-[99999] group flex items-center gap-3 bg-[#121214]/80 backdrop-blur-xl border border-white/10 p-3 rounded-full shadow-2xl transition-all duration-500 hover:bg-[#18181b] animate-in fade-in slide-in-from-bottom-8">
            <button 
               onClick={() => setIsMuted(!isMuted)} 
               className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-zinc-300 hover:text-white shrink-0"

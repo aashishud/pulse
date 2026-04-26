@@ -46,7 +46,7 @@ function DashboardContent() {
     color: "indigo", mode: "dark", banner: "", background: "", avatar: "", avatarDecoration: "none",
     cursorTrail: "none", customCursor: "", customCursorHover: "", nameEffect: "solid",
     nameColor: "white", primary: "#1e1f22", font: "inter", cardOpacity: 0.8, cardBlur: 10, 
-    layoutStyle: "bento", shader: "none", discordDecoration: "", bgm: "", backgroundVideo: "", enterText: "", hideBranding: false
+    layoutStyle: "bento", shader: "none", discordDecoration: "", bgm: "", backgroundVideo: "", enterText: "", hideBranding: false, qrCodeUrl: ""
   });
   
   const [gear, setGear] = useState({ cpu: "", gpu: "", ram: "", mouse: "", keyboard: "", headset: "", monitor: "" });
@@ -199,7 +199,8 @@ function DashboardContent() {
             bgm: userData.theme?.bgm || "",
             backgroundVideo: userData.theme?.backgroundVideo || "",
             enterText: userData.theme?.enterText || "",
-            hideBranding: userData.theme?.hideBranding || false
+            hideBranding: userData.theme?.hideBranding || false,
+            qrCodeUrl: userData.theme?.qrCodeUrl || ""
         });
 
         setSocials({ 
@@ -1252,12 +1253,31 @@ function DashboardContent() {
                       </div>
                    </div>
                    
+                   {/* QR Code Feature */}
+                   {theme.layoutStyle === 'simple' && (
+                     <div className="bg-indigo-500/10 p-6 rounded-2xl border border-indigo-500/20 mb-8 shadow-inner animate-in fade-in slide-in-from-bottom-2">
+                        <div className="flex justify-between items-end mb-4">
+                            <div>
+                              <h3 className="text-sm font-bold text-white flex items-center gap-2"><LayoutTemplate className="w-4 h-4 text-indigo-400" /> Simple Mode QR Code</h3>
+                              <p className="text-xs text-indigo-300/80 mt-1">Add a URL here to display a floating QR code on your simple profile.</p>
+                            </div>
+                        </div>
+                        <input 
+                            type="text" 
+                            placeholder="https://yourwebsite.com" 
+                            value={theme.qrCodeUrl || ""} 
+                            onChange={(e) => setTheme({...theme, qrCodeUrl: e.target.value})} 
+                            className="w-full bg-black/40 border border-indigo-500/30 rounded-xl p-3 text-sm text-white outline-none focus:border-indigo-500 focus:bg-black/60 transition" 
+                        />
+                     </div>
+                   )}
+                   
                    {/* Background Shaders */}
                    <div className="bg-black/20 p-6 rounded-2xl border border-white/5 mb-8 shadow-inner">
                       <h3 className="text-sm font-bold text-white mb-2 flex items-center gap-2"><Layers className="w-4 h-4 text-indigo-400" /> Background Shaders</h3>
                       <p className="text-xs text-zinc-500 mb-6">Add a premium animated background effect (Highly recommended for Simple Mode).</p>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                         {['none', 'aurora', 'cyber-grid', 'dots', 'noise', 'shader-animation', 'mesh-gradient', 'paper-shader', 'spooky-smoke', 'red-smoke', 'thermodynamic', 'liquid'].map(shader => (
+                         {['none', 'aurora', 'cyber-grid', 'dots', 'noise', 'shader-animation', 'mesh-gradient', 'paper-shader', 'spooky-smoke', 'red-smoke', 'thermodynamic', 'liquid', 'tubes'].map(shader => (
                             <button 
                                key={shader} 
                                onClick={() => setTheme({...theme, shader})} 

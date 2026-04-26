@@ -644,6 +644,91 @@ function RedSmokeAnimation({ smokeColor = "#FF0000" }: { smokeColor?: string }) 
     );
 }
 
+// --- NEW SHADER: TUBES CURSOR ---
+function TubesShaderAnimation() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const appRef = useRef<any>(null);
+
+  const randomColors = (count: number) => {
+    return new Array(count)
+      .fill(0)
+      .map(() => "#" + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0'));
+  };
+
+  const canvasIdRef = useRef<string>("");
+
+  useEffect(() => {
+    if (!canvasRef.current) return;
+
+    const canvasId = 'tubes-canvas-' + Math.random().toString(36).substring(2, 9);
+    canvasRef.current.id = canvasId;
+    canvasIdRef.current = canvasId;
+
+    const script = document.createElement("script");
+    script.type = "module";
+    script.textContent = `
+      import TubesCursor from 'https://cdn.jsdelivr.net/npm/threejs-components@0.0.19/build/cursors/tubes1.min.js';
+      
+      const canvas = document.getElementById('${canvasId}');
+      if (canvas) {
+        try {
+          const app = TubesCursor(canvas, {
+            tubes: {
+              colors: ["#5e72e4", "#8965e0", "#f5365c"],
+              lights: {
+                intensity: 200,
+                colors: ["#21d4fd", "#b721ff", "#f4d03f", "#11cdef"]
+              }
+            }
+          });
+          
+          window.__tubesApps = window.__tubesApps || {};
+          window.__tubesApps['${canvasId}'] = app;
+        } catch (err) {
+          console.warn('Tubes Background Error:', err);
+        }
+      }
+    `;
+    document.body.appendChild(script);
+
+    return () => {
+      // @ts-ignore
+      if (window.__tubesApps && window.__tubesApps[canvasId]) {
+        // @ts-ignore
+        if (typeof window.__tubesApps[canvasId].dispose === 'function') {
+          // @ts-ignore
+          window.__tubesApps[canvasId].dispose();
+        }
+        // @ts-ignore
+        delete window.__tubesApps[canvasId];
+      }
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
+  }, []); 
+
+  const handleClick = () => {
+    // @ts-ignore
+    const app = window.__tubesApps ? window.__tubesApps[canvasIdRef.current] : null;
+    if (app) {
+      const newTubeColors = randomColors(3);
+      const newLightColors = randomColors(4);
+      app.tubes.setColors(newTubeColors);
+      app.tubes.setLightsColors(newLightColors);
+    }
+  };
+
+  return (
+    <div
+      onClick={handleClick}
+      className="absolute inset-0 w-full h-full cursor-pointer opacity-80 mix-blend-screen"
+    >
+      <canvas ref={canvasRef} className="block w-full h-full pointer-events-auto" />
+    </div>
+  );
+}
+
 // --- NEW SHADER: THERMODYNAMIC HEATMAP ---
 function ThermodynamicGridAnimation() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -848,6 +933,7 @@ export default function BackgroundShader({ type, primaryColor, backgroundImage }
       {type === "spooky-smoke" && <SpookySmokeAnimation primaryColor={primaryColor} />}
       {type === "red-smoke" && <RedSmokeAnimation smokeColor="#FF0000" />}
       {type === "thermodynamic" && <ThermodynamicGridAnimation />}
+      {type === "tubes" && <TubesShaderAnimation />}
 
       {type === "mesh-gradient" && (
         <>
