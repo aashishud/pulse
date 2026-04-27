@@ -95,7 +95,7 @@ function DashboardContent() {
       color: "indigo", mode: "dark", banner: "", background: "", avatar: "", avatarDecoration: "none",
       cursorTrail: "none", customCursor: "", customCursorHover: "", nameEffect: "solid",
       nameColor: "white", primary: "#1e1f22", font: "inter", cardOpacity: 0.8, cardBlur: 10,
-      layoutStyle: "bento", shader: "none", discordDecoration: "", bgm: "", backgroundVideo: "", enterText: "", hideBranding: false, qrCodeUrl: ""
+      layoutStyle: "bento", shader: "none", discordDecoration: "", bgm: "", backgroundVideo: "", enterText: "", hideBranding: false, qrCodeUrl: "", pet: "none"
    });
 
    const [gear, setGear] = useState({ cpu: "", gpu: "", ram: "", mouse: "", keyboard: "", headset: "", monitor: "" });
@@ -249,7 +249,8 @@ function DashboardContent() {
                backgroundVideo: userData.theme?.backgroundVideo || "",
                enterText: userData.theme?.enterText || "",
                hideBranding: userData.theme?.hideBranding || false,
-               qrCodeUrl: userData.theme?.qrCodeUrl || ""
+               qrCodeUrl: userData.theme?.qrCodeUrl || "",
+               pet: userData.theme?.pet || "none"
             });
 
             setSocials({
@@ -1560,8 +1561,20 @@ function DashboardContent() {
                                     { label: "Falling Coins", value: "coins" },
                                     { label: "Rainbow Trail ✦", value: "rainbow" },
                                     { label: "Fireflies ✦", value: "fireflies" },
-                                    { label: "Snowfall ✦", value: "snowfall" },
-                                    { label: "Cat Follow (Oneko)", value: "oneko" }
+                                    { label: "Snowfall ✦", value: "snowfall" }
+                                 ]}
+                              />
+                           </div>
+
+                           {/* Profile Pets */}
+                           <div className="col-span-full mt-6">
+                              <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Profile Pet</label>
+                              <CustomSelect 
+                                 value={theme.pet || "none"} 
+                                 onChange={(val) => setTheme({ ...theme, pet: val })}
+                                 options={[
+                                    { label: "None", value: "none" },
+                                    { label: "Cat (Oneko)", value: "oneko" }
                                  ]}
                               />
                            </div>

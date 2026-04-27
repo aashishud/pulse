@@ -130,6 +130,7 @@ async function getFirebaseUser(username: string) {
       primary: fields.theme?.mapValue?.fields?.primary?.stringValue || "#1e1f22", 
       avatarDecoration: fields.theme?.mapValue?.fields?.avatarDecoration?.stringValue || "none",
       cursorTrail: fields.theme?.mapValue?.fields?.cursorTrail?.stringValue || "none",
+      pet: fields.theme?.mapValue?.fields?.pet?.stringValue || "none",
       customCursor: fields.theme?.mapValue?.fields?.customCursor?.stringValue || "", 
       customCursorHover: fields.theme?.mapValue?.fields?.customCursorHover?.stringValue || "",
       cardOpacity: getNum(fields.theme?.mapValue?.fields?.cardOpacity, 0.8),
@@ -328,7 +329,7 @@ export default async function ProfilePage({ params }: Props) {
 
       {isSimpleMode ? (
         <div className={`h-screen w-screen text-white ${fontClass} overflow-hidden flex flex-col`}>
-          <CursorEffects type={firebaseUser.cursorTrail} />
+          <CursorEffects type={firebaseUser.cursorTrail} pet={firebaseUser.pet} />
           <ViewCounter username={username} />
 
           <div className="fixed inset-0 z-0">
@@ -544,7 +545,7 @@ export default async function ProfilePage({ params }: Props) {
       ) : (
         // === BENTO GRID RENDER ===
         <div className={`h-screen w-screen text-white ${fontClass} overflow-hidden flex flex-col`}>
-          <CursorEffects type={firebaseUser.cursorTrail} />
+          <CursorEffects type={firebaseUser.cursorTrail} pet={firebaseUser.pet} />
           <ViewCounter username={username} />
 
           <div className="fixed inset-0 z-0">

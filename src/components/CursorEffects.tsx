@@ -23,7 +23,7 @@ interface Particle {
 // SVG cursor path (standard pointer arrow)
 const CURSOR_PATH = "M0,0 L0,17 L4,13 L7.5,20 L10,19 L6.5,12 L12,12 Z";
 
-export default function CursorEffects({ type }: { type: string }) {
+export default function CursorEffects({ type, pet }: { type: string, pet?: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const particles = useRef<Particle[]>([]);
   const cursor = useRef({ x: 0, y: 0 });
@@ -31,12 +31,13 @@ export default function CursorEffects({ type }: { type: string }) {
   const trailChain = useRef<{x: number, y: number}[]>([]);
 
   useEffect(() => {
-    if (type === 'none' || !type || type === 'oneko') return;
+    if (type === 'none' || !type) return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+// ... (rest of the useEffect is unchanged except for line 34 which I need to fix)
 
     let animationFrameId: number;
 
@@ -359,13 +360,15 @@ export default function CursorEffects({ type }: { type: string }) {
     };
   }, [type]);
 
-  if (type === 'none' || !type) return null;
-  if (type === 'oneko') return <Oneko />;
-
   return (
-    <canvas 
-      ref={canvasRef} 
-      className="fixed inset-0 pointer-events-none z-50"
-    />
+    <>
+      {type !== 'none' && type && (
+        <canvas 
+          ref={canvasRef} 
+          className="fixed inset-0 pointer-events-none z-50"
+        />
+      )}
+      {pet === 'oneko' && <Oneko />}
+    </>
   );
 }
