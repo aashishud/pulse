@@ -327,9 +327,10 @@ export default async function ProfilePage({ params }: Props) {
         ` : ''}
       `}} />
 
+      <CursorEffects type={firebaseUser.cursorTrail} pet={firebaseUser.pet} />
+
       {isSimpleMode ? (
         <div className={`h-screen w-screen text-white ${fontClass} overflow-hidden flex flex-col`}>
-          <CursorEffects type={firebaseUser.cursorTrail} pet={firebaseUser.pet} />
           <ViewCounter username={username} />
 
           <div className="fixed inset-0 z-0">
@@ -545,7 +546,6 @@ export default async function ProfilePage({ params }: Props) {
       ) : (
         // === BENTO GRID RENDER ===
         <div className={`h-screen w-screen text-white ${fontClass} overflow-hidden flex flex-col`}>
-          <CursorEffects type={firebaseUser.cursorTrail} pet={firebaseUser.pet} />
           <ViewCounter username={username} />
 
           <div className="fixed inset-0 z-0">

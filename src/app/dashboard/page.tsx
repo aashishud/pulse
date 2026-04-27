@@ -1574,7 +1574,12 @@ function DashboardContent() {
                                  onChange={(val) => setTheme({ ...theme, pet: val })}
                                  options={[
                                     { label: "None", value: "none" },
-                                    { label: "Cat (Oneko)", value: "oneko" }
+                                    { label: "Classic Cat", value: "oneko" },
+                                    { label: "Black Cat", value: "oneko-black" },
+                                    { label: "Dog 🐶", value: "oneko-dog" },
+                                    { label: "Tora (Tiger) 🐯", value: "oneko-tora" },
+                                    { label: "Maia 🐈", value: "oneko-maia" },
+                                    { label: "Vaporwave Cat 🌊", value: "oneko-vaporwave" }
                                  ]}
                               />
                            </div>

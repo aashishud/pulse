@@ -368,7 +368,7 @@ export default function CursorEffects({ type, pet }: { type: string, pet?: strin
           className="fixed inset-0 pointer-events-none z-50"
         />
       )}
-      {pet === 'oneko' && <Oneko />}
+      {pet?.startsWith('oneko') && <Oneko skin={pet} />}
     </>
   );
 }
