@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 // Cache this API route for 60 seconds to prevent rate limiting
 export const revalidate = 60;
 
-const LASTFM_API_KEY = "f67e37a93f1ef058ee954ae0517e6e8c";
+const LASTFM_API_KEY = process.env.LASTFM_API_KEY?.trim();
 const DEFAULT_STAR_IMAGE = "2a96cbd8b46e442fc41c2b86b821562f";
 
 // --- SPOTIFY SERVER-TO-SERVER AUTH ---
@@ -94,6 +94,7 @@ export async function GET(request: NextRequest) {
   const user = searchParams.get("user");
 
   if (!user) return NextResponse.json({ error: "Missing Last.fm username" }, { status: 400 });
+  if (!LASTFM_API_KEY) return NextResponse.json({ error: "Last.fm API Key not configured" }, { status: 500 });
 
   try {
     // 1. Fetch the Currently Playing (or most recent) track
