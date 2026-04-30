@@ -142,6 +142,7 @@ async function getFirebaseUser(username: string) {
       backgroundVideo: fields.theme?.mapValue?.fields?.backgroundVideo?.stringValue || "",
       enterText: fields.theme?.mapValue?.fields?.enterText?.stringValue || "",
       hideBranding: fields.theme?.mapValue?.fields?.hideBranding?.booleanValue || false,
+      autoplayAudio: fields.theme?.mapValue?.fields?.autoplayAudio?.booleanValue || false,
       qrCodeUrl: fields.theme?.mapValue?.fields?.qrCodeUrl?.stringValue || "",
       bio: fields.bio?.stringValue || "",
       views: fields.views?.integerValue || "0", 
@@ -304,7 +305,7 @@ export default async function ProfilePage({ params }: Props) {
   if (firebaseUser.gaming?.epic) simpleSocials.push({ name: 'Epic Games', tooltip: firebaseUser.gaming.epic, url: '#', icon: 'https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/epicgames.svg' });
 
   return (
-    <EnterScreen bgmUrl={firebaseUser.bgm} bgVideoUrl={firebaseUser.backgroundVideo} enterText={firebaseUser.enterText}>
+    <EnterScreen bgmUrl={firebaseUser.bgm} bgVideoUrl={firebaseUser.backgroundVideo} enterText={firebaseUser.enterText} experimentalAutoplay={firebaseUser.autoplayAudio}>
       
       <style dangerouslySetInnerHTML={{ __html: `
         html, body { 

@@ -8,15 +8,16 @@ interface EnterScreenProps {
   bgmUrl?: string;
   bgVideoUrl?: string;
   enterText?: string;
+  experimentalAutoplay?: boolean;
   children: React.ReactNode;
 }
 
-export default function EnterScreen({ bgmUrl, bgVideoUrl, enterText, children }: EnterScreenProps) {
+export default function EnterScreen({ bgmUrl, bgVideoUrl, enterText, experimentalAutoplay, children }: EnterScreenProps) {
   // Only trigger the click-to-enter screen if they have music OR a background video!
   const requiresEnter = Boolean(bgmUrl || bgVideoUrl);
   
-  // If it doesn't require an enter screen, we set hasEntered to true immediately
-  const [hasEntered, setHasEntered] = useState(!requiresEnter);
+  // If it doesn't require an enter screen, or if experimental autoplay is enabled, we bypass the overlay
+  const [hasEntered, setHasEntered] = useState(!requiresEnter || Boolean(experimentalAutoplay));
   const [isFading, setIsFading] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -73,6 +74,46 @@ export default function EnterScreen({ bgmUrl, bgVideoUrl, enterText, children }:
     // 3. Remove overlay from DOM after animation completes
     setTimeout(() => setHasEntered(true), 600);
   };
+
+  // --- EXPERIMENTAL AUTOPLAY LISTENER ---
+  useEffect(() => {
+    if (experimentalAutoplay && requiresEnter) {
+       const attemptPlay = () => {
+          const currentVol = isMuted ? 0 : volume;
+          
+          if (!isYouTube && audioRef.current) {
+             audioRef.current.volume = currentVol;
+             audioRef.current.play().catch(e => console.log("Audio play failed:", e));
+          }
+          
+          if (isYouTube) {
+             const iframe = document.getElementById('yt-player') as HTMLIFrameElement;
+             if (iframe && iframe.contentWindow) {
+               iframe.contentWindow.postMessage(JSON.stringify({
+                 event: 'command',
+                 func: 'playVideo',
+                 args: []
+               }), '*');
+             }
+          }
+          
+          // Remove listeners once an interaction happens
+          window.removeEventListener('click', attemptPlay);
+          window.removeEventListener('keydown', attemptPlay);
+          window.removeEventListener('touchstart', attemptPlay);
+       };
+
+       window.addEventListener('click', attemptPlay);
+       window.addEventListener('keydown', attemptPlay);
+       window.addEventListener('touchstart', attemptPlay);
+
+       return () => {
+           window.removeEventListener('click', attemptPlay);
+           window.removeEventListener('keydown', attemptPlay);
+           window.removeEventListener('touchstart', attemptPlay);
+       };
+    }
+  }, [experimentalAutoplay, requiresEnter, isYouTube, isMuted, volume]);
 
   const displayText = enterText?.trim() ? enterText : "CLICK TO ENTER";
 

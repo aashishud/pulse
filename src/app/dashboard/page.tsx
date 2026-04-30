@@ -7,7 +7,7 @@ import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, setDoc, g
 import { onAuthStateChanged, updateEmail, updatePassword, signOut, deleteUser } from "firebase/auth";
 import { getSteamLoginUrl, verifySteamLogin, verifyDiscordLogin } from "@/app/setup/actions";
 // Added Menu icon for the mobile navigation drawer
-import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X, Cpu, Monitor, Keyboard, Mouse, Headphones, Trophy, Gamepad2, Clock, Music, Video, Users, Crown, LayoutTemplate, Layers, Activity, Diamond, Mail, ArrowRight, CheckCircle2, Info, Menu, ChevronDown, Check } from "lucide-react";
+import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X, Cpu, Monitor, Keyboard, Mouse, Headphones, Trophy, Gamepad2, Clock, Music, Video, Users, Crown, LayoutTemplate, Layers, Activity, Diamond, Mail, ArrowRight, CheckCircle2, Info, Menu, ChevronDown, Check, BadgeCheck } from "lucide-react";
 import { validateHandle } from "@/lib/validation";
 import AnalyticsGlobe from "@/components/AnalyticsGlobe";
 import AnalyticsChart from "@/components/AnalyticsChart";
@@ -17,14 +17,14 @@ import LayoutBuilder, { LayoutItem } from "@/components/LayoutBuilder";
 
 // --- Extracted Tabs array for reuse in Desktop Sidebar and Mobile Menus ---
 const TABS = [
-   { id: 'analytics', icon: Activity, label: 'Analytics' },
-   { id: 'identity', icon: User, label: 'Identity' },
-   { id: 'gaming', icon: Gamepad2, label: 'Gaming & Socials' },
+   { id: 'identity', icon: User, label: 'Identity & Links' },
+   { id: 'appearance', icon: Palette, label: 'Appearance' },
+   { id: 'cosmetics', icon: Sparkles, label: 'Cosmetics' },
+   { id: 'gaming', icon: Gamepad2, label: 'Gaming Showcase' },
    { id: 'communities', icon: Users, label: 'Communities' },
-   { id: 'gear', icon: Cpu, label: 'Hardware Setup' },
-   { id: 'layout', icon: Palette, label: 'Layout & Theme' },
+   { id: 'analytics', icon: Activity, label: 'Analytics' },
    { id: 'premium', icon: Diamond, label: 'Pulse Pro' },
-   { id: 'settings', icon: Settings, label: 'Settings' },
+   { id: 'settings', icon: Settings, label: 'Account' },
 ];
 
 function CustomSelect({ value, onChange, options, className }: { value: string, onChange: (val: string) => void, options: {label: string, value?: string, isGroup?: boolean}[], className?: string }) {
@@ -76,13 +76,186 @@ function CustomSelect({ value, onChange, options, className }: { value: string, 
    );
 }
 
+function ProfilePreviewMockup({ theme, user, displayName, bio, socials, customLinks, layout }: any) {
+   const mockBanner = theme?.banner || "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2600&auto=format&fit=crop";
+   const mockAvatar = theme?.avatar || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png";
+   
+   const fontClass = theme?.font === 'space' ? 'font-space' : theme?.font === 'press' ? 'font-press' : theme?.font === 'cinzel' ? 'font-cinzel' : 'font-sans';
+   const isSimpleMode = theme?.layoutStyle === 'simple';
+
+   const AvatarSection = () => (
+      <div className="relative flex justify-center shrink-0">
+         <div className="absolute inset-0 w-24 h-24 mx-auto rounded-full blur-xl opacity-50 animate-pulse pointer-events-none" style={{ backgroundColor: theme?.primary || '#6366f1' }}></div>
+         <div className="w-24 h-24 relative">
+            <AvatarDecoration type={theme?.avatarDecoration || 'none'}>
+               <div className="w-20 h-20 rounded-full bg-[#121214] relative z-10 border border-white/10 mx-auto mt-2">
+                  <img src={mockAvatar} alt="Avatar" className="rounded-full object-cover p-1 bg-[#0a0a0c] w-full h-full" />
+                  {theme?.discordDecoration && (
+                     <img src={theme.discordDecoration} alt="Decoration" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] max-w-none z-30 pointer-events-none object-contain scale-[1.2]" />
+                  )}
+               </div>
+            </AvatarDecoration>
+         </div>
+      </div>
+   );
+
+   const SocialsRow = () => {
+      const socialList = [];
+      if (socials?.discord) socialList.push('discord.svg');
+      if (user?.steamId) socialList.push('steam.svg');
+      if (socials?.twitter) socialList.push('x.svg');
+      if (socials?.instagram) socialList.push('instagram.svg');
+      
+      if (socialList.length === 0) return null;
+      
+      return (
+         <div className="flex justify-center gap-2 mb-4 flex-wrap shrink-0">
+            {socialList.map((icon, idx) => (
+               <div key={idx} className="w-10 h-10 rounded-xl bg-black/40 border border-white/5 flex items-center justify-center hover:bg-white/10 transition shadow-lg">
+                  <img src={`https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/${icon}`} className="w-5 h-5 invert opacity-80" />
+               </div>
+            ))}
+         </div>
+      );
+   };
+
+   const LinksList = () => (
+      customLinks?.length > 0 ? (
+         <div className="w-full space-y-2 mt-4 shrink-0">
+            {customLinks.slice(0, 4).map((link: any, idx: number) => (
+               <div key={idx} className="w-full py-3 px-4 bg-black/40 border border-white/5 rounded-xl text-xs font-bold text-white text-center truncate shadow-lg">
+                  {link.label || "Link"}
+               </div>
+            ))}
+         </div>
+      ) : null
+   );
+
+   if (isSimpleMode) {
+      return (
+         <div className={`w-full max-w-[340px] mx-auto animate-float-3d transform scale-[0.85] origin-top ${fontClass}`}>
+            <div className="bg-[#050505] rounded-[32px] border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden h-[600px] flex flex-col items-center justify-center p-4">
+               {/* Background Layer */}
+               <div className="absolute inset-0 z-0">
+                  <div className="absolute inset-0 bg-cover bg-center opacity-60" style={{ backgroundImage: `url(${theme?.background || mockBanner})` }}></div>
+                  <div className="absolute inset-0 bg-black/40"></div>
+               </div>
+               
+               {/* Card */}
+               <div className="relative z-10 w-full bg-black/40 backdrop-blur-xl border border-white/10 rounded-[32px] p-6 text-center flex flex-col shadow-2xl shrink-0">
+                   <div className="pt-4 mb-4">
+                      <AvatarSection />
+                   </div>
+                   
+                   <h2 className={`text-xl font-black text-white flex items-center justify-center gap-1.5 mb-1 truncate ${fontClass}`}>
+                      {displayName || user?.username || "Username"}
+                      {user?.isVerified && <BadgeCheck className="w-4 h-4 text-white fill-white/20 shrink-0" />}
+                   </h2>
+                   <p className="text-[10px] text-zinc-400 mb-4">@{user?.username || "username"}</p>
+                   
+                   {bio && <p className="text-xs text-zinc-300 mb-6 line-clamp-3 leading-relaxed">{bio}</p>}
+                   
+                   <SocialsRow />
+                   <LinksList />
+               </div>
+            </div>
+         </div>
+      );
+   }
+
+   // Bento Mode
+   return (
+      <div className={`w-full max-w-[340px] mx-auto animate-float-3d transform scale-[0.85] origin-top ${fontClass}`}>
+         <div className="bg-[#050505] rounded-[32px] border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden h-[600px] flex flex-col p-3 gap-3">
+             {/* Background Layer */}
+             <div className="absolute inset-0 z-0">
+                <div className="absolute inset-0 bg-cover bg-center opacity-60" style={{ backgroundImage: `url(${theme?.background || mockBanner})` }}></div>
+                <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/60 to-black/80"></div>
+             </div>
+             
+             {/* Main Bento Profile Card */}
+             <div className="relative z-10 w-full bg-black/40 backdrop-blur-xl border border-white/10 rounded-[24px] flex flex-col overflow-hidden shrink-0 shadow-2xl">
+                <div className="h-24 relative bg-zinc-900 shrink-0">
+                   <img src={mockBanner} alt="Banner" className="w-full h-full object-cover" />
+                </div>
+                <div className="px-5 pb-5 -mt-12 relative flex flex-col">
+                   <div className="self-start -ml-2 mb-2">
+                       <AvatarSection />
+                   </div>
+                   <div className="text-left">
+                      <h2 className={`text-xl font-black text-white flex items-center gap-1.5 mb-1 truncate ${fontClass}`}>
+                         {displayName || user?.username || "Username"}
+                         {user?.isVerified && <BadgeCheck className="w-4 h-4 text-white fill-white/20 shrink-0" />}
+                      </h2>
+                      <p className="text-[10px] text-zinc-400 mb-3">@{user?.username || "username"}</p>
+                      {bio && <p className="text-xs text-zinc-300 mb-4 line-clamp-2 leading-relaxed">{bio}</p>}
+                   </div>
+                   <div className="self-start">
+                       <SocialsRow />
+                   </div>
+                </div>
+             </div>
+
+             {/* Bento Grid layout mock */}
+             <div className="relative z-10 w-full flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col gap-3 pb-4">
+                 {layout?.map((block: any, idx: number) => {
+                     if (block.type === 'links' && customLinks?.length > 0) {
+                         return (
+                            <div key={idx} className="w-full">
+                               <LinksList />
+                            </div>
+                         )
+                     }
+                     if (block.type === 'clips') {
+                         return (
+                            <div key={idx} className="w-full h-32 bg-black/40 backdrop-blur-xl border border-white/10 rounded-[24px] p-3 flex flex-col justify-center items-center shadow-lg shrink-0">
+                               <Gamepad2 className="w-6 h-6 text-indigo-400 mb-2 opacity-50" />
+                               <span className="text-[10px] font-bold text-zinc-500">Featured Clips</span>
+                            </div>
+                         )
+                     }
+                     if (block.type === 'stats') {
+                         return (
+                            <div key={idx} className="grid grid-cols-2 gap-3 shrink-0">
+                               <div className="h-20 bg-black/40 backdrop-blur-xl border border-white/10 rounded-[24px] shadow-lg"></div>
+                               <div className="h-20 bg-black/40 backdrop-blur-xl border border-white/10 rounded-[24px] shadow-lg"></div>
+                            </div>
+                         )
+                     }
+                     if (block.type === 'communities') {
+                        return (
+                           <div key={idx} className="w-full h-16 bg-black/40 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-lg shrink-0 flex items-center px-4">
+                               <div className="w-8 h-8 rounded bg-white/10 mr-3"></div>
+                               <div className="flex flex-col gap-1">
+                                  <div className="w-16 h-2 bg-white/20 rounded"></div>
+                                  <div className="w-24 h-2 bg-white/10 rounded"></div>
+                               </div>
+                           </div>
+                        )
+                     }
+                     return (
+                        <div key={idx} className="w-full h-24 bg-black/40 backdrop-blur-xl border border-white/10 rounded-[24px] shadow-lg shrink-0"></div>
+                     )
+                 })}
+                 
+                 {(!layout || layout.length === 0) && (
+                     <div className="w-full h-24 bg-black/40 backdrop-blur-xl border border-dashed border-white/20 rounded-[24px] flex items-center justify-center">
+                        <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Empty Layout</span>
+                     </div>
+                 )}
+             </div>
+         </div>
+      </div>
+   );
+}
+
 function DashboardContent() {
    const router = useRouter();
    const searchParams = useSearchParams();
    const [user, setUser] = useState<any>(null);
    const [loading, setLoading] = useState(true);
    const [saving, setSaving] = useState(false);
-   const [activeTab, setActiveTab] = useState("analytics");
+   const [activeTab, setActiveTab] = useState("identity");
 
    // --- Mobile Overlay State ---
    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -95,7 +268,7 @@ function DashboardContent() {
       color: "indigo", mode: "dark", banner: "", background: "", avatar: "", avatarDecoration: "none",
       cursorTrail: "none", customCursor: "", customCursorHover: "", nameEffect: "solid",
       nameColor: "white", primary: "#1e1f22", font: "inter", cardOpacity: 0.8, cardBlur: 10,
-      layoutStyle: "bento", shader: "none", discordDecoration: "", bgm: "", backgroundVideo: "", enterText: "", hideBranding: false, qrCodeUrl: "", pet: "none"
+      layoutStyle: "bento", shader: "none", discordDecoration: "", bgm: "", backgroundVideo: "", enterText: "", hideBranding: false, qrCodeUrl: "", pet: "none", autoplayAudio: false
    });
 
    const [gear, setGear] = useState({ cpu: "", gpu: "", ram: "", mouse: "", keyboard: "", headset: "", monitor: "" });
@@ -250,7 +423,8 @@ function DashboardContent() {
                enterText: userData.theme?.enterText || "",
                hideBranding: userData.theme?.hideBranding || false,
                qrCodeUrl: userData.theme?.qrCodeUrl || "",
-               pet: userData.theme?.pet || "none"
+               pet: userData.theme?.pet || "none",
+               autoplayAudio: userData.theme?.autoplayAudio || false
             });
 
             setSocials({
@@ -309,6 +483,45 @@ function DashboardContent() {
       } catch (e) {
          console.error(e);
          showAlert("Failed to save profile.", "error");
+         setSaving(false);
+      }
+   };
+
+   const handleUpgradeToPro = async () => {
+      if (!user) return;
+      setSaving(true);
+      try {
+         const userRef = doc(db, "users", user.id);
+         await updateDoc(userRef, { isPro: true });
+         setUser({ ...user, isPro: true });
+         showAlert("Welcome to Pulse Pro! You now have access to premium features.", "success", "Pro Unlocked");
+      } catch (e) {
+         console.error(e);
+         showAlert("Failed to unlock Pulse Pro.", "error");
+      } finally {
+         setSaving(false);
+      }
+   };
+
+   const handleCancelPro = async () => {
+      if (!user) return;
+      setSaving(true);
+      try {
+         const userRef = doc(db, "users", user.id);
+         await updateDoc(userRef, { isPro: false });
+         setUser({ ...user, isPro: false });
+         
+         // Revert pro-exclusive settings if necessary
+         if (theme.hideBranding) {
+             setTheme(prev => ({ ...prev, hideBranding: false }));
+             await updateDoc(userRef, { "theme.hideBranding": false });
+         }
+
+         showAlert("You have successfully unsubscribed from Pulse Pro.", "info", "Subscription Cancelled");
+      } catch (e) {
+         console.error(e);
+         showAlert("Failed to cancel Pulse Pro.", "error");
+      } finally {
          setSaving(false);
       }
    };
@@ -576,7 +789,7 @@ function DashboardContent() {
    if (loading) return <div className="min-h-screen bg-[#0a0a0c] flex items-center justify-center text-white"><Sparkles className="w-6 h-6 animate-spin text-indigo-500" /></div>;
 
    return (
-      <div className="min-h-screen bg-[#0a0a0c] text-white font-sans selection:bg-indigo-500/30">
+      <div className="h-screen bg-[#0a0a0c] text-white font-sans selection:bg-indigo-500/30 flex flex-col overflow-hidden">
 
          {/* Background Ambience */}
          <div className="fixed inset-0 z-0 pointer-events-none">
@@ -711,9 +924,9 @@ function DashboardContent() {
          <div className="lg:hidden fixed bottom-0 left-0 right-0 z-[60] bg-[#0a0a0c]/90 backdrop-blur-xl border-t border-white/10 pb-safe shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
             <div className="flex justify-between items-center px-2 py-2">
                {[
-                  { id: 'analytics', icon: Activity, label: 'Analytics' },
                   { id: 'identity', icon: User, label: 'Identity' },
-                  { id: 'layout', icon: Palette, label: 'Theme' },
+                  { id: 'appearance', icon: Palette, label: 'Appearance' },
+                  { id: 'cosmetics', icon: Sparkles, label: 'Cosmetics' },
                   { id: 'gaming', icon: Gamepad2, label: 'Gaming' },
                ].map(tab => (
                   <button
@@ -765,11 +978,11 @@ function DashboardContent() {
          )}
 
          {/* Main Layout Container - Extra bottom padding on mobile to clear the bottom nav! */}
-         <div className="max-w-[1300px] mx-auto p-4 sm:p-6 pb-32 lg:pb-6 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 relative z-10">
+         <div className="flex-1 flex overflow-hidden relative">
 
             {/* Sidebar Nav - Desktop Only */}
-            <aside className="hidden lg:block lg:col-span-3">
-               <div className="bg-white/[0.02] border border-white/[0.05] backdrop-blur-md rounded-3xl p-3 sticky top-24 shadow-2xl">
+            <aside className="hidden lg:flex flex-col w-64 border-r border-white/5 shrink-0 bg-white/[0.01]">
+               <div className="flex-1 overflow-y-auto py-6 px-4 custom-scrollbar">
                   {TABS.map((tab) => (
                      <button
                         key={tab.id}
@@ -783,7 +996,7 @@ function DashboardContent() {
             </aside>
 
             {/* Main Content Area */}
-            <main className="lg:col-span-9 space-y-6">
+            <main className="flex-1 overflow-y-auto custom-scrollbar relative z-10 px-4 sm:px-8 py-6 pb-32 lg:pb-12">
 
                {/* --- PULSE PRO / PREMIUM TAB --- */}
                {activeTab === 'premium' && (
@@ -819,9 +1032,21 @@ function DashboardContent() {
                                  ))}
                               </div>
 
-                              <button onClick={() => showAlert("Stripe Integration coming soon! Your profile is currently free during beta.", "info", "Pulse Pro")} className="px-8 py-4 bg-white text-black hover:bg-zinc-200 font-black rounded-2xl transition flex items-center gap-2 shadow-[0_0_30px_rgba(255,255,255,0.2)] hover:scale-105 active:scale-95">
-                                 Upgrade to Pro <ArrowRight className="w-5 h-5" />
-                              </button>
+                              {!user?.isPro ? (
+                                 <button onClick={handleUpgradeToPro} disabled={saving} className="px-8 py-4 bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-black rounded-2xl transition flex items-center gap-2 shadow-[0_0_30px_rgba(99,102,241,0.4)] hover:scale-105 active:scale-95 disabled:opacity-50">
+                                    Claim Free Pro <Sparkles className="w-5 h-5" />
+                                 </button>
+                              ) : (
+                                 <div className="flex flex-col sm:flex-row items-center gap-4">
+                                    <div className="inline-flex items-center gap-3 px-6 py-4 bg-white/10 border border-white/20 rounded-2xl text-white font-bold">
+                                       <CheckCircle2 className="w-5 h-5 text-green-400" />
+                                       Active Pro Member
+                                    </div>
+                                    <button onClick={handleCancelPro} disabled={saving} className="px-6 py-4 bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20 font-bold rounded-2xl transition disabled:opacity-50">
+                                       Unsubscribe
+                                    </button>
+                                 </div>
+                              )}
                            </div>
 
                            <div className="hidden lg:flex shrink-0 w-72 h-72 bg-black/40 border border-white/10 rounded-full items-center justify-center relative shadow-inner">
@@ -1211,12 +1436,9 @@ function DashboardContent() {
                            </div>
                         </div>
                      </section>
-                  </div>
-               )}
 
-               {/* --- GEAR TAB --- */}
-               {activeTab === 'gear' && (
-                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                     {/* --- HARDWARE SETUP SECTION --- */}
+                     <div className="h-px bg-white/5 my-8"></div>
                      <section className={cardStyle}>
                         <h2 className="text-xl font-bold text-white mb-2">Hardware Setup</h2>
                         <p className="text-zinc-400 text-sm mb-8">Show off your specs. Any fields left blank will be hidden on your profile.</p>
@@ -1275,8 +1497,8 @@ function DashboardContent() {
                   </div>
                )}
 
-               {/* --- LAYOUT & THEME TAB --- */}
-               {activeTab === 'layout' && (
+               {/* --- APPEARANCE TAB --- */}
+               {activeTab === 'appearance' && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                      <section className={cardStyle}>
                         <h2 className="text-xl font-bold text-white mb-8">Theme & Visuals</h2>
@@ -1425,7 +1647,23 @@ function DashboardContent() {
                            </div>
                            <div>
                               <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">"Click to Enter" Text</label>
-                              <input type="text" value={theme.enterText} onChange={e => setTheme({ ...theme, enterText: e.target.value })} className={inputStyle} placeholder="CLICK TO ENTER" />
+                              <input type="text" value={theme.enterText} onChange={e => setTheme({ ...theme, enterText: e.target.value })} className={inputStyle} placeholder="CLICK TO ENTER" disabled={theme.autoplayAudio} />
+                           </div>
+                           <div className="col-span-full mb-2 mt-2">
+                              <label className={`flex items-center gap-4 cursor-pointer p-5 bg-black/40 border border-white/5 rounded-2xl transition hover:bg-white/5`}>
+                                 <input
+                                    type="checkbox"
+                                    checked={theme.autoplayAudio || false}
+                                    onChange={(e) => setTheme({ ...theme, autoplayAudio: e.target.checked })}
+                                    className="w-5 h-5 rounded border-white/20 bg-black/40 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-0 accent-indigo-500 shrink-0"
+                                 />
+                                 <div>
+                                    <div className="flex items-center gap-2">
+                                       <p className="text-sm font-bold text-white">Experimental Autoplay (Bypass Click-to-Enter)</p>
+                                    </div>
+                                    <p className="text-xs text-zinc-400 mt-1 leading-relaxed">If enabled, the page will load immediately and wait for any random click (or tap) anywhere on the page to start the audio secretly in the background.</p>
+                                 </div>
+                              </label>
                            </div>
                            <div>
                               <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Background Image URL</label>
@@ -1441,28 +1679,25 @@ function DashboardContent() {
                            </div>
                         </div>
 
-                        <div className="h-px bg-white/5 my-8"></div>
+                     </section>
 
-                        {/* Cosmetics */}
+                     {/* --- DRAG AND DROP LAYOUT BUILDER --- */}
+                     <section className={cardStyle}>
+                        <LayoutBuilder
+                           initialLayout={layout}
+                           onSave={handleSaveLayout}
+                           isSaving={saving}
+                        />
+                     </section>
+                  </div>
+               )}
+
+               {/* --- COSMETICS TAB --- */}
+               {activeTab === 'cosmetics' && (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                     <section className={cardStyle}>
+                        <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2"><Sparkles className="w-5 h-5 text-indigo-400" /> Cosmetics & Effects</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-
-                           {/* LIVE AVATAR PREVIEW ADDED HERE */}
-                           <div className="col-span-full flex flex-col items-center justify-center bg-black/20 p-6 rounded-2xl border border-white/5 shadow-inner mb-4">
-                              <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-6">Live Avatar Preview</h3>
-                              <div className="relative w-32 h-32 shrink-0">
-                                 <AvatarDecoration type={theme.avatarDecoration}>
-                                    <div className="w-32 h-32 rounded-full p-1 bg-[#1e1f22] relative z-10">
-                                       <div className="relative w-full h-full rounded-full z-10">
-                                          <img src={theme.avatar || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"} alt="Avatar" className="w-full h-full rounded-full object-cover bg-zinc-900" />
-                                          {theme.discordDecoration && (
-                                             <img src={theme.discordDecoration} alt="Decoration" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] max-w-none z-30 pointer-events-none object-contain" />
-                                          )}
-                                       </div>
-                                    </div>
-                                 </AvatarDecoration>
-                              </div>
-                           </div>
-
                            <div>
                               <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Custom Avatar URL</label>
                               <input type="text" value={theme.avatar} onChange={e => setTheme({ ...theme, avatar: e.target.value })} className={inputStyle} placeholder="Image URL" />
@@ -1531,16 +1766,20 @@ function DashboardContent() {
                            </div>
                            {/* Pulse Branding */}
                            <div className="col-span-full border-t border-white/5 pt-6 mt-2 mb-2">
-                              <label className="flex items-center gap-3 cursor-pointer p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl hover:bg-indigo-500/20 transition">
+                              <label className={`flex items-center gap-3 cursor-pointer p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl transition ${!user?.isPro ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:bg-indigo-500/20'}`}>
                                  <input
                                     type="checkbox"
                                     checked={theme.hideBranding || false}
+                                    disabled={!user?.isPro}
                                     onChange={(e) => setTheme({ ...theme, hideBranding: e.target.checked })}
-                                    className="w-5 h-5 rounded border-indigo-500/50 bg-black/40 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-0 accent-indigo-500"
+                                    className="w-5 h-5 rounded border-indigo-500/50 bg-black/40 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-0 accent-indigo-500 disabled:opacity-50"
                                  />
                                  <div>
-                                    <p className="text-sm font-bold text-white">Hide Pulse Branding</p>
-                                    <p className="text-[10px] text-indigo-400 uppercase tracking-widest font-bold">Premium Feature (Enabled for testing)</p>
+                                    <div className="flex items-center gap-2">
+                                       <p className="text-sm font-bold text-white">Hide Pulse Branding</p>
+                                       {!user?.isPro && <Diamond className="w-3 h-3 text-indigo-400" />}
+                                    </div>
+                                    <p className="text-[10px] text-indigo-400 uppercase tracking-widest font-bold">Pulse Pro Exclusive</p>
                                  </div>
                               </label>
                            </div>
@@ -1639,15 +1878,6 @@ function DashboardContent() {
 
                      </section>
 
-                     {/* --- DRAG AND DROP LAYOUT BUILDER --- */}
-                     <section className={cardStyle}>
-                        <LayoutBuilder
-                           initialLayout={layout}
-                           onSave={handleSaveLayout}
-                           isSaving={saving}
-                        />
-                     </section>
-
                   </div>
                )}
 
@@ -1722,6 +1952,19 @@ function DashboardContent() {
                )}
 
             </main>
+
+            {/* Live Preview Pane */}
+            <aside className="w-[400px] border-l border-white/5 shrink-0 hidden xl:flex flex-col bg-[#050505] relative z-20 shadow-[-20px_0_50px_rgba(0,0,0,0.5)]">
+               <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
+                  <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2"><Eye className="w-4 h-4 text-indigo-400"/> Live Preview</span>
+                  <a href={`/${user?.id}`} target="_blank" className="text-indigo-400/80 hover:text-indigo-300 text-xs font-bold flex items-center gap-1 transition">
+                     pulse.gg/{user?.id} <ExternalLink className="w-3 h-3"/>
+                  </a>
+               </div>
+               <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col items-center">
+                  <ProfilePreviewMockup theme={theme} user={user} displayName={displayName} bio={bio} socials={socials} customLinks={customLinks} layout={layout} />
+               </div>
+            </aside>
          </div>
 
          {/* --- CUSTOM GLOBAL MODALS --- */}
