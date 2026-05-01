@@ -151,7 +151,8 @@ export default function LandingPageClient() {
   const mockName = previewUser?.displayName || previewUser?.username || "Sour";
   const mockHandle = previewUser?.username || "sour";
   const mockAvatar = previewUser?.theme?.avatar || "https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=200&auto=format&fit=crop";
-  const mockBanner = previewUser?.theme?.banner || "https://images.unsplash.com/photo-1614624532983-4ce03382d63d?q=80&w=800&auto=format&fit=crop";
+  const mockBanner = previewUser?.theme?.background || previewUser?.theme?.banner || "https://images.unsplash.com/photo-1614624532983-4ce03382d63d?q=80&w=800&auto=format&fit=crop";
+  const mockScale = previewUser?.theme?.background ? (previewUser?.theme?.bgZoom || 100) / 100 : (previewUser?.theme?.bannerZoom || 100) / 100;
   const mockDecoration = previewUser?.theme?.avatarDecoration || "electric_god";
   const mockDiscordDeco = previewUser?.theme?.discordDecoration || "";
   const mockPrimaryColor = previewUser?.theme?.primary || "#6366f1"; 
@@ -280,8 +281,8 @@ export default function LandingPageClient() {
                 <div className="bg-black/40 backdrop-blur-2xl border border-white/10 rounded-[32px] p-6 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden">
                    
                    {/* Dynamic Mock Banner */}
-                   <div className="absolute top-0 left-0 w-full h-32 opacity-40">
-                      <img src={mockBanner} alt="Banner" className="w-full h-full object-cover" />
+                   <div className="absolute top-0 left-0 w-full h-32 opacity-40 overflow-hidden">
+                      <img src={mockBanner} alt="Banner" className="w-full h-full object-cover transition-transform duration-500" style={{ transform: `scale(${mockScale})` }} />
                       <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#0a0a0c]"></div>
                    </div>
 

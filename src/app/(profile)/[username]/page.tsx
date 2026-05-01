@@ -144,6 +144,8 @@ async function getFirebaseUser(username: string) {
       hideBranding: fields.theme?.mapValue?.fields?.hideBranding?.booleanValue || false,
       autoplayAudio: fields.theme?.mapValue?.fields?.autoplayAudio?.booleanValue || false,
       qrCodeUrl: fields.theme?.mapValue?.fields?.qrCodeUrl?.stringValue || "",
+      bgZoom: getNum(fields.theme?.mapValue?.fields?.bgZoom, 100),
+      bannerZoom: getNum(fields.theme?.mapValue?.fields?.bannerZoom, 100),
       bio: fields.bio?.stringValue || "",
       views: fields.views?.integerValue || "0",
       primaryCommunity: fields.primaryCommunity?.stringValue ?? null,
@@ -254,7 +256,9 @@ export default async function ProfilePage({ params }: Props) {
   if (recentGames.length > 0 && firebaseUser.steamId) heroGameProgress = await getGameProgress(firebaseUser.steamId, recentGames[0].appid);
 
   const avatarSource = firebaseUser.avatar || profile?.avatarfull || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png";
-  const backgroundStyle = firebaseUser.background ? { backgroundImage: `url(${firebaseUser.background})`, filter: 'brightness(0.3)' } : { backgroundImage: `url(${firebaseUser.banner})`, filter: 'blur(80px) opacity(0.4) scale(1.1)' };
+  const bgScale = firebaseUser.bgZoom ? firebaseUser.bgZoom / 100 : 1;
+  const bannerScale = firebaseUser.bannerZoom ? firebaseUser.bannerZoom / 100 : 1;
+  const backgroundStyle = firebaseUser.background ? { backgroundImage: `url(${firebaseUser.background})`, filter: 'brightness(0.3)', transform: `scale(${bgScale})` } : { backgroundImage: `url(${firebaseUser.banner})`, filter: 'blur(80px) opacity(0.4)', transform: `scale(${Math.max(1.1, bannerScale)})` };
 
   let fontClass = inter.className;
   if (firebaseUser.font === 'space') fontClass = spaceGrotesk.className;
@@ -590,8 +594,8 @@ export default async function ProfilePage({ params }: Props) {
 
               <div className="lg:col-span-4 h-full rounded-[32px] border border-white/5 shadow-2xl relative overflow-y-auto sleek-scrollbar" style={leftCardStyle}>
 
-                <div className="h-28 bg-zinc-900 relative group shrink-0">
-                  <Image src={firebaseUser.banner} alt="Banner" fill className="object-cover group-hover:scale-105 transition duration-700" unoptimized />
+                <div className="h-28 bg-zinc-900 relative shrink-0 overflow-hidden">
+                  <Image src={firebaseUser.banner} alt="Banner" fill className="object-cover transition-transform duration-700 hover:scale-105" style={{ transform: `scale(${firebaseUser.bannerZoom ? firebaseUser.bannerZoom / 100 : 1})` }} unoptimized />
                 </div>
 
                 <div className="px-6 pb-6 relative flex flex-col min-h-max">

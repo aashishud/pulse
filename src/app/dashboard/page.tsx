@@ -136,8 +136,8 @@ function ProfilePreviewMockup({ theme, user, displayName, bio, socials, customLi
          <div className={`w-full max-w-[340px] mx-auto animate-float-3d transform scale-[0.85] origin-top ${fontClass}`}>
             <div className="bg-[#050505] rounded-[32px] border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden h-[600px] flex flex-col items-center justify-center p-4">
                {/* Background Layer */}
-               <div className="absolute inset-0 z-0">
-                  <div className="absolute inset-0 bg-cover bg-center opacity-60" style={{ backgroundImage: `url(${theme?.background || mockBanner})` }}></div>
+                <div className="absolute inset-0 z-0 overflow-hidden">
+                  <div className="absolute inset-0 bg-cover bg-center opacity-60 transition-transform duration-500" style={{ backgroundImage: `url(${theme?.background || mockBanner})`, transform: `scale(${theme?.background ? (theme?.bgZoom || 100) / 100 : Math.max(1.1, (theme?.bannerZoom || 100) / 100)})` }}></div>
                   <div className="absolute inset-0 bg-black/40"></div>
                </div>
                
@@ -168,15 +168,15 @@ function ProfilePreviewMockup({ theme, user, displayName, bio, socials, customLi
       <div className={`w-full max-w-[340px] mx-auto animate-float-3d transform scale-[0.85] origin-top ${fontClass}`}>
          <div className="bg-[#050505] rounded-[32px] border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden h-[600px] flex flex-col p-3 gap-3">
              {/* Background Layer */}
-             <div className="absolute inset-0 z-0">
-                <div className="absolute inset-0 bg-cover bg-center opacity-60" style={{ backgroundImage: `url(${theme?.background || mockBanner})` }}></div>
+             <div className="absolute inset-0 z-0 overflow-hidden">
+                <div className="absolute inset-0 bg-cover bg-center opacity-60 transition-transform duration-500" style={{ backgroundImage: `url(${theme?.background || mockBanner})`, transform: `scale(${theme?.background ? (theme?.bgZoom || 100) / 100 : Math.max(1.1, (theme?.bannerZoom || 100) / 100)})` }}></div>
                 <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/60 to-black/80"></div>
              </div>
              
              {/* Main Bento Profile Card */}
              <div className="relative z-10 w-full bg-black/40 backdrop-blur-xl border border-white/10 rounded-[24px] flex flex-col overflow-hidden shrink-0 shadow-2xl">
-                <div className="h-24 relative bg-zinc-900 shrink-0">
-                   <img src={mockBanner} alt="Banner" className="w-full h-full object-cover" />
+                <div className="h-24 relative bg-zinc-900 shrink-0 overflow-hidden">
+                   <img src={theme?.banner || mockBanner} alt="Banner" className="w-full h-full object-cover transition-transform duration-500" style={{ transform: `scale(${(theme?.bannerZoom || 100) / 100})` }} />
                 </div>
                 <div className="px-5 pb-5 -mt-12 relative flex flex-col">
                    <div className="self-start -ml-2 mb-2">
@@ -268,7 +268,8 @@ function DashboardContent() {
       color: "indigo", mode: "dark", banner: "", background: "", avatar: "", avatarDecoration: "none",
       cursorTrail: "none", customCursor: "", customCursorHover: "", nameEffect: "solid",
       nameColor: "white", primary: "#1e1f22", font: "inter", cardOpacity: 0.8, cardBlur: 10,
-      layoutStyle: "bento", shader: "none", discordDecoration: "", bgm: "", backgroundVideo: "", enterText: "", hideBranding: false, qrCodeUrl: "", pet: "none", autoplayAudio: false
+      layoutStyle: "bento", shader: "none", discordDecoration: "", bgm: "", backgroundVideo: "", enterText: "", hideBranding: false, qrCodeUrl: "", pet: "none", autoplayAudio: false,
+      nameGlow: "none", profileBadge: "none", bgZoom: 100, bannerZoom: 100
    });
 
    const [gear, setGear] = useState({ cpu: "", gpu: "", ram: "", mouse: "", keyboard: "", headset: "", monitor: "" });
@@ -424,7 +425,11 @@ function DashboardContent() {
                hideBranding: userData.theme?.hideBranding || false,
                qrCodeUrl: userData.theme?.qrCodeUrl || "",
                pet: userData.theme?.pet || "none",
-               autoplayAudio: userData.theme?.autoplayAudio || false
+               autoplayAudio: userData.theme?.autoplayAudio || false,
+               nameGlow: userData.theme?.nameGlow || "none",
+               profileBadge: userData.theme?.profileBadge || "none",
+               bgZoom: typeof userData.theme?.bgZoom === 'number' ? userData.theme.bgZoom : 100,
+               bannerZoom: typeof userData.theme?.bannerZoom === 'number' ? userData.theme.bannerZoom : 100
             });
 
             setSocials({
@@ -1666,16 +1671,36 @@ function DashboardContent() {
                               </label>
                            </div>
                            <div>
-                              <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Background Image URL</label>
+                              <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 flex items-center justify-between">
+                                 <span>Background Image URL</span>
+                                 {theme.background && <button onClick={() => setTheme({ ...theme, background: "" })} className="text-red-400 hover:text-red-300">Clear</button>}
+                              </label>
                               <input type="text" value={theme.background} onChange={e => setTheme({ ...theme, background: e.target.value })} className={inputStyle} placeholder="Static Image (Unsplash/Imgur)" />
+                           </div>
+                           <div>
+                              <label className="flex justify-between text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">
+                                 <span>Background Zoom</span>
+                                 <span className="text-indigo-400">{theme.bgZoom}%</span>
+                              </label>
+                              <input type="range" min="100" max="200" step="1" value={theme.bgZoom} onChange={e => setTheme({ ...theme, bgZoom: parseInt(e.target.value) })} className="w-full accent-indigo-500 h-2 bg-white/10 rounded-lg appearance-none cursor-pointer" />
                            </div>
                            <div>
                               <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 flex items-center gap-1.5"><Video className="w-3 h-3 text-indigo-400" /> Background Video URL (.mp4)</label>
                               <input type="text" value={theme.backgroundVideo} onChange={e => setTheme({ ...theme, backgroundVideo: e.target.value })} className={inputStyle} placeholder="Overrides Image if provided" />
                            </div>
                            <div>
-                              <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Profile Banner</label>
+                              <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 flex items-center justify-between">
+                                 <span>Profile Banner</span>
+                                 {theme.banner && <button onClick={() => setTheme({ ...theme, banner: "" })} className="text-red-400 hover:text-red-300">Clear</button>}
+                              </label>
                               <input type="text" value={theme.banner} onChange={e => setTheme({ ...theme, banner: e.target.value })} className={inputStyle} placeholder="Image URL" />
+                           </div>
+                           <div>
+                              <label className="flex justify-between text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">
+                                 <span>Banner Zoom</span>
+                                 <span className="text-indigo-400">{theme.bannerZoom}%</span>
+                              </label>
+                              <input type="range" min="100" max="200" step="1" value={theme.bannerZoom} onChange={e => setTheme({ ...theme, bannerZoom: parseInt(e.target.value) })} className="w-full accent-indigo-500 h-2 bg-white/10 rounded-lg appearance-none cursor-pointer" />
                            </div>
                         </div>
 
