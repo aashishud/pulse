@@ -46,6 +46,7 @@ function SignupContent() {
         .then(async (result) => {
           await saveUserProfile(result.user);
           setStep(2);
+          setLoading(false);
         })
         .catch((err) => {
           console.error("Discord signup sign-in failed:", err);
