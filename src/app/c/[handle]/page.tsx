@@ -6,7 +6,8 @@ import { auth, db } from "@/lib/firebase";
 import { doc, getDoc, collection, query, where, getDocs, updateDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import Link from "next/link";
-import { Sparkles, Users, Crown, ChevronLeft, ArrowUpRight, Share2, ShieldCheck, MapPin, Gamepad2, ExternalLink, Settings } from "lucide-react";
+import { Sparkles, Users, Crown, ChevronLeft, ArrowUpRight, Share2, ShieldCheck, MapPin, Gamepad2, ExternalLink, Settings, MessageSquare } from "lucide-react";
+import CommunityChat from "@/components/CommunityChat";
 
 export default function CommunityPage() {
   const params = useParams();
@@ -19,11 +20,31 @@ export default function CommunityPage() {
   const [error, setError] = useState(false);
 
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<{ username: string; displayName: string; avatar: string } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [activeTab, setActiveTab] = useState<"roster" | "chat">("chat");
 
-  // 1. Listen for logged-in user
+  // 1. Listen for logged-in user + fetch their profile
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => setCurrentUser(u));
+    const unsubscribe = onAuthStateChanged(auth, async (u) => {
+      setCurrentUser(u);
+      if (u) {
+        try {
+          const q = query(collection(db, "users"), where("owner_uid", "==", u.uid));
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+            const data = snap.docs[0].data();
+            setUserProfile({
+              username: snap.docs[0].id,
+              displayName: data.displayName || snap.docs[0].id,
+              avatar: data.theme?.avatar || u.photoURL || "",
+            });
+          }
+        } catch (e) {
+          console.error("Failed to fetch user profile for chat", e);
+        }
+      }
+    });
     return () => unsubscribe();
   }, []);
 
@@ -127,13 +148,18 @@ export default function CommunityPage() {
 
   const copyToClipboard = () => {
      if (typeof window !== 'undefined') {
-         const dummy = document.createElement('input');
-         document.body.appendChild(dummy);
-         dummy.value = window.location.href;
-         dummy.select();
-         document.execCommand('copy');
-         document.body.removeChild(dummy);
-         alert("Link copied to clipboard!");
+         navigator.clipboard.writeText(window.location.href).then(() => {
+            alert("Link copied to clipboard!");
+         }).catch(() => {
+            // Fallback
+            const dummy = document.createElement('input');
+            document.body.appendChild(dummy);
+            dummy.value = window.location.href;
+            dummy.select();
+            document.execCommand('copy');
+            document.body.removeChild(dummy);
+            alert("Link copied to clipboard!");
+         });
      }
   };
 
@@ -192,7 +218,7 @@ export default function CommunityPage() {
 
       {/* Community Info Header */}
       <div className="pt-16 md:pt-20 px-6 md:px-12 max-w-7xl mx-auto">
-         <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-12">
+         <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-8">
             <div>
                <h1 className="text-4xl md:text-5xl font-black mb-3 tracking-tight flex items-center gap-3">
                   {community.name}
@@ -224,51 +250,89 @@ export default function CommunityPage() {
             </div>
          </div>
 
-         <div className="h-px bg-white/5 mb-8"></div>
-
-         {/* Roster Grid */}
-         <div>
-            <h3 className="text-xl font-black mb-6 flex items-center gap-2">
-               Roster <span className="text-zinc-600 text-sm font-bold">({members.length})</span>
-            </h3>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-               {members.map(member => (
-                  <Link href={`/${member.username}`} key={member.username} className="bg-[#121214] border border-white/5 rounded-2xl p-4 hover:border-indigo-500/30 hover:bg-[#18181b] transition group relative overflow-hidden flex items-center gap-4">
-                     
-                     {/* Card Background Glow */}
-                     <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition duration-500"></div>
-                     
-                     <div className="relative w-14 h-14 shrink-0 z-10">
-                        {member.owner_uid === community.owner_uid && (
-                           <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-yellow-500 rounded-full border-2 border-[#121214] flex items-center justify-center z-20 shadow-sm" title="Founder">
-                              <Crown className="w-3 h-3 text-black" />
-                           </div>
-                        )}
-                        <div className="w-full h-full rounded-full bg-zinc-800 overflow-hidden border-2 border-white/10 group-hover:border-indigo-500/50 transition">
-                           <img 
-                              src={member.theme?.avatar || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"} 
-                              alt={member.username} 
-                              className="w-full h-full object-cover"
-                           />
-                        </div>
-                     </div>
-                     
-                     <div className="flex-1 min-w-0 z-10">
-                        <h4 className="font-bold text-white truncate flex items-center gap-2 text-sm group-hover:text-indigo-400 transition">
-                           {member.displayName || member.username}
-                        </h4>
-                        <div className="flex items-center gap-2 mt-0.5">
-                           <p className="text-xs text-zinc-500 truncate">@{member.username}</p>
-                           {member.steamId && <span title="Steam Linked" className="shrink-0 flex items-center"><Gamepad2 className="w-3 h-3 text-zinc-600" /></span>}
-                           {member.socials?.discord && <span className="w-3 h-3 bg-[#5865F2]/20 rounded flex items-center justify-center shrink-0" title="Discord Linked"><svg className="w-2 h-2 text-[#5865F2] fill-current" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg></span>}
-                        </div>
-                     </div>
-                     <ArrowUpRight className="w-4 h-4 text-zinc-600 opacity-0 group-hover:opacity-100 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition z-10 shrink-0" />
-                  </Link>
-               ))}
-            </div>
+         {/* Tabs */}
+         <div className="flex items-center gap-1 mb-6 border-b border-white/5 -mx-2">
+            <button
+               onClick={() => setActiveTab("chat")}
+               className={`flex items-center gap-2 px-5 py-3 text-sm font-bold transition-all relative ${
+                  activeTab === "chat"
+                     ? "text-white"
+                     : "text-zinc-500 hover:text-zinc-300"
+               }`}
+            >
+               <MessageSquare className="w-4 h-4" /> Chat
+               {activeTab === "chat" && (
+                  <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-indigo-500 rounded-full" />
+               )}
+            </button>
+            <button
+               onClick={() => setActiveTab("roster")}
+               className={`flex items-center gap-2 px-5 py-3 text-sm font-bold transition-all relative ${
+                  activeTab === "roster"
+                     ? "text-white"
+                     : "text-zinc-500 hover:text-zinc-300"
+               }`}
+            >
+               <Users className="w-4 h-4" /> Roster
+               <span className="text-[10px] text-zinc-600 font-mono">({members.length})</span>
+               {activeTab === "roster" && (
+                  <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-indigo-500 rounded-full" />
+               )}
+            </button>
          </div>
+
+         {/* Tab Content */}
+         {activeTab === "chat" && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+               <CommunityChat
+                  communityHandle={handle.toLowerCase()}
+                  currentUser={currentUser}
+                  isMember={!!isMember}
+                  userProfile={userProfile}
+               />
+            </div>
+         )}
+
+         {activeTab === "roster" && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {members.map(member => (
+                     <Link href={`/${member.username}`} key={member.username} className="bg-[#121214] border border-white/5 rounded-2xl p-4 hover:border-indigo-500/30 hover:bg-[#18181b] transition group relative overflow-hidden flex items-center gap-4">
+                        
+                        {/* Card Background Glow */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition duration-500"></div>
+                        
+                        <div className="relative w-14 h-14 shrink-0 z-10">
+                           {member.owner_uid === community.owner_uid && (
+                              <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-yellow-500 rounded-full border-2 border-[#121214] flex items-center justify-center z-20 shadow-sm" title="Founder">
+                                 <Crown className="w-3 h-3 text-black" />
+                              </div>
+                           )}
+                           <div className="w-full h-full rounded-full bg-zinc-800 overflow-hidden border-2 border-white/10 group-hover:border-indigo-500/50 transition">
+                              <img 
+                                 src={member.theme?.avatar || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"} 
+                                 alt={member.username} 
+                                 className="w-full h-full object-cover"
+                              />
+                           </div>
+                        </div>
+                        
+                        <div className="flex-1 min-w-0 z-10">
+                           <h4 className="font-bold text-white truncate flex items-center gap-2 text-sm group-hover:text-indigo-400 transition">
+                              {member.displayName || member.username}
+                           </h4>
+                           <div className="flex items-center gap-2 mt-0.5">
+                              <p className="text-xs text-zinc-500 truncate">@{member.username}</p>
+                              {member.steamId && <span title="Steam Linked" className="shrink-0 flex items-center"><Gamepad2 className="w-3 h-3 text-zinc-600" /></span>}
+                              {member.socials?.discord && <span className="w-3 h-3 bg-[#5865F2]/20 rounded flex items-center justify-center shrink-0" title="Discord Linked"><svg className="w-2 h-2 text-[#5865F2] fill-current" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg></span>}
+                           </div>
+                        </div>
+                        <ArrowUpRight className="w-4 h-4 text-zinc-600 opacity-0 group-hover:opacity-100 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition z-10 shrink-0" />
+                     </Link>
+                  ))}
+               </div>
+            </div>
+         )}
       </div>
     </div>
   );
