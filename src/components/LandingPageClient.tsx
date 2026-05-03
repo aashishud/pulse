@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ArrowRight, Sparkles, Gamepad2, Palette, Music, Users, Cpu, Monitor, LayoutDashboard, BadgeCheck, Diamond, Crown, Terminal } from "lucide-react";
 import Image from "next/image";
 import { auth, db } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import AvatarDecoration from "@/components/AvatarDecoration";
 import PulseLogo from "@/components/PulseLogo";
@@ -21,6 +21,7 @@ export default function LandingPageClient() {
   const [previewUser, setPreviewUser] = useState<any>(null); // State for live profile preview
   const [mockSpotify, setMockSpotify] = useState<{ title: string; artist: string; albumArt: string; isPlaying: boolean } | null>(null); // State for live music
   const [authLoading, setAuthLoading] = useState(true);
+  const [hasProfile, setHasProfile] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -51,9 +52,13 @@ export default function LandingPageClient() {
             const snap = await getDocs(q);
             if (!snap.empty && isMounted) {
                setPreviewUser(snap.docs[0].data());
+               setHasProfile(true);
+            } else {
+               setHasProfile(false);
             }
          } catch (e) {
             console.error("Failed to fetch preview user", e);
+            setHasProfile(false);
          }
       }
       setAuthLoading(false);
@@ -206,11 +211,19 @@ export default function LandingPageClient() {
           <span className="text-white drop-shadow-md">Pulse</span>
         </div>
         
-        <div className={`flex gap-4 items-center transition-opacity duration-300 ${authLoading ? 'opacity-0' : 'opacity-100'}`}>
+        <div className={`flex gap-3 items-center transition-opacity duration-300 ${authLoading ? 'opacity-0' : 'opacity-100'}`}>
           {currentUser ? (
-            <Link href="/dashboard" className="text-xs font-bold bg-white/10 border border-white/20 text-white px-5 py-2.5 rounded-xl hover:bg-white hover:text-black transition flex items-center gap-2 backdrop-blur-md">
-              <LayoutDashboard className="w-4 h-4" /> Dashboard
-            </Link>
+            <>
+              <Link href="/dashboard" className="text-xs font-bold bg-white/10 border border-white/20 text-white px-5 py-2.5 rounded-xl hover:bg-white hover:text-black transition flex items-center gap-2 backdrop-blur-md">
+                <LayoutDashboard className="w-4 h-4" /> Dashboard
+              </Link>
+              <button 
+                onClick={() => signOut(auth)} 
+                className="text-xs font-bold text-zinc-500 hover:text-red-400 transition uppercase tracking-widest px-3 py-2.5"
+              >
+                Logout
+              </button>
+            </>
           ) : (
             <>
               <Link href="/login" className="text-xs font-bold text-zinc-400 hover:text-white transition uppercase tracking-widest">
@@ -244,10 +257,19 @@ export default function LandingPageClient() {
              </p>
 
              <div className={`w-full max-w-md transition-opacity duration-500 ${authLoading ? 'opacity-0' : 'opacity-100'}`}>
-               {currentUser ? (
+               {currentUser && hasProfile ? (
                  <button onClick={() => router.push('/dashboard')} className="w-full bg-white text-black rounded-2xl flex items-center justify-center p-5 font-black text-lg gap-3 hover:bg-zinc-200 transition shadow-[0_0_30px_rgba(255,255,255,0.2)] hover:scale-[1.02]">
                     Enter Dashboard <ArrowRight className="w-5 h-5" />
                  </button>
+               ) : currentUser && !hasProfile ? (
+                 <div className="space-y-3">
+                    <button onClick={() => router.push('/signup')} className="w-full bg-indigo-600 text-white rounded-2xl flex items-center justify-center p-5 font-black text-lg gap-3 hover:bg-indigo-500 transition shadow-[0_0_30px_rgba(99,102,241,0.3)] hover:scale-[1.02]">
+                       Complete Profile Setup <ArrowRight className="w-5 h-5" />
+                    </button>
+                    <button onClick={() => signOut(auth)} className="w-full text-zinc-500 hover:text-red-400 text-sm font-bold transition py-2">
+                       Sign out and start over
+                    </button>
+                 </div>
                ) : (
                  <form onSubmit={handleClaim} className="relative group">
                    <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-500"></div>

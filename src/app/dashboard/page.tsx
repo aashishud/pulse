@@ -462,7 +462,7 @@ function DashboardContent() {
             }
 
          } else {
-            router.push("/setup");
+            router.push("/signup");
          }
          setLoading(false);
       });
