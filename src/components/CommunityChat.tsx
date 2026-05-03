@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { rtdb } from "@/lib/firebase";
-import { ref, push, onChildAdded, onChildRemoved, query, limitToLast, orderByChild, remove, off } from "firebase/database";
+import { ref, push, onChildAdded, onChildChanged, query, limitToLast, orderByChild, update, off } from "firebase/database";
 import { Send, Loader2, MessageSquare, Lock, Reply, X, Trash2 } from "lucide-react";
 import Link from "next/link";
 
@@ -22,6 +22,7 @@ interface Message {
   text: string;
   timestamp: number;
   replyTo?: ReplyData;
+  deleted?: boolean;
 }
 
 interface CommunityChatProps {
@@ -97,14 +98,19 @@ export default function CommunityChat({ communityHandle, currentUser, isMember, 
           text: data.text,
           timestamp: data.timestamp || Date.now(),
           replyTo: data.replyTo || undefined,
+          deleted: data.deleted || false,
         },
       ]);
     });
 
-    const onRemoved = onChildRemoved(chatQuery, (snapshot) => {
+    const onChanged = onChildChanged(chatQuery, (snapshot) => {
+      const data = snapshot.val();
       const id = snapshot.key!;
-      messageIds.delete(id);
-      setMessages((prev) => prev.filter((m) => m.id !== id));
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === id ? { ...m, deleted: data.deleted || false, text: data.text } : m
+        )
+      );
     });
 
     return () => {
@@ -161,7 +167,7 @@ export default function CommunityChat({ communityHandle, currentUser, isMember, 
     if (!currentUser || msg.uid !== currentUser.uid) return;
     try {
       const msgRef = ref(rtdb, `community-chat/${communityHandle}/messages/${msg.id}`);
-      await remove(msgRef);
+      await update(msgRef, { deleted: true, text: "" });
     } catch (err) {
       console.error("Failed to delete message:", err);
     }
@@ -273,9 +279,22 @@ export default function CommunityChat({ communityHandle, currentUser, isMember, 
               </div>
 
               {group.msgs.map((msg, idx) => {
+                // Deleted message tombstone
+                if (msg.deleted) {
+                  return (
+                    <div key={msg.id} className="pl-12 py-1.5">
+                      <div className="flex items-center gap-2">
+                        <Trash2 className="w-3 h-3 text-zinc-700" />
+                        <p className="text-xs text-zinc-600 italic">@{msg.username} deleted a message</p>
+                      </div>
+                    </div>
+                  );
+                }
+
                 // Collapse avatar if same user sent consecutive messages (and no reply context)
                 const prevMsg = idx > 0 ? group.msgs[idx - 1] : null;
-                const isCollapsed = prevMsg?.uid === msg.uid && msg.timestamp - prevMsg!.timestamp < 120000 && !msg.replyTo;
+                const prevNonDeleted = prevMsg && !prevMsg.deleted ? prevMsg : null;
+                const isCollapsed = prevNonDeleted?.uid === msg.uid && msg.timestamp - prevNonDeleted!.timestamp < 120000 && !msg.replyTo;
 
                 return isCollapsed ? (
                   // Collapsed message (no avatar, compact)
