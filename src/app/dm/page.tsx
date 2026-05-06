@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { auth, db, rtdb } from "@/lib/firebase";
 import { collection, query, where, getDocs, doc, setDoc, getDoc } from "firebase/firestore";
@@ -17,7 +17,15 @@ interface Message { id: string; uid: string; username: string; displayName: stri
 const PH = "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png";
 const COOLDOWN = 2000;
 
-export default function DMPage() {
+export default function DMPageWrapper() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#1a1a1e] flex items-center justify-center"><PulseLogo className="w-10 h-10 text-indigo-500 animate-pulse" /></div>}>
+      <DMPage />
+    </Suspense>
+  );
+}
+
+function DMPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [currentUser, setCurrentUser] = useState<any>(null);
