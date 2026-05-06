@@ -15,7 +15,7 @@ try {
 export const RESERVED_HANDLES = [
   // Core App Routes
   'c', 'dashboard', 'login', 'setup', 'api', 'admin', 'root',
-  'register', 'signup', 'logout', 'settings', 'profile', 'home', 'network',
+  'register', 'signup', 'logout', 'settings', 'profile', 'home', 'network', 'dm', 'dms', 'explore',
 
   // Static / Next.js Routes
   'static', 'public', 'assets', 'images', 'icons', '_next', '404', '500',

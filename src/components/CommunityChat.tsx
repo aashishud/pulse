@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { rtdb, auth as firebaseAuth } from "@/lib/firebase";
-import { ref, push, onChildAdded, onChildChanged, query, limitToLast, orderByChild, update, off } from "firebase/database";
+import { ref, push, onChildAdded, onChildChanged, onChildRemoved, query, limitToLast, orderByChild, update, off } from "firebase/database";
 import { Send, Loader2, MessageSquare, Lock, Reply, X, Trash2, Pencil, Check, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import AnimatedAvatar from "@/components/AnimatedAvatar";
@@ -83,7 +83,7 @@ export default function CommunityChat({ communityHandle, channelId, currentUser,
     const chatQuery = query(chatRef, orderByChild("timestamp"), limitToLast(100));
     const ids = new Set<string>();
 
-    onChildAdded(chatQuery, (snap) => {
+    const unsubAdd = onChildAdded(chatQuery, (snap) => {
       const d = snap.val(); const id = snap.key!;
       if (ids.has(id)) return; ids.add(id);
       setMessages(prev => [...prev, {
@@ -93,18 +93,23 @@ export default function CommunityChat({ communityHandle, channelId, currentUser,
         deletedBy: d.deletedBy || undefined, deletedByUsername: d.deletedByUsername || undefined,
         edited: d.edited || false,
       }]);
-    });
+    }, (err) => console.error("Chat listen error:", err));
 
-    onChildChanged(chatQuery, (snap) => {
+    const unsubChange = onChildChanged(chatQuery, (snap) => {
       const d = snap.val(); const id = snap.key!;
       setMessages(prev => prev.map(m => m.id === id ? {
         ...m, text: d.text, deleted: d.deleted || false,
         deletedBy: d.deletedBy || undefined, deletedByUsername: d.deletedByUsername || undefined,
         edited: d.edited || false,
       } : m));
-    });
+    }, (err) => console.error("Chat change error:", err));
 
-    return () => { off(chatRef); };
+    const unsubRemove = onChildRemoved(chatQuery, (snap) => {
+      const id = snap.key!;
+      setMessages(prev => prev.filter(m => m.id !== id));
+    }, (err) => console.error("Chat remove error:", err));
+
+    return () => { unsubAdd(); unsubChange(); unsubRemove(); };
   }, [communityHandle, channelId]);
 
   // Send message

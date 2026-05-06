@@ -145,7 +145,7 @@ export default function CommunityPage() {
         lastTimestamp: Date.now(),
       });
     }
-    router.push(`/dm/${convId}`);
+    router.push(`/dm?id=${convId}`);
   };
 
   if (loading) return <div className="min-h-screen bg-[#1a1a1e] flex items-center justify-center"><PulseLogo className="w-10 h-10 text-indigo-500 animate-pulse" /></div>;
@@ -238,15 +238,23 @@ export default function CommunityPage() {
       {/* ===== MIDDLE: Channel Sidebar ===== */}
       <div className="hidden md:flex flex-col w-60 bg-[#141416] shrink-0 border-r border-white/5">
         {/* Community header */}
-        <div className="p-4 border-b border-white/5 flex items-center gap-3 hover:bg-white/5 transition cursor-default">
-          <div className="w-8 h-8 rounded-xl bg-zinc-800 overflow-hidden shrink-0">
-            {community.avatar ? <img src={community.avatar} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-indigo-900/30"><Users className="w-4 h-4 text-indigo-400" /></div>}
+        <div className="relative border-b border-white/5 transition group cursor-default">
+          {community.banner && (
+            <div className="absolute inset-0 z-0">
+              <img src={community.banner} alt="" className="w-full h-full object-cover opacity-30" />
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#141416]" />
+            </div>
+          )}
+          <div className="relative z-10 p-4 flex items-center gap-3 hover:bg-white/5">
+            <div className="w-8 h-8 rounded-xl bg-zinc-800 overflow-hidden shrink-0 shadow-lg">
+              {community.avatar ? <AnimatedAvatar src={community.avatar} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-indigo-900/30"><Users className="w-4 h-4 text-indigo-400" /></div>}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-sm font-bold text-white truncate flex items-center gap-1.5 drop-shadow-md">{community.name} {isPrivate && <Lock className="w-3 h-3 text-zinc-400" />}</h2>
+              <p className="text-[10px] text-zinc-400 drop-shadow-md">{community.memberCount || 1} members</p>
+            </div>
+            {isAdmin && <button onClick={() => setShowSettings(true)} className="p-1 hover:bg-white/10 rounded-lg transition text-zinc-300 hover:text-white bg-black/20"><Settings className="w-4 h-4" /></button>}
           </div>
-          <div className="flex-1 min-w-0">
-            <h2 className="text-sm font-bold truncate flex items-center gap-1.5">{community.name} {isPrivate && <Lock className="w-3 h-3 text-zinc-500" />}</h2>
-            <p className="text-[10px] text-zinc-500">{community.memberCount || 1} members</p>
-          </div>
-          {isAdmin && <button onClick={() => setShowSettings(true)} className="p-1 hover:bg-white/10 rounded-lg transition text-zinc-500 hover:text-white"><Settings className="w-4 h-4" /></button>}
         </div>
 
         {/* Channels list */}

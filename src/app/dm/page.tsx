@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { auth, db, rtdb } from "@/lib/firebase";
 import { collection, query, where, getDocs, doc, setDoc, getDoc } from "firebase/firestore";
-import { ref, push, onChildAdded, onChildChanged, query as rq, limitToLast, orderByChild, update, off } from "firebase/database";
+import { ref, push, onChildAdded, onChildChanged, onChildRemoved, query as rq, limitToLast, orderByChild, update, off } from "firebase/database";
 import { onAuthStateChanged } from "firebase/auth";
 import Link from "next/link";
 import { Send, Loader2, Reply, X, Trash2, Pencil, Check, Search, Mail, MessageSquare, Plus, Hash, Users } from "lucide-react";
 import PulseLogo from "@/components/PulseLogo";
+import AnimatedAvatar from "@/components/AnimatedAvatar";
 
 interface DMConvo { id: string; otherUser: { uid: string; username: string; displayName: string; avatar: string }; lastMessage: string; lastTimestamp: number; }
 interface Message { id: string; uid: string; username: string; displayName: string; avatar: string; text: string; timestamp: number; replyTo?: any; deleted?: boolean; deletedBy?: string; edited?: boolean; }
@@ -18,10 +19,11 @@ const COOLDOWN = 2000;
 
 export default function DMPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [convos, setConvos] = useState<DMConvo[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(searchParams.get("id"));
   const [loading, setLoading] = useState(true);
   const [searchQ, setSearchQ] = useState("");
   const [joinedCommunities, setJoinedCommunities] = useState<any[]>([]);
@@ -86,9 +88,10 @@ export default function DMPage() {
     const msgRef = ref(rtdb, `dm-messages/${activeId}/messages`);
     const msgQ = rq(msgRef, orderByChild("timestamp"), limitToLast(100));
     const ids = new Set<string>();
-    onChildAdded(msgQ, (s) => { const d = s.val(); const id = s.key!; if (ids.has(id)) return; ids.add(id); setMessages(p => [...p, { id, uid: d.uid, username: d.username, displayName: d.displayName, avatar: d.avatar, text: d.text, timestamp: d.timestamp || Date.now(), replyTo: d.replyTo, deleted: d.deleted, deletedBy: d.deletedBy, edited: d.edited }]); });
-    onChildChanged(msgQ, (s) => { const d = s.val(); const id = s.key!; setMessages(p => p.map(m => m.id === id ? { ...m, text: d.text, deleted: d.deleted, deletedBy: d.deletedBy, edited: d.edited } : m)); });
-    return () => { off(msgRef); };
+    const unsubAdd = onChildAdded(msgQ, (s) => { const d = s.val(); const id = s.key!; if (ids.has(id)) return; ids.add(id); setMessages(p => [...p, { id, uid: d.uid, username: d.username, displayName: d.displayName, avatar: d.avatar, text: d.text, timestamp: d.timestamp || Date.now(), replyTo: d.replyTo, deleted: d.deleted, deletedBy: d.deletedBy, edited: d.edited }]); }, (err) => console.error("DM listen error:", err));
+    const unsubChange = onChildChanged(msgQ, (s) => { const d = s.val(); const id = s.key!; setMessages(p => p.map(m => m.id === id ? { ...m, text: d.text, deleted: d.deleted, deletedBy: d.deletedBy, edited: d.edited } : m)); }, (err) => console.error("DM change error:", err));
+    const unsubRemove = onChildRemoved(msgQ, (s) => { const id = s.key!; setMessages(p => p.filter(m => m.id !== id)); }, (err) => console.error("DM remove error:", err));
+    return () => { unsubAdd(); unsubChange(); unsubRemove(); };
   }, [activeId, currentUser]);
 
   useEffect(() => { if (autoScroll) endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
@@ -137,9 +140,13 @@ export default function DMPage() {
         <div className="w-8 h-0.5 bg-white/10 rounded-full mb-1" />
         {joinedCommunities.map(c => (
           <Link key={c.id} href={`/c/${c.handle || c.id}`} className="w-12 h-12 rounded-2xl hover:rounded-xl flex items-center justify-center transition-all duration-200 overflow-hidden group" title={c.name}>
-            {c.avatar ? <img src={c.avatar} alt={c.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-xs font-black bg-[#2b2b30] text-zinc-400 group-hover:bg-indigo-600 group-hover:text-white transition-all">{(c.name || "?").substring(0, 2).toUpperCase()}</div>}
+            {c.avatar ? <AnimatedAvatar src={c.avatar} alt={c.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-xs font-black bg-[#2b2b30] text-zinc-400 group-hover:bg-indigo-600 group-hover:text-white transition-all">{(c.name || "?").substring(0, 2).toUpperCase()}</div>}
           </Link>
         ))}
+        {/* Explore */}
+        <Link href="/c" className="w-12 h-12 rounded-2xl bg-[#1e1f22] hover:bg-green-600 hover:rounded-xl flex items-center justify-center transition-all duration-200 group mt-1" title="Explore Communities">
+          <Plus className="w-5 h-5 text-green-500 group-hover:text-white transition" />
+        </Link>
       </div>
 
       {/* DM list sidebar */}
@@ -158,7 +165,7 @@ export default function DMPage() {
             <button key={c.id} onClick={() => setActiveId(c.id)}
               className={`w-full flex items-center gap-2.5 px-3 py-2 transition group ${activeId === c.id ? 'bg-white/10' : 'hover:bg-white/5'}`}>
               <div className="w-8 h-8 rounded-full bg-zinc-800 overflow-hidden shrink-0 border border-white/5">
-                <img src={c.otherUser.avatar || PH} alt="" className="w-full h-full object-cover" />
+                <AnimatedAvatar src={c.otherUser.avatar || PH} alt="" className="w-full h-full object-cover" />
               </div>
               <div className="flex-1 min-w-0 text-left">
                 <div className="flex items-center justify-between">
@@ -173,7 +180,7 @@ export default function DMPage() {
         {currentUser && userProfile && (
           <div className="p-3 border-t border-white/5 bg-[#111113]">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-zinc-800 overflow-hidden shrink-0 border border-white/10"><img src={userProfile.avatar || PH} alt="" className="w-full h-full object-cover" /></div>
+              <div className="w-8 h-8 rounded-full bg-zinc-800 overflow-hidden shrink-0 border border-white/10"><AnimatedAvatar src={userProfile.avatar || PH} alt="" className="w-full h-full object-cover" /></div>
               <div className="flex-1 min-w-0"><p className="text-xs font-bold text-white truncate">{userProfile.displayName}</p><p className="text-[10px] text-zinc-500 truncate">@{userProfile.username}</p></div>
             </div>
           </div>
@@ -193,7 +200,7 @@ export default function DMPage() {
           {/* Chat header */}
           <div className="h-12 px-4 border-b border-white/5 bg-[#1a1a1e] flex items-center gap-3 shrink-0">
             <button onClick={() => setActiveId(null)} className="md:hidden p-1 hover:bg-white/10 rounded-lg text-zinc-400"><X className="w-5 h-5" /></button>
-            <div className="w-7 h-7 rounded-full bg-zinc-800 overflow-hidden border border-white/10 shrink-0"><img src={activeConvo.otherUser.avatar || PH} alt="" className="w-full h-full object-cover" /></div>
+            <div className="w-7 h-7 rounded-full bg-zinc-800 overflow-hidden border border-white/10 shrink-0"><AnimatedAvatar src={activeConvo.otherUser.avatar || PH} alt="" className="w-full h-full object-cover" /></div>
             <Link href={`/${activeConvo.otherUser.username}`} className="font-bold text-sm hover:text-indigo-400 transition">{activeConvo.otherUser.displayName}</Link>
             <span className="text-[10px] text-zinc-600">@{activeConvo.otherUser.username}</span>
           </div>
@@ -202,7 +209,7 @@ export default function DMPage() {
           <div ref={chatRef} onScroll={onScroll} className="flex-1 overflow-y-auto px-4 py-4 space-y-1 custom-scrollbar">
             {/* Convo start */}
             <div className="flex flex-col items-center py-8 text-center mb-4">
-              <div className="w-16 h-16 rounded-full bg-zinc-800 overflow-hidden border-2 border-white/10 mb-3"><img src={activeConvo.otherUser.avatar || PH} alt="" className="w-full h-full object-cover" /></div>
+              <div className="w-16 h-16 rounded-full bg-zinc-800 overflow-hidden border-2 border-white/10 mb-3"><AnimatedAvatar src={activeConvo.otherUser.avatar || PH} alt="" className="w-full h-full object-cover" /></div>
               <p className="font-black text-lg">{activeConvo.otherUser.displayName}</p>
               <p className="text-xs text-zinc-500 mb-1">@{activeConvo.otherUser.username}</p>
               <p className="text-xs text-zinc-600 mt-2">This is the beginning of your conversation.</p>
@@ -235,15 +242,13 @@ export default function DMPage() {
                   return collapsed ? (
                     <div key={msg.id} className="pl-12 py-0.5 group hover:bg-white/[0.02] rounded-lg transition relative">
                       {actions}
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-zinc-600 opacity-0 group-hover:opacity-100 transition font-mono w-10 text-right shrink-0">{fmtTime(msg.timestamp)}</span>
-                        {content}
-                      </div>
+                      <span className="absolute left-1 text-[10px] text-zinc-600 opacity-0 group-hover:opacity-100 transition font-mono top-1/2 -translate-y-1/2">{fmtTime(msg.timestamp)}</span>
+                      {content}
                     </div>
                   ) : (
                     <div key={msg.id} className="flex gap-3 py-2 group hover:bg-white/[0.02] rounded-lg transition px-1 relative">
                       {actions}
-                      <Link href={`/${msg.username}`} className="shrink-0"><div className="w-9 h-9 rounded-full bg-zinc-800 overflow-hidden border border-white/10 hover:border-indigo-500/50 transition mt-0.5"><img src={msg.avatar || PH} alt="" className="w-full h-full object-cover" /></div></Link>
+                      <Link href={`/${msg.username}`} className="shrink-0"><div className="w-9 h-9 rounded-full bg-zinc-800 overflow-hidden border border-white/10 hover:border-indigo-500/50 transition mt-0.5"><AnimatedAvatar src={msg.avatar || PH} alt="" className="w-full h-full object-cover" /></div></Link>
                       <div className="flex-1 min-w-0">
                         {msg.replyTo && <div className="flex items-center gap-2 mb-1 pl-1"><div className="w-0.5 h-4 bg-indigo-500/40 rounded-full shrink-0" /><Reply className="w-3 h-3 text-indigo-400/60 shrink-0 rotate-180" /><span className="text-[11px] text-indigo-400/80 font-bold truncate">@{msg.replyTo.username}</span><span className="text-[11px] text-zinc-600 truncate">{msg.replyTo.text}</span></div>}
                         <div className="flex items-baseline gap-2"><Link href={`/${msg.username}`} className="font-bold text-sm text-white hover:text-indigo-400 transition">{msg.displayName}</Link><span className="text-[10px] text-zinc-600 font-mono">{fmtTime(msg.timestamp)}</span></div>
