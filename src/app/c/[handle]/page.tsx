@@ -320,7 +320,7 @@ export default function CommunityPage() {
         <div className="flex-1 flex min-h-0">
           {/* Chat */}
           <div className="flex-1 flex flex-col min-w-0 bg-[#1a1a1e]">
-            <CommunityChat communityHandle={handle} channelId={activeChannel} currentUser={currentUser} isMember={!!isMember} isAdmin={!!isAdmin} userProfile={userProfile} />
+            <CommunityChat communityHandle={handle} channelId={activeChannel} currentUser={currentUser} isMember={!!isMember} isAdmin={!!isAdmin} userProfile={userProfile} onJoin={handleToggleJoin} />
           </div>
 
           {/* Members sidebar — desktop */}

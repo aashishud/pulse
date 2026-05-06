@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { rtdb, auth as firebaseAuth } from "@/lib/firebase";
 import { ref, push, onChildAdded, onChildChanged, onChildRemoved, query, limitToLast, orderByChild, update, off } from "firebase/database";
-import { Send, Loader2, MessageSquare, Lock, Reply, X, Trash2, Pencil, Check, ShieldAlert } from "lucide-react";
+import { Send, Loader2, MessageSquare, Lock, Reply, X, Trash2, Pencil, Check, ShieldAlert, Users } from "lucide-react";
 import Link from "next/link";
 import AnimatedAvatar from "@/components/AnimatedAvatar";
 
@@ -36,11 +36,12 @@ interface CommunityChatProps {
   isMember: boolean;
   isAdmin: boolean;
   userProfile?: { username: string; displayName: string; avatar: string } | null;
+  onJoin?: () => void;
 }
 
 const COOLDOWN_MS = 2000;
 
-export default function CommunityChat({ communityHandle, channelId, currentUser, isMember, isAdmin, userProfile }: CommunityChatProps) {
+export default function CommunityChat({ communityHandle, channelId, currentUser, isMember, isAdmin, userProfile, onJoin }: CommunityChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
@@ -338,9 +339,9 @@ export default function CommunityChat({ communityHandle, channelId, currentUser,
               <Lock className="w-4 h-4" /> Login to chat
             </Link>
           ) : !isMember ? (
-            <div className="flex items-center justify-center gap-2 w-full py-3 bg-white/5 rounded-xl text-zinc-500 text-sm font-bold border border-white/5">
-              <Lock className="w-4 h-4" /> Join this community to chat
-            </div>
+            <button onClick={onJoin} className="flex items-center justify-center gap-2 w-full py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white text-sm font-bold border border-indigo-500/30 transition active:scale-[0.98] shadow-lg shadow-indigo-500/20">
+              <Users className="w-4 h-4" /> Join this community to chat
+            </button>
           ) : (
             <form onSubmit={handleSend} className="flex gap-2">
               <input ref={inputRef} type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)}

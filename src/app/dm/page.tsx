@@ -35,6 +35,8 @@ function DMPage() {
   const [loading, setLoading] = useState(true);
   const [searchQ, setSearchQ] = useState("");
   const [joinedCommunities, setJoinedCommunities] = useState<any[]>([]);
+  const [showJoinPopup, setShowJoinPopup] = useState(false);
+  const [joinHandle, setJoinHandle] = useState("");
 
   // Chat state
   const [messages, setMessages] = useState<Message[]>([]);
@@ -152,10 +154,28 @@ function DMPage() {
           </Link>
         ))}
         {/* Explore */}
-        <Link href="/c" className="w-12 h-12 rounded-2xl bg-[#1e1f22] hover:bg-green-600 hover:rounded-xl flex items-center justify-center transition-all duration-200 group mt-1" title="Explore Communities">
+        <button onClick={() => setShowJoinPopup(true)} className="w-12 h-12 rounded-2xl bg-[#1e1f22] hover:bg-green-600 hover:rounded-xl flex items-center justify-center transition-all duration-200 group mt-1" title="Join a Community">
           <Plus className="w-5 h-5 text-green-500 group-hover:text-white transition" />
-        </Link>
+        </button>
       </div>
+
+      {/* Join Popup */}
+      {showJoinPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowJoinPopup(false)} />
+          <div className="relative bg-[#1e1f22] border border-white/10 rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <h2 className="text-lg font-black mb-1">Join a Community</h2>
+            <p className="text-xs text-zinc-500 mb-5">Enter the community handle to join</p>
+            <form onSubmit={(e) => { e.preventDefault(); if (joinHandle.trim()) { router.push(`/c/${joinHandle.trim().toLowerCase()}`); setShowJoinPopup(false); setJoinHandle(""); }}} className="flex gap-2">
+              <div className="flex-1 flex items-center bg-white/5 border border-white/10 rounded-xl px-3 gap-2 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition">
+                <Search className="w-4 h-4 text-zinc-500 shrink-0" />
+                <input type="text" value={joinHandle} onChange={e => setJoinHandle(e.target.value)} placeholder="community-handle" className="flex-1 bg-transparent py-2.5 text-sm text-white outline-none placeholder:text-zinc-600" autoFocus />
+              </div>
+              <button type="submit" disabled={!joinHandle.trim()} className="px-4 py-2.5 bg-indigo-600 text-white font-bold text-sm rounded-xl hover:bg-indigo-500 transition disabled:opacity-30">Go</button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* DM list sidebar */}
       <div className={`${activeId ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-60 bg-[#141416] shrink-0 border-r border-white/5`}>
