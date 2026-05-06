@@ -3,11 +3,11 @@ import type { NextConfig } from "next";
 // We format the CSP as a readable string, then strip the newlines before injecting it
 const cspHeader = `
     default-src 'self';
-    script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.jsdelivr.net https://apis.google.com https://www.gstatic.com https://www.google.com;
+    script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.jsdelivr.net https://apis.google.com https://www.gstatic.com https://www.google.com https://*.firebaseio.com https://*.firebasedatabase.app;
     style-src 'self' 'unsafe-inline';
     img-src * blob: data:;
     media-src * blob: data:;
-    connect-src * blob: data:; 
+    connect-src * blob: data: wss://*.firebaseio.com wss://*.firebasedatabase.app; 
     font-src 'self' data:;
     frame-src *;
     object-src 'none'; 
