@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
-import { onAuthStateChanged, updateEmail, updatePassword, signOut, deleteUser } from "firebase/auth";
+import { onAuthStateChanged, updatePassword, signOut, deleteUser, verifyBeforeUpdateEmail, sendEmailVerification } from "firebase/auth";
 import { getSteamLoginUrl, verifySteamLogin, verifyDiscordLogin } from "@/app/setup/actions";
 // Added Menu icon for the mobile navigation drawer
 import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X, Cpu, Monitor, Keyboard, Mouse, Headphones, Trophy, Gamepad2, Clock, Music, Video, Users, Crown, LayoutTemplate, Layers, Activity, Diamond, Mail, ArrowRight, CheckCircle2, Info, Menu, ChevronDown, Check, BadgeCheck } from "lucide-react";
@@ -750,14 +750,31 @@ function DashboardContent() {
       setSaving(true);
       try {
          if (newEmail) {
-            await updateEmail(auth.currentUser, newEmail);
-            await updateDoc(doc(db, "users", user.id), { email: newEmail });
+            await verifyBeforeUpdateEmail(auth.currentUser, newEmail);
+            showAlert("Verification link sent! Check your new email's inbox to complete the change.", "success");
          }
-         if (newPass) await updatePassword(auth.currentUser, newPass);
-         showAlert("Credentials updated!", "success");
+         if (newPass) {
+            await updatePassword(auth.currentUser, newPass);
+            showAlert("Password updated!", "success");
+         }
          setNewEmail(""); setNewPass("");
       } catch (e: any) {
-         showAlert("Error: " + e.message, "error");
+         if (e.code === 'auth/requires-recent-login') {
+            showAlert("For security, please log out and log back in before updating credentials.", "error");
+         } else {
+            showAlert("Error: " + e.message, "error");
+         }
+      } finally { setSaving(false); }
+   };
+
+   const handleVerifyCurrentEmail = async () => {
+      if (!auth.currentUser) return;
+      setSaving(true);
+      try {
+         await sendEmailVerification(auth.currentUser);
+         showAlert("Verification email sent! Please check your inbox.", "success");
+      } catch (e: any) {
+         showAlert("Failed to send verification: " + e.message, "error");
       } finally { setSaving(false); }
    };
 
@@ -1951,14 +1968,30 @@ function DashboardContent() {
                         <h2 className="text-xl font-bold text-white mb-6">Security</h2>
                         <div className="space-y-6">
                            <div>
-                              <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Update Account Email</label>
+                              <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Current Email Status</label>
+                              <div className="flex items-center gap-4 bg-black/40 p-4 rounded-xl border border-white/5">
+                                 <div>
+                                    <p className="text-sm font-medium text-white">{auth.currentUser?.email}</p>
+                                    <p className={`text-xs mt-1 ${auth.currentUser?.emailVerified ? "text-green-400" : "text-amber-400"}`}>
+                                       {auth.currentUser?.emailVerified ? "✓ Email Verified" : "⚠ Email Not Verified"}
+                                    </p>
+                                 </div>
+                                 {!auth.currentUser?.emailVerified && (
+                                    <button onClick={handleVerifyCurrentEmail} disabled={saving} className="ml-auto px-4 py-2 bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30 rounded-lg text-xs font-bold transition disabled:opacity-50">
+                                       Send Link
+                                    </button>
+                                 )}
+                              </div>
+                           </div>
+                           <div>
+                              <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Change Account Email</label>
                               <input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} className={inputStyle} placeholder="New Email Address" />
                            </div>
                            <div>
                               <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">New Password</label>
                               <input type="password" value={newPass} onChange={(e) => setNewPass(e.target.value)} className={inputStyle} placeholder="••••••••" />
                            </div>
-                           <button onClick={handleUpdateAccount} disabled={saving} className="w-full py-4 bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 font-bold rounded-xl hover:bg-indigo-600/30 hover:text-indigo-300 transition disabled:opacity-50">Save Security Changes</button>
+                           <button onClick={handleUpdateAccount} disabled={saving || (!newEmail && !newPass)} className="w-full py-4 bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 font-bold rounded-xl hover:bg-indigo-600/30 hover:text-indigo-300 transition disabled:opacity-50">Save Security Changes</button>
                         </div>
                      </section>
 
