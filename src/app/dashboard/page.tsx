@@ -381,16 +381,6 @@ function DashboardContent() {
                         "socials.discord_decoration": result.decorationUrl,
                         "socials.discord_verified": true
                      });
-                     
-                     // Update local state immediately so UI reflects it without needing a hard refresh
-                     setSocials(prev => ({
-                        ...prev,
-                        discord: result.username,
-                        discordId: result.discordId,
-                        discord_avatar: result.avatarUrl,
-                        discord_decoration: result.decorationUrl,
-                        discord_verified: true
-                     }));
                   }
                }
             }
