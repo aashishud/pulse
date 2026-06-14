@@ -41,15 +41,18 @@ export async function verifySteamLogin(queryString: string) {
 
 // --- DISCORD ---
 export async function verifyDiscordLogin(code: string, origin: string) {
-  const CLIENT_ID = process.env.DISCORD_CLIENT_ID?.trim();
-  const CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET?.trim();
+  const CLIENT_ID = process.env.DISCORD_CLIENT_ID?.split('#')[0].trim();
+  const CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET?.split('#')[0].trim();
   const REDIRECT_URI = `${origin}/api/auth/discord`;
 
   try {
     // 1. Exchange the code for an Access Token
     const tokenResponse = await fetch("https://discord.com/api/oauth2/token", {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      headers: { 
+        "Content-Type": "application/x-www-form-urlencoded",
+        "User-Agent": "Pulse/1.0"
+      },
       body: new URLSearchParams({
         client_id: CLIENT_ID!,
         client_secret: CLIENT_SECRET!,
@@ -64,7 +67,10 @@ export async function verifyDiscordLogin(code: string, origin: string) {
 
     // 2. Fetch the User's Profile Data
     const userResponse = await fetch("https://discord.com/api/users/@me", {
-      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+      headers: { 
+        Authorization: `Bearer ${tokenData.access_token}`,
+        "User-Agent": "Pulse/1.0"
+      },
     });
 
     const userData = await userResponse.json();

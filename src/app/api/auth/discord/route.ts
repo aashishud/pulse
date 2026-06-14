@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   }
 
   // 3. Initial Auth Request (If no code, start the flow)
-  const CLIENT_ID = process.env.DISCORD_CLIENT_ID?.trim();
+  const CLIENT_ID = process.env.DISCORD_CLIENT_ID?.split('#')[0].trim();
   const REDIRECT_URI = `${origin}/api/auth/discord`;
   
   if (!state) {
