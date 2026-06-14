@@ -59,6 +59,7 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'images.pexels.com' },
       { protocol: 'https', hostname: 'wallpapers.com' },
       { protocol: 'https', hostname: 'i.pinimg.com' },
+      { protocol: 'https', hostname: 'cdn.discordapp.com' },
     ],
   },
 };

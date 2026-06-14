@@ -1147,7 +1147,7 @@ function DashboardContent() {
                      </section>
 
                      {myCommunities.length > 0 && (
-                        <section className={cardStyle}>
+                        <section className={cardStyle.replace('overflow-hidden', 'overflow-visible') + ' z-50'}>
                            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Represented Community</h3>
                            <p className="text-xs text-zinc-400 mb-4">Choose which community badge appears on your public profile.</p>
                            <CustomSelect 

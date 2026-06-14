@@ -41,8 +41,8 @@ export async function verifySteamLogin(queryString: string) {
 
 // --- DISCORD ---
 export async function verifyDiscordLogin(code: string, origin: string) {
-  const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
-  const CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
+  const CLIENT_ID = process.env.DISCORD_CLIENT_ID?.trim();
+  const CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET?.trim();
   const REDIRECT_URI = `${origin}/api/auth/discord`;
 
   try {
