@@ -49,6 +49,7 @@ export async function verifyDiscordLogin(code: string, origin: string) {
     // 1. Exchange the code for an Access Token
     const tokenResponse = await fetch("https://discord.com/api/oauth2/token", {
       method: "POST",
+      cache: "no-store",
       headers: { 
         "Content-Type": "application/x-www-form-urlencoded",
         "User-Agent": "Pulse/1.0"
@@ -63,10 +64,11 @@ export async function verifyDiscordLogin(code: string, origin: string) {
     });
 
     const tokenData = await tokenResponse.json();
-    if (!tokenData.access_token) throw new Error("Failed to get access token");
+    if (!tokenData.access_token) throw new Error("Failed to get access token: " + JSON.stringify(tokenData));
 
     // 2. Fetch the User's Profile Data
     const userResponse = await fetch("https://discord.com/api/users/@me", {
+      cache: "no-store",
       headers: { 
         Authorization: `Bearer ${tokenData.access_token}`,
         "User-Agent": "Pulse/1.0"
@@ -74,7 +76,7 @@ export async function verifyDiscordLogin(code: string, origin: string) {
     });
 
     const userData = await userResponse.json();
-    if (!userData.id) throw new Error("Failed to get user data");
+    if (!userData.id) throw new Error("Failed to get user data: " + JSON.stringify(userData));
 
     // 3. Construct the Avatar URL (Checks if it's an animated GIF or static PNG)
     let avatarUrl = "";
