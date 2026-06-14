@@ -2,12 +2,13 @@
 
 import { useEffect, useState, Suspense, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { onAuthStateChanged, updatePassword, signOut, deleteUser, verifyBeforeUpdateEmail, sendEmailVerification } from "firebase/auth";
 import { getSteamLoginUrl, verifySteamLogin, verifyDiscordLogin } from "@/app/setup/actions";
 // Added Menu icon for the mobile navigation drawer
-import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X, Cpu, Monitor, Keyboard, Mouse, Headphones, Trophy, Gamepad2, Clock, Music, Video, Users, Crown, LayoutTemplate, Layers, Activity, Diamond, Mail, ArrowRight, CheckCircle2, Info, Menu, ChevronDown, Check, BadgeCheck } from "lucide-react";
+import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X, Cpu, Monitor, Keyboard, Mouse, Headphones, Trophy, Gamepad2, Clock, Music, Video, Users, Crown, LayoutTemplate, Layers, Activity, Diamond, Mail, ArrowRight, CheckCircle2, Info, Menu, ChevronDown, Check, BadgeCheck, Loader2 } from "lucide-react";
 import { validateHandle } from "@/lib/validation";
 import AnalyticsGlobe from "@/components/AnalyticsGlobe";
 import AnalyticsChart from "@/components/AnalyticsChart";
@@ -23,7 +24,7 @@ const TABS = [
    { id: 'gaming', icon: Gamepad2, label: 'Gaming Showcase' },
    { id: 'communities', icon: Users, label: 'Communities' },
    { id: 'analytics', icon: Activity, label: 'Analytics' },
-   { id: 'premium', icon: Diamond, label: 'Pulse Pro' },
+   { id: 'premium', icon: Diamond, label: 'Subscriptions' },
    { id: 'settings', icon: Settings, label: 'Account' },
 ];
 
@@ -259,6 +260,9 @@ function DashboardContent() {
 
    // --- Mobile Overlay State ---
    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+   const [dashboardLicenseCode, setDashboardLicenseCode] = useState('');
+   const [isRedeeming, setIsRedeeming] = useState(false);
 
    const [displayName, setDisplayName] = useState("");
    const [newUsername, setNewUsername] = useState("");
@@ -513,8 +517,8 @@ function DashboardContent() {
       setSaving(true);
       try {
          const userRef = doc(db, "users", user.id);
-         await updateDoc(userRef, { isPro: false });
-         setUser({ ...user, isPro: false });
+         await updateDoc(userRef, { isPro: false, plan: null, planExpiresAt: null });
+         setUser({ ...user, isPro: false, plan: null, planExpiresAt: null });
          
          // Revert pro-exclusive settings if necessary
          if (theme.hideBranding) {
@@ -522,13 +526,68 @@ function DashboardContent() {
              await updateDoc(userRef, { "theme.hideBranding": false });
          }
 
-         showAlert("You have successfully unsubscribed from Pulse Pro.", "info", "Subscription Cancelled");
+         showAlert("You have successfully ended your trial/subscription.", "info", "Subscription Cancelled");
       } catch (e) {
          console.error(e);
-         showAlert("Failed to cancel Pulse Pro.", "error");
+         showAlert("Failed to cancel plan.", "error");
       } finally {
          setSaving(false);
       }
+   };
+
+   const handleDashboardRedeem = async () => {
+      if (!user || !dashboardLicenseCode.trim()) return;
+      setIsRedeeming(true);
+      
+      try {
+        const code = dashboardLicenseCode.trim().toUpperCase();
+        const unredeemedRef = doc(db, "licenses_unredeemed", code);
+        const licenseSnap = await getDoc(unredeemedRef);
+        
+        if (!licenseSnap.exists()) {
+           const redeemedRefCheck = doc(db, "licenses_redeemed", code);
+           const redeemedSnap = await getDoc(redeemedRefCheck);
+           
+           if (redeemedSnap.exists()) {
+              showAlert("This license code has already been redeemed.", "error");
+           } else {
+              showAlert("Invalid license code.", "error");
+           }
+           setIsRedeeming(false);
+           return;
+        }
+        
+        const licenseData = licenseSnap.data();
+        const redeemedRef = doc(db, "licenses_redeemed", code);
+        
+        await setDoc(redeemedRef, {
+           ...licenseData,
+           redeemed: true,
+           redeemedBy: auth.currentUser?.uid || user.id,
+           redeemedAt: new Date().toISOString()
+        });
+        await deleteDoc(unredeemedRef);
+        
+        const userRef = doc(db, "users", user.id);
+        const updates: any = { plan: licenseData.tier };
+        
+        if (licenseData.durationDays) {
+           const expiresAt = new Date();
+           expiresAt.setDate(expiresAt.getDate() + licenseData.durationDays);
+           updates.planExpiresAt = expiresAt.toISOString();
+        } else {
+           updates.planExpiresAt = null;
+        }
+        
+        await updateDoc(userRef, updates);
+        setUser({ ...user, ...updates });
+        setDashboardLicenseCode('');
+        showAlert(`Successfully upgraded to ${licenseData.tier}!`, "success");
+      } catch (error: any) {
+        console.error("Redeem error:", error);
+        showAlert("Failed to redeem code.", "error");
+      }
+      setIsRedeeming(false);
    };
 
    const handleSaveLayout = async (newLayout: LayoutItem[]) => {
@@ -1020,64 +1079,108 @@ function DashboardContent() {
             {/* Main Content Area */}
             <main className="flex-1 overflow-y-auto custom-scrollbar relative z-10 px-4 sm:px-8 py-6 pb-32 lg:pb-12">
 
-               {/* --- PULSE PRO / PREMIUM TAB --- */}
+               {/* --- SUBSCRIPTIONS / PREMIUM TAB --- */}
                {activeTab === 'premium' && (
-                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                     <section className="bg-gradient-to-br from-indigo-900/40 via-purple-900/40 to-black border border-indigo-500/30 rounded-3xl p-8 lg:p-12 relative overflow-hidden shadow-2xl">
-                        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/20 blur-[100px] rounded-full -mr-40 -mt-40 pointer-events-none"></div>
+                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl">
+                     
+                     <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-2xl font-bold text-white tracking-tight">Your Subscriptions</h2>
+                     </div>
 
-                        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
-                           <div className="flex-1">
-                              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold uppercase tracking-widest mb-6">
-                                 <Diamond className="w-4 h-4" /> Pulse Pro
+                     {/* Discord-style Banner */}
+                     <div className={`relative rounded-2xl overflow-hidden p-6 md:p-8 flex flex-col md:flex-row justify-between items-center gap-6 shadow-2xl ${user?.plan ? (user.plan === 'Pulse Elite' ? 'bg-gradient-to-r from-amber-600/80 via-yellow-600/80 to-amber-800/80' : 'bg-gradient-to-r from-violet-600/80 via-fuchsia-600/80 to-violet-800/80') : 'bg-gradient-to-r from-indigo-900 via-purple-900 to-black'}`}>
+                        {/* Background pattern */}
+                        <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] mix-blend-overlay"></div>
+                        
+                        <div className="relative z-10 flex items-center gap-6">
+                           <div className="hidden sm:flex shrink-0 w-24 h-24 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 items-center justify-center shadow-inner">
+                              <Diamond className="w-12 h-12 text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]" />
+                           </div>
+                           <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                 <PulseLogo className="w-5 h-5 text-white" />
+                                 <h3 className="text-2xl font-black text-white italic">{user?.plan || 'Pulse Pro'}</h3>
                               </div>
-                              <h2 className="text-4xl md:text-5xl font-black text-white mb-4 tracking-tight">Level up your legacy.</h2>
-                              <p className="text-indigo-200/70 text-lg mb-8 max-w-xl">
-                                 Unlock god-tier cosmetics, advanced analytics, custom backgrounds, and priority support. Stand out from the crowd.
+                              <p className="text-white/90 text-sm font-medium mb-1">
+                                 {user?.plan ? `You have premium cosmetics, animated layouts, and custom cursors.` : `Unlock god-tier cosmetics, advanced analytics, and priority support.`}
                               </p>
-
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-                                 {[
-                                    "Animated Avatar Frames",
-                                    "Premium Background Shaders",
-                                    "Custom Profile Cursors",
-                                    "Unlimited Links & Clips",
-                                    "Pro Profile Badge",
-                                    "Priority Support"
-                                 ].map(feat => (
-                                    <div key={feat} className="flex items-center gap-3">
-                                       <div className="w-5 h-5 rounded-full bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30 shrink-0">
-                                          <Shield className="w-3 h-3 text-indigo-400" />
-                                       </div>
-                                       <span className="text-sm font-bold text-zinc-300">{feat}</span>
-                                    </div>
-                                 ))}
-                              </div>
-
-                              {!user?.isPro ? (
-                                 <button onClick={handleUpgradeToPro} disabled={saving} className="px-8 py-4 bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-black rounded-2xl transition flex items-center gap-2 shadow-[0_0_30px_rgba(99,102,241,0.4)] hover:scale-105 active:scale-95 disabled:opacity-50">
-                                    Claim Free Pro <Sparkles className="w-5 h-5" />
-                                 </button>
-                              ) : (
-                                 <div className="flex flex-col sm:flex-row items-center gap-4">
-                                    <div className="inline-flex items-center gap-3 px-6 py-4 bg-white/10 border border-white/20 rounded-2xl text-white font-bold">
-                                       <CheckCircle2 className="w-5 h-5 text-green-400" />
-                                       Active Pro Member
-                                    </div>
-                                    <button onClick={handleCancelPro} disabled={saving} className="px-6 py-4 bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20 font-bold rounded-2xl transition disabled:opacity-50">
-                                       Unsubscribe
-                                    </button>
-                                 </div>
+                              {user?.plan && (
+                                 <p className="text-white/70 text-xs font-bold uppercase tracking-wider">
+                                    ({user.planExpiresAt ? `Expires on ${new Date(user.planExpiresAt).toLocaleDateString()}` : 'Lifetime Access'})
+                                 </p>
                               )}
                            </div>
+                        </div>
 
-                           <div className="hidden lg:flex shrink-0 w-72 h-72 bg-black/40 border border-white/10 rounded-full items-center justify-center relative shadow-inner">
-                              <div className="absolute inset-0 rounded-full border border-indigo-500/30 animate-[spin_10s_linear_infinite]"></div>
-                              <div className="absolute inset-4 rounded-full border border-purple-500/20 animate-[spin_15s_linear_infinite_reverse]"></div>
-                              <Diamond className="w-32 h-32 text-indigo-400 drop-shadow-[0_0_30px_rgba(99,102,241,0.5)]" />
+                        <div className="relative z-10 shrink-0 w-full md:w-auto flex flex-col gap-3">
+                           {user?.plan ? (
+                              <button onClick={handleCancelPro} disabled={saving} className="w-full md:w-auto px-6 py-3 bg-white text-black hover:bg-zinc-200 font-bold rounded-xl transition shadow-lg text-sm">
+                                 Cancel Plan
+                              </button>
+                           ) : (
+                              <Link href="/checkout" className="w-full md:w-auto px-8 py-3 bg-white text-black hover:bg-zinc-200 font-bold rounded-xl transition shadow-[0_0_20px_rgba(255,255,255,0.3)] text-sm whitespace-nowrap inline-flex items-center justify-center">
+                                 Subscribe
+                              </Link>
+                           )}
+                        </div>
+                     </div>
+
+                     {user?.plan && (
+                        <>
+                           {/* Payment / Billing Info */}
+                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
+                              {/* Left Column */}
+                              <div className="bg-[#1e1f22]/50 border border-white/5 rounded-2xl p-6">
+                                 <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">Billing Information</h4>
+                                 <p className="text-sm text-zinc-300 leading-relaxed">
+                                    Your subscription is currently managed via prepaid license keys or trials. 
+                                    {user.planExpiresAt ? ` It will end on ${new Date(user.planExpiresAt).toLocaleDateString()}.` : ' It is active for a lifetime.'}
+                                 </p>
+                              </div>
+                              
+                              {/* Right Column */}
+                              <div className="bg-[#1e1f22]/50 border border-white/5 rounded-2xl p-6">
+                                 <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">Pay for it With</h4>
+                                 <div className="bg-[#2b2d31] p-4 rounded-xl flex items-center justify-between border border-white/5">
+                                    <div className="flex items-center gap-3">
+                                       <div className="w-8 h-8 rounded bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30">
+                                          <Shield className="w-4 h-4 text-indigo-400" />
+                                       </div>
+                                       <span className="text-sm font-bold text-white">License Key</span>
+                                    </div>
+                                    <span className="text-xs font-bold text-indigo-400 bg-indigo-500/10 px-2 py-1 rounded">Active</span>
+                                 </div>
+                              </div>
+                           </div>
+                        </>
+                     )}
+
+                     {/* Subscription Credits / Redeem Code */}
+                     <div className="mt-8">
+                        <h4 className="text-sm font-bold text-white mb-2">Subscription Credit</h4>
+                        <p className="text-xs text-zinc-400 mb-4">
+                           When you accept a gift or redeem a license code, it will be applied to your account here.
+                        </p>
+                        <div className="bg-[#1e1f22] border border-white/5 rounded-2xl p-6">
+                           <div className="flex flex-col sm:flex-row gap-3">
+                              <input
+                                 type="text"
+                                 placeholder="Enter a promo or license code..."
+                                 value={dashboardLicenseCode}
+                                 onChange={(e) => setDashboardLicenseCode(e.target.value)}
+                                 className="flex-1 bg-[#2b2d31] border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-zinc-500 text-sm focus:outline-none focus:border-indigo-500/50 uppercase transition-colors"
+                              />
+                              <button
+                                 onClick={handleDashboardRedeem}
+                                 disabled={isRedeeming || !dashboardLicenseCode.trim()}
+                                 className="px-6 py-3 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white font-bold rounded-xl transition text-sm flex items-center justify-center min-w-[120px]"
+                              >
+                                 {isRedeeming ? <Loader2 className="w-4 h-4 animate-spin" /> : "Redeem"}
+                              </button>
                            </div>
                         </div>
-                     </section>
+                     </div>
+
                   </div>
                )}
 

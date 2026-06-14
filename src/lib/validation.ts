@@ -30,7 +30,7 @@ export const RESERVED_HANDLES = [
   'support', 'contact', 'help', 'moderator', 'staff', 'team', 'security', 'bot', 'system',
 
   // Common internet & Domain reserves
-  'about', 'terms', 'privacy', 'legal', 'blog', 'press', 'jobs', 'www', 'web', 'host'
+  'about', 'terms', 'privacy', 'legal', 'blog', 'press', 'jobs', 'www', 'web', 'host', 'faq', 'pricing'
 ];
 
 export function validateHandle(username: string): string | null {

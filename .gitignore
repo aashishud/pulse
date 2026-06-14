@@ -45,3 +45,6 @@ to-do list
 graphify-out/.graphify_detect.json
 graphify-out/.graphify_python
 graphify-out/
+
+# internal scripts
+/scripts

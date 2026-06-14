@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, Sparkles, Gamepad2, Palette, Music, Users, Cpu, Monitor, LayoutDashboard, BadgeCheck, Diamond, Crown, Terminal } from "lucide-react";
@@ -11,6 +11,7 @@ import { doc, getDoc, collection, query, where, getDocs } from "firebase/firesto
 import AvatarDecoration from "@/components/AvatarDecoration";
 import PulseLogo from "@/components/PulseLogo";
 import BackgroundShader from "@/components/BackgroundShader";
+import Navbar from "@/components/Navbar";
 
 // The username that acts as the default "Showcase" profile for logged-out users
 const SHOWCASE_USERNAME = "sour";
@@ -169,73 +170,52 @@ export default function LandingPageClient() {
   const hasTwitter = previewUser ? !!previewUser.socials?.twitter : true;
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white selection:bg-indigo-500/30 font-sans flex flex-col overflow-x-hidden">
+    <div className="min-h-screen bg-[#07070a] text-white selection:bg-indigo-500/30 font-sans flex flex-col overflow-x-hidden relative">
       
       {/* --- MAGIC CSS ELEMENTS --- */}
       <style jsx global>{`
         @keyframes scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-        .animate-scroll { animation: scroll 30s linear infinite; }
+        .animate-scroll { animation: scroll 40s linear infinite; }
         .animate-scroll:hover { animation-play-state: paused; }
 
         @keyframes scroll-reverse { 0% { transform: translateX(-50%); } 100% { transform: translateX(0); } }
-        .animate-scroll-reverse { animation: scroll-reverse 30s linear infinite; }
+        .animate-scroll-reverse { animation: scroll-reverse 40s linear infinite; }
         .animate-scroll-reverse:hover { animation-play-state: paused; }
         
         @keyframes float {
-          0% { transform: translateY(0px) rotateY(-15deg) rotateX(5deg); }
-          50% { transform: translateY(-20px) rotateY(-12deg) rotateX(8deg); }
-          100% { transform: translateY(0px) rotateY(-15deg) rotateX(5deg); }
+          0% { transform: translateY(0px) rotateY(-5deg) rotateX(2deg); }
+          50% { transform: translateY(-15px) rotateY(-2deg) rotateX(4deg); }
+          100% { transform: translateY(0px) rotateY(-5deg) rotateX(2deg); }
         }
-        .animate-float-3d { animation: float 8s ease-in-out infinite; transform-style: preserve-3d; }
-
-        .bg-grid-pattern {
-          background-size: 40px 40px;
-          background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-                            linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+        .animate-float-3d { animation: float 10s ease-in-out infinite; transform-style: preserve-3d; }
+        
+        @keyframes blob {
+          0% { transform: translate(0px, 0px) scale(1); }
+          33% { transform: translate(30px, -50px) scale(1.1); }
+          66% { transform: translate(-20px, 20px) scale(0.9); }
+          100% { transform: translate(0px, 0px) scale(1); }
         }
+        .animate-blob { animation: blob 15s infinite alternate; }
+        .animation-delay-2000 { animation-delay: 2s; }
+        .animation-delay-4000 { animation-delay: 4s; }
       `}</style>
 
-      {/* --- BACKGROUND AMBIENCE --- */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-         <BackgroundShader type="mesh-gradient" />
-         <div className="absolute inset-0 bg-grid-pattern opacity-50" style={{ maskImage: 'radial-gradient(ellipse at center, black 40%, transparent 80%)', WebkitMaskImage: 'radial-gradient(ellipse at center, black 40%, transparent 80%)' }}></div>
-         <div className="absolute inset-0 bg-gradient-to-b from-[#050505]/40 via-[#050505]/80 to-[#050505] mix-blend-multiply"></div>
+      {/* --- SOFT BACKGROUND AMBIENCE --- */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+         {/* Soft dark base */}
+         <div className="absolute inset-0 bg-[#07070a]"></div>
+         
+         {/* Animated Glowing Blobs */}
+         <div className="absolute top-0 -left-4 w-96 h-96 bg-indigo-500/20 rounded-full mix-blend-screen filter blur-[100px] opacity-70 animate-blob"></div>
+         <div className="absolute top-0 -right-4 w-96 h-96 bg-purple-500/20 rounded-full mix-blend-screen filter blur-[100px] opacity-70 animate-blob animation-delay-2000"></div>
+         <div className="absolute -bottom-8 left-20 w-96 h-96 bg-pink-500/20 rounded-full mix-blend-screen filter blur-[100px] opacity-70 animate-blob animation-delay-4000"></div>
+         
+         {/* Grain overlay for texture */}
+         <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay" style={{ backgroundImage: 'url("https://upload.wikimedia.org/wikipedia/commons/7/76/1k_Dissolve_Noise_Texture.png")' }}></div>
       </div>
 
-      {/* --- NAVBAR --- */}
-      <nav className="w-full max-w-7xl mx-auto px-6 py-6 flex justify-between items-center z-50 relative">
-        <div className="text-xl font-bold tracking-tighter flex items-center gap-3 group cursor-pointer">
-           <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.2)] group-hover:scale-105 transition">
-              <PulseLogo className="w-4 h-4 text-black" />
-           </div>
-          <span className="text-white drop-shadow-md">Pulse</span>
-        </div>
-        
-        <div className={`flex gap-3 items-center transition-opacity duration-300 ${authLoading ? 'opacity-0' : 'opacity-100'}`}>
-          {currentUser ? (
-            <>
-              <Link href="/dashboard" className="text-xs font-bold bg-white/10 border border-white/20 text-white px-5 py-2.5 rounded-xl hover:bg-white hover:text-black transition flex items-center gap-2 backdrop-blur-md">
-                <LayoutDashboard className="w-4 h-4" /> Dashboard
-              </Link>
-              <button 
-                onClick={() => signOut(auth)} 
-                className="text-xs font-bold text-zinc-500 hover:text-red-400 transition uppercase tracking-widest px-3 py-2.5"
-              >
-                Logout
-              </button>
-            </>
-          ) : (
-            <>
-              <Link href="/login" className="text-xs font-bold text-zinc-400 hover:text-white transition uppercase tracking-widest">
-                Login
-              </Link>
-              <Link href="/signup" className="text-xs font-bold bg-white text-black px-6 py-2.5 rounded-xl hover:bg-zinc-200 transition hover:scale-105 shadow-[0_0_20px_rgba(255,255,255,0.2)] uppercase tracking-widest">
-                Sign Up
-              </Link>
-            </>
-          )}
-        </div>
-      </nav>
+      {/* --- FLOATING NAVBAR --- */}
+      <Navbar />
 
       {/* --- HERO SPLIT SECTION --- */}
       <main className="flex-1 z-10 relative">
@@ -244,16 +224,16 @@ export default function LandingPageClient() {
           {/* LEFT: Copy & Input (Brutalist, Confident) */}
           <div className="flex-1 text-left w-full max-w-2xl lg:max-w-none mx-auto lg:mx-0">
 
-             <h1 className="text-6xl sm:text-7xl lg:text-[5.5rem] font-black tracking-tighter leading-[0.95] mb-6 drop-shadow-2xl">
+             <h1 className="text-5xl sm:text-6xl lg:text-[5rem] font-bold tracking-tight leading-[1.05] mb-6 drop-shadow-2xl">
                 Your gaming <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">
-                  legacy.
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-pink-400">
+                  identity
                 </span><br />
-                Unified.
+                made beautiful.
              </h1>
              
-             <p className="text-lg text-zinc-400 max-w-lg mb-10 leading-relaxed font-medium">
-                Stop pasting messy links. Everything you play, listen to, and create in one place. Build a custom gaming profile that actually represents you.
+             <p className="text-lg text-zinc-300 max-w-lg mb-10 leading-relaxed font-medium">
+                Stop pasting messy links. Everything you play, listen to, and create in one beautifully soft space. Build a gaming profile that feels like you.
              </p>
 
              <div className={`w-full max-w-md transition-opacity duration-500 ${authLoading ? 'opacity-0' : 'opacity-100'}`}>
@@ -272,21 +252,20 @@ export default function LandingPageClient() {
                  </div>
                ) : (
                  <form onSubmit={handleClaim} className="relative group">
-                   <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
-                   <div className="relative bg-[#0a0a0c] border border-white/10 rounded-2xl flex items-center p-2 pl-4 focus-within:border-indigo-500/50 transition shadow-2xl">
-                     <Terminal className="w-4 h-4 text-zinc-500 hidden sm:block shrink-0" />
-                     <span className="text-zinc-500 font-mono text-sm sm:text-base ml-2 sm:ml-3 select-none">pulse.gg/</span>
+                   <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full blur opacity-25 group-hover:opacity-40 transition duration-500"></div>
+                   <div className="relative bg-white/5 backdrop-blur-xl border border-white/10 rounded-full flex items-center p-2 pl-5 focus-within:border-indigo-400/50 transition shadow-2xl">
+                     <span className="text-zinc-400 font-medium text-sm sm:text-base select-none">pulse.gg/</span>
                      <input 
                        type="text" 
                        placeholder="username"
-                       className="flex-1 bg-transparent border-none outline-none text-white font-mono text-sm sm:text-base p-2 w-full min-w-0"
+                       className="flex-1 bg-transparent border-none outline-none text-white font-medium text-sm sm:text-base p-2 w-full min-w-0 placeholder-zinc-500"
                        value={username}
                        onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9-_]/g, ''))} 
                      />
                      <button 
                        type="submit"
                        disabled={username.length < 3}
-                       className="bg-white text-black px-5 py-3 rounded-xl font-bold hover:bg-zinc-200 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg"
+                       className="bg-white text-black px-6 py-3 rounded-full font-bold hover:bg-zinc-200 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg hover:scale-105"
                      >
                        Claim <ArrowRight className="w-4 h-4" />
                      </button>
@@ -297,26 +276,29 @@ export default function LandingPageClient() {
           </div>
 
           {/* RIGHT: Floating 3D Profile Mockup (Powered by real user data!) */}
-          <div className="flex-1 w-full relative perspective-[2000px] hidden md:block">
+          <div className="flex-1 w-full relative perspective-[2000px] hidden md:block z-20">
              <div className="w-full max-w-[400px] mx-auto animate-float-3d">
-                {/* Glass Card Base */}
-                <div className="bg-black/40 backdrop-blur-2xl border border-white/10 rounded-[32px] p-6 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden">
+                {/* Ultra-Soft Glass Card Base */}
+                <div className="bg-white/5 backdrop-blur-3xl border border-white/20 rounded-[40px] p-6 shadow-[0_30px_60px_rgba(0,0,0,0.4)] relative overflow-hidden group">
                    
+                   {/* Shine effect */}
+                   <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/5 to-white/0 opacity-0 group-hover:opacity-100 transition duration-700 pointer-events-none"></div>
+
                    {/* Dynamic Mock Banner */}
-                   <div className="absolute top-0 left-0 w-full h-32 opacity-40 overflow-hidden">
-                      <img src={mockBanner} alt="Banner" className="w-full h-full object-cover transition-transform duration-500" style={{ transform: `scale(${mockScale})` }} />
-                      <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#0a0a0c]"></div>
+                   <div className="absolute top-0 left-0 w-full h-32 opacity-40 overflow-hidden rounded-t-[40px]">
+                      <img src={mockBanner} alt="Banner" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" style={{ transform: `scale(${mockScale})` }} />
+                      <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#07070a]"></div>
                    </div>
 
                    {/* Dynamic Mock Avatar with Aura & Lottie */}
                    <div className="relative pt-12 flex justify-center mb-4">
                       {/* Aura dynamically uses their primary color */}
-                      <div className="absolute inset-0 top-12 w-24 h-24 mx-auto rounded-full blur-xl opacity-50 animate-pulse pointer-events-none" style={{ backgroundColor: mockPrimaryColor }}></div>
+                      <div className="absolute inset-0 top-12 w-32 h-32 mx-auto rounded-full blur-2xl opacity-40 animate-pulse pointer-events-none" style={{ backgroundColor: mockPrimaryColor }}></div>
                       
-                      <div className="w-28 h-28 relative">
+                      <div className="w-28 h-28 relative transition-transform duration-500 group-hover:scale-105">
                          <AvatarDecoration type={mockDecoration}>
-                            <div className="w-24 h-24 rounded-full bg-[#121214] relative z-10 border border-white/10 mx-auto mt-2">
-                               <img src={mockAvatar} alt="Avatar" className="rounded-full object-cover p-1 bg-[#0a0a0c] w-full h-full" />
+                            <div className="w-24 h-24 rounded-full bg-[#121214] relative z-10 border border-white/20 mx-auto mt-2 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
+                               <img src={mockAvatar} alt="Avatar" className="rounded-full object-cover p-1 w-full h-full" />
                                {mockDiscordDeco && (
                                   <img src={mockDiscordDeco} alt="Decoration" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] max-w-none z-30 pointer-events-none object-contain scale-[1.2]" />
                                )}
@@ -327,52 +309,52 @@ export default function LandingPageClient() {
 
                    {/* Dynamic Mock Identity */}
                    <div className="text-center relative z-10">
-                      <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-400 tracking-tight flex items-center justify-center gap-2 mb-2">
+                      <h2 className="text-3xl font-bold text-white tracking-tight flex items-center justify-center gap-2 mb-1">
                          {mockName} 
                          {(hasVerified || mockHandle === 'sour') && (
-                           <div className="flex items-center gap-1.5 bg-white/10 px-2 py-0.5 rounded-full border border-white/10">
+                           <div className="flex items-center gap-1.5 bg-white/10 px-2 py-0.5 rounded-full border border-white/10 shadow-sm">
                              <BadgeCheck className="w-3.5 h-3.5 text-blue-400" />
                              {mockHandle === 'sour' && <Crown className="w-3.5 h-3.5 text-yellow-400" />}
                            </div>
                          )}
                       </h2>
-                      <p className="text-xs font-mono text-zinc-500 mb-6">@{mockHandle}</p>
+                      <p className="text-sm font-medium text-zinc-400 mb-6">@{mockHandle}</p>
                       
                       {/* Socials Mock */}
-                      <div className="flex justify-center gap-2 mb-6">
+                      <div className="flex justify-center gap-3 mb-6">
                          {hasDiscord && (
-                           <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
-                              <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/discord.svg" className="w-4 h-4 invert opacity-80" />
+                           <div className="w-12 h-12 rounded-[16px] bg-white/5 border border-white/10 flex items-center justify-center shadow-lg hover:bg-white/10 transition">
+                              <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/discord.svg" className="w-5 h-5 invert opacity-90" />
                            </div>
                          )}
                          {hasSteam && (
-                           <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
-                              <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/steam.svg" className="w-4 h-4 invert opacity-80" />
+                           <div className="w-12 h-12 rounded-[16px] bg-white/5 border border-white/10 flex items-center justify-center shadow-lg hover:bg-white/10 transition">
+                              <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/steam.svg" className="w-5 h-5 invert opacity-90" />
                            </div>
                          )}
                          {hasTwitter && (
-                           <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
-                              <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/x.svg" className="w-4 h-4 invert opacity-80" />
+                           <div className="w-12 h-12 rounded-[16px] bg-white/5 border border-white/10 flex items-center justify-center shadow-lg hover:bg-white/10 transition">
+                              <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/x.svg" className="w-5 h-5 invert opacity-90" />
                            </div>
                          )}
                       </div>
 
                       {/* Spotify Mock Widget (Now Live!) */}
-                      <div className="bg-black/60 border border-[#1DB954]/30 rounded-2xl p-3 flex items-center gap-3 text-left w-full">
-                         <div className="w-10 h-10 bg-zinc-800 rounded-lg overflow-hidden shrink-0 relative">
+                      <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-[24px] p-3 flex items-center gap-4 text-left w-full shadow-lg hover:bg-white/10 transition duration-300">
+                         <div className="w-12 h-12 bg-zinc-800 rounded-[14px] overflow-hidden shrink-0 relative shadow-md">
                             <img src={mockSpotify?.albumArt || "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=200&auto=format&fit=crop"} alt="Album" className="w-full h-full object-cover" />
                          </div>
                          <div className="flex-1 min-w-0">
-                            <p className="text-[9px] text-[#1DB954] font-bold uppercase tracking-wider mb-0.5 flex items-center gap-1">
-                               <Music className="w-2.5 h-2.5"/> {mockSpotify?.isPlaying ? "Listening on Spotify" : "Top Track"}
+                            <p className="text-[10px] text-green-400 font-bold uppercase tracking-widest mb-0.5 flex items-center gap-1.5">
+                               <Music className="w-3 h-3"/> {mockSpotify?.isPlaying ? "Listening on Spotify" : "Top Track"}
                             </p>
-                            <p className="text-xs font-bold truncate text-white">{mockSpotify?.title || "Cyberpunk Vibes"}</p>
-                            {mockSpotify?.artist && <p className="text-[10px] text-zinc-400 truncate mt-0.5">{mockSpotify.artist}</p>}
+                            <p className="text-sm font-bold truncate text-white">{mockSpotify?.title || "Cyberpunk Vibes"}</p>
+                            {mockSpotify?.artist && <p className="text-xs text-zinc-400 truncate mt-0.5">{mockSpotify.artist}</p>}
                          </div>
-                         <div className="flex items-end gap-0.5 h-3 px-1 shrink-0">
-                            <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-full"></span>
-                            <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-2/3" style={{ animationDelay: '200ms' }}></span>
-                            <span className="w-1 bg-[#1DB954] rounded-full animate-pulse h-4/5" style={{ animationDelay: '400ms' }}></span>
+                         <div className="flex items-end gap-1 h-4 px-2 shrink-0">
+                            <span className="w-1.5 bg-green-400 rounded-full animate-pulse h-full"></span>
+                            <span className="w-1.5 bg-green-400 rounded-full animate-pulse h-2/3" style={{ animationDelay: '200ms' }}></span>
+                            <span className="w-1.5 bg-green-400 rounded-full animate-pulse h-4/5" style={{ animationDelay: '400ms' }}></span>
                          </div>
                       </div>
 
@@ -382,193 +364,218 @@ export default function LandingPageClient() {
           </div>
         </div>
 
-        {/* --- SPOTLIGHT BENTO BOX GRID --- */}
-        <div className="max-w-6xl mx-auto px-6 w-full mb-32 relative z-20">
-           <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-black mb-4 tracking-tight">Everything in one place.</h2>
-              <p className="text-zinc-500 font-mono text-sm uppercase tracking-widest">Built exclusively for gamers.</p>
-           </div>
+        {/* --- Z-PATTERN FEATURE SECTIONS --- */}
+        <div className="w-full relative z-20 mb-40 overflow-hidden py-24">
+           {/* Huge ambient background glows for the whole section */}
+           <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-indigo-500/10 blur-[150px] rounded-full pointer-events-none"></div>
+           <div className="absolute top-1/3 left-0 w-[600px] h-[600px] bg-purple-500/10 blur-[150px] rounded-full pointer-events-none"></div>
+           <div className="absolute bottom-0 right-1/4 w-[700px] h-[700px] bg-[#1DB954]/10 blur-[150px] rounded-full pointer-events-none"></div>
 
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[280px]">
+           <div className="max-w-7xl mx-auto px-6 w-full space-y-40">
               
-              {/* Box 1: Aesthetics */}
-              <div className="md:col-span-2 bg-[#0c0c0e] border border-white/5 rounded-[32px] overflow-hidden relative group p-8 flex flex-col justify-between shadow-2xl transition duration-500 hover:border-white/10">
-                 <div className="relative z-10">
-                    <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-white mb-6 border border-white/10">
-                       <Palette className="w-5 h-5" />
-                    </div>
-                    <h3 className="text-2xl font-black mb-2">Make it yours.</h3>
-                    <p className="text-zinc-500 text-sm max-w-sm">Express yourself with animated backgrounds, dynamic avatar frames, frosted glass effects, and custom cursors to match your vibe.</p>
-                 </div>
+              {/* Feature 1: Aesthetics (Visuals Left, Text Right) */}
+              <div className="flex flex-col-reverse lg:flex-row items-center justify-between gap-16 lg:gap-24 relative">
                  
-                 <div className="absolute -bottom-10 -right-10 w-64 h-64 bg-indigo-500/20 blur-[80px] rounded-full group-hover:bg-indigo-500/30 transition duration-500"></div>
-                 
-                 {/* Visual Mockups */}
-                 <div className="relative z-10 flex gap-4 mt-8 opacity-80 group-hover:opacity-100 transition">
-                    <div className="px-4 py-2 bg-black/40 border border-white/10 rounded-full flex items-center gap-2 text-xs font-mono backdrop-blur-md shadow-lg">
-                       <Sparkles className="w-3 h-3 text-yellow-400" /> Custom Badges
-                    </div>
-                    <div className="px-4 py-2 bg-black/40 border border-white/10 rounded-full flex items-center gap-2 text-xs font-mono backdrop-blur-md shadow-lg">
-                       <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/discord.svg" alt="Discord" className="w-3 h-3 object-contain invert opacity-80" /> Profile Effects
-                    </div>
-                 </div>
-              </div>
-
-              {/* Box 2: Communities */}
-              <div className="md:col-span-1 bg-[#0c0c0e] border border-white/5 rounded-[32px] overflow-hidden relative group p-8 flex flex-col justify-between shadow-2xl transition duration-500 hover:border-white/10">
-                 <div className="relative z-10">
-                    <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400 mb-6 border border-indigo-500/20">
-                       <Users className="w-5 h-5" />
-                    </div>
-                    <h3 className="text-xl font-black mb-2">Squad Hubs</h3>
-                    <p className="text-zinc-500 text-sm">Build a centralized page for your esports org, clan, or friend group.</p>
-                 </div>
-                 
-                 <div className="relative z-10 flex justify-start mt-6 group-hover:-translate-y-2 transition duration-500">
-                     <div className="inline-flex items-center gap-3 px-4 py-3 bg-black/60 border border-white/10 rounded-2xl shadow-inner">
-                         <div className="w-8 h-8 rounded-xl bg-zinc-800 overflow-hidden flex items-center justify-center shrink-0 border border-white/10 relative">
-                            <img src="https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=100&auto=format&fit=crop" alt="Logo" className="w-full h-full object-cover" />
-                         </div>
-                         <div className="text-left flex flex-col justify-center leading-none">
-                             <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mb-1">Squad</span>
-                             <span className="text-sm font-bold text-white font-mono">SOUR_GANG</span>
-                         </div>
-                     </div>
-                 </div>
-              </div>
-
-              {/* Box 3: Hardware */}
-              <div className="md:col-span-1 bg-[#0c0c0e] border border-white/5 rounded-[32px] overflow-hidden relative group p-8 flex flex-col justify-between shadow-2xl transition duration-500 hover:border-white/10">
-                 <div className="relative z-10">
-                    <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-white mb-6 border border-white/10">
-                       <Cpu className="w-5 h-5" />
-                    </div>
-                    <h3 className="text-xl font-black mb-2">Hardware Setup</h3>
-                    <p className="text-zinc-500 text-sm">Showcase your PC build, peripherals, and gaming rig.</p>
-                 </div>
-                 
-                 <div className="relative z-10 space-y-2 mt-4 opacity-70 group-hover:opacity-100 transition">
-                    <div className="bg-black/40 border border-white/5 rounded-xl p-3 flex items-center gap-3">
-                       <Monitor className="w-4 h-4 text-zinc-500 shrink-0" />
-                       <div className="min-w-0 flex-1"><p className="text-[9px] text-zinc-600 font-bold uppercase leading-none mb-1 tracking-widest">Monitor</p><p className="text-xs font-bold text-zinc-300 truncate font-mono">OLED G8</p></div>
-                    </div>
-                 </div>
-              </div>
-
-              {/* Box 4: Connections */}
-              <div className="md:col-span-2 bg-[#0c0c0e] border border-white/5 rounded-[32px] overflow-hidden relative group p-8 flex flex-col sm:flex-row items-center justify-between gap-8 shadow-2xl transition duration-500 hover:border-white/10">
-                 <div className="relative z-10 flex-1">
-                    <div className="w-10 h-10 bg-[#1DB954]/10 rounded-xl flex items-center justify-center text-[#1DB954] mb-6 border border-[#1DB954]/20">
-                       <Gamepad2 className="w-5 h-5" />
-                    </div>
-                    <h3 className="text-2xl font-black mb-2">Live Auto-Sync</h3>
-                    <p className="text-zinc-500 text-sm max-w-sm mb-6">Connect Steam, Valorant, and Spotify to automatically display your real-time stats and status directly on your profile.</p>
+                 {/* Visuals (Left) */}
+                 <div className="flex-1 w-full relative h-[400px] md:h-[500px]">
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-white/5 blur-3xl rounded-full mix-blend-screen pointer-events-none"></div>
                     
-                    <div className="flex gap-3">
-                       {["steam", "discord", "xbox", "epicgames"].map((brand) => (
-                         <div key={brand} className="w-10 h-10 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center">
-                            <img src={`https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/${brand}.svg`} className="w-4 h-4 invert opacity-60" />
-                         </div>
-                       ))}
+                    {/* Floating UI Elements */}
+                    <div className="absolute top-[10%] left-[10%] w-64 h-auto bg-white/5 backdrop-blur-2xl border border-white/20 rounded-[32px] p-6 shadow-[0_20px_40px_rgba(0,0,0,0.3)] animate-float-3d" style={{ animationDelay: '0s' }}>
+                       <div className="w-12 h-12 bg-white/10 rounded-[16px] flex items-center justify-center mb-4">
+                          <Palette className="w-6 h-6 text-indigo-300" />
+                       </div>
+                       <div className="h-4 w-3/4 bg-white/10 rounded-full mb-3"></div>
+                       <div className="h-3 w-1/2 bg-white/5 rounded-full mb-6"></div>
+                       <div className="flex gap-2">
+                          <div className="w-6 h-6 rounded-full bg-pink-500/50"></div>
+                          <div className="w-6 h-6 rounded-full bg-purple-500/50"></div>
+                          <div className="w-6 h-6 rounded-full bg-indigo-500/50"></div>
+                       </div>
                     </div>
-                 </div>
-                 
-                 <div className="relative z-10 shrink-0 w-full sm:w-auto mt-6 sm:mt-0">
-                    <div className="bg-black/60 border border-[#66c0f4]/30 rounded-2xl p-4 flex items-center gap-4 shadow-xl group-hover:-translate-y-2 transition duration-500">
-                       <div className="w-12 h-12 bg-[#171a21] rounded-xl flex items-center justify-center border border-white/10">
-                         <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/steam.svg" alt="Steam" className="w-6 h-6 invert" />
+
+                    <div className="absolute bottom-[10%] right-[10%] w-72 h-auto bg-[#0a0a0c]/60 backdrop-blur-3xl border border-white/10 rounded-full p-4 flex items-center gap-4 shadow-[0_30px_60px_rgba(0,0,0,0.5)] animate-float-3d" style={{ animationDelay: '1s' }}>
+                       <div className="w-14 h-14 bg-gradient-to-tr from-yellow-500 to-orange-500 rounded-full p-0.5 flex items-center justify-center shrink-0">
+                          <Sparkles className="w-6 h-6 text-white" />
                        </div>
                        <div>
-                          <p className="text-[10px] text-[#66c0f4] font-bold uppercase tracking-wider mb-1">Steam Level 38</p>
-                          <p className="text-sm font-bold text-white font-mono">15,402 Hours</p>
+                          <p className="text-white font-bold">Luminous Badge</p>
+                          <p className="text-zinc-400 text-xs font-medium">Equipped</p>
+                       </div>
+                    </div>
+
+                    <div className="absolute top-[40%] right-[5%] w-16 h-16 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl flex items-center justify-center shadow-xl animate-float-3d" style={{ animationDelay: '2.5s' }}>
+                       <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/discord.svg" alt="Discord" className="w-8 h-8 invert opacity-80" />
+                    </div>
+                 </div>
+
+                 {/* Text (Right) */}
+                 <div className="flex-1 w-full text-left relative z-10">
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-bold uppercase tracking-widest mb-6">
+                       <Palette className="w-3.5 h-3.5" /> Aesthetics
+                    </div>
+                    <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-6">Absolute freedom over your space.</h2>
+                    <p className="text-lg md:text-xl text-zinc-400 font-medium leading-relaxed mb-8">
+                       Express yourself without constraints. Layer frosted glass, vibrant gradients, and dynamic glowing effects to create a profile that perfectly captures your vibe.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-4">
+                       <div className="flex items-center gap-3 text-white font-medium"><BadgeCheck className="w-5 h-5 text-indigo-400"/> Custom Cursors</div>
+                       <div className="flex items-center gap-3 text-white font-medium"><BadgeCheck className="w-5 h-5 text-indigo-400"/> Video Backgrounds</div>
+                    </div>
+                 </div>
+
+              </div>
+
+
+              {/* Feature 2: Squad Hubs (Text Left, Visuals Right) */}
+              <div className="flex flex-col lg:flex-row items-center justify-between gap-16 lg:gap-24 relative">
+                 
+                 {/* Text (Left) */}
+                 <div className="flex-1 w-full text-left order-2 lg:order-1 relative z-10">
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-bold uppercase tracking-widest mb-6">
+                       <Users className="w-3.5 h-3.5" /> Communities
+                    </div>
+                    <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-6">Your squad, centralized.</h2>
+                    <p className="text-lg md:text-xl text-zinc-400 font-medium leading-relaxed mb-8">
+                       Stop scattering your members across different platforms. Build a beautiful, unified roster for your esports org, clan, or friend group with dedicated team pages.
+                    </p>
+                    <div className="flex items-center gap-4 text-sm font-bold text-white">
+                       <div className="flex -space-x-4">
+                          <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop" className="w-10 h-10 rounded-full border-2 border-[#07070a]"/>
+                          <img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=100&h=100&fit=crop" className="w-10 h-10 rounded-full border-2 border-[#07070a]"/>
+                          <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop" className="w-10 h-10 rounded-full border-2 border-[#07070a]"/>
+                       </div>
+                       Join thousands of squads.
+                    </div>
+                 </div>
+
+                 {/* Visuals (Right) */}
+                 <div className="flex-1 w-full relative h-[400px] md:h-[500px] order-1 lg:order-2">
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-purple-500/20 blur-[120px] rounded-full pointer-events-none"></div>
+                    
+                    {/* Squad Hub UI Mock */}
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-[#0a0a0e]/80 backdrop-blur-3xl border border-white/10 rounded-[40px] p-8 shadow-[0_40px_80px_rgba(0,0,0,0.5)] animate-float-3d">
+                       <div className="flex items-center gap-6 mb-8">
+                          <div className="w-20 h-20 rounded-[24px] bg-white/10 overflow-hidden shadow-lg border border-white/20">
+                             <img src="https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=200&auto=format&fit=crop" alt="Squad Logo" className="w-full h-full object-cover" />
+                          </div>
+                          <div>
+                             <h3 className="text-2xl font-bold text-white mb-1">SOUR_GANG</h3>
+                             <p className="text-zinc-400 text-sm font-medium">14 Members • Established 2026</p>
+                          </div>
+                       </div>
+                       
+                       <div className="space-y-3">
+                          {[
+                             { name: "Sour", role: "Founder", color: "text-red-400", bg: "bg-red-400/10", border: "border-red-400/20" },
+                             { name: "Phantom", role: "Co-Leader", color: "text-purple-400", bg: "bg-purple-400/10", border: "border-purple-400/20" },
+                             { name: "Zero", role: "Member", color: "text-zinc-400", bg: "bg-zinc-400/10", border: "border-zinc-400/20" }
+                          ].map((member, i) => (
+                             <div key={i} className="bg-white/5 border border-white/10 rounded-[20px] p-4 flex items-center justify-between hover:bg-white/10 transition cursor-pointer">
+                                <div className="flex items-center gap-3">
+                                   <div className="w-10 h-10 rounded-full bg-zinc-800 border border-white/10"></div>
+                                   <span className="text-white font-bold">{member.name}</span>
+                                </div>
+                                <div className={`px-3 py-1 rounded-full text-xs font-bold ${member.color} ${member.bg} border ${member.border}`}>
+                                   {member.role}
+                                </div>
+                             </div>
+                          ))}
                        </div>
                     </div>
                  </div>
+
+              </div>
+
+              {/* Feature 3: Live Auto-Sync (Visuals Left, Text Right) */}
+              <div className="flex flex-col-reverse lg:flex-row items-center justify-between gap-16 lg:gap-24 relative">
+                 
+                 {/* Visuals (Left) */}
+                 <div className="flex-1 w-full relative h-[400px] md:h-[500px]">
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-[#1DB954]/10 blur-[100px] rounded-full pointer-events-none"></div>
+                    
+                    {/* Center Node */}
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-white/10 backdrop-blur-3xl border border-white/20 rounded-[24px] shadow-2xl flex items-center justify-center z-20">
+                       <PulseLogo className="w-10 h-10 text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]" />
+                    </div>
+
+                    {/* Orbiting/Connecting Nodes */}
+                    <div className="absolute top-[20%] left-[20%] w-20 h-20 bg-[#0a0a0c]/60 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 shadow-xl flex items-center justify-center animate-float-3d" style={{ animationDelay: '0s' }}>
+                       <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/steam.svg" alt="Steam" className="w-full h-full invert opacity-90" />
+                    </div>
+
+                    <div className="absolute bottom-[20%] left-[30%] w-20 h-20 bg-[#0a0a0c]/60 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 shadow-xl flex items-center justify-center animate-float-3d" style={{ animationDelay: '1.5s' }}>
+                       <img src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/discord.svg" alt="Discord" className="w-full h-full invert opacity-90" />
+                    </div>
+
+                    <div className="absolute top-[30%] right-[10%] w-52 h-auto bg-[#0a0a0c]/60 backdrop-blur-xl border border-[#1DB954]/30 rounded-[24px] p-4 shadow-xl flex items-center gap-4 animate-float-3d" style={{ animationDelay: '3s' }}>
+                       <div className="w-12 h-12 bg-zinc-800 rounded-xl overflow-hidden shrink-0"><img src="https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=100&h=100&fit=crop" className="w-full h-full object-cover"/></div>
+                       <div className="min-w-0">
+                          <p className="text-[10px] text-[#1DB954] font-bold uppercase tracking-widest flex items-center gap-1.5"><Music className="w-3 h-3"/> Spotify</p>
+                          <p className="text-white text-sm font-bold truncate">Listening now</p>
+                       </div>
+                    </div>
+                 </div>
+
+                 {/* Text (Right) */}
+                 <div className="flex-1 w-full text-left relative z-10">
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-bold uppercase tracking-widest mb-6">
+                       <Gamepad2 className="w-3.5 h-3.5" /> Integrations
+                    </div>
+                    <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-6">Always in sync.</h2>
+                    <p className="text-lg md:text-xl text-zinc-400 font-medium leading-relaxed mb-8">
+                       Connect your accounts once and let Pulse do the rest. Your Steam hours, Spotify tracks, and Discord status are magically synced and displayed in real-time.
+                    </p>
+                    <button className="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-6 py-3 rounded-full font-bold transition flex items-center gap-2 w-fit">
+                       Explore Integrations <ArrowRight className="w-4 h-4" />
+                    </button>
+                 </div>
+
               </div>
 
            </div>
         </div>
 
-        {/* --- COMPACT DUAL-MARQUEE CAROUSEL (Replaces the chunky boxes) --- */}
-        <div className="w-full overflow-hidden mb-24 border-y border-white/5 bg-[#050505] py-16 relative" style={{ maskImage: 'linear-gradient(to right, transparent, black 5%, black 95%, transparent)', WebkitMaskImage: 'linear-gradient(to right, transparent, black 5%, black 95%, transparent)' }}>
+        {/* --- FINAL CTA --- */}
+        <div className="w-full relative py-32 flex justify-center overflow-hidden">
+           {/* Soft glow behind CTA */}
+           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-500/10 blur-[120px] rounded-full pointer-events-none"></div>
            
-           <div className="text-center mb-10 relative z-30">
-              <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest font-mono">Gamers already on Pulse</p>
-           </div>
-
-           <div className="flex flex-col gap-5 relative z-20">
-               {/* ROW 1 (Scrolls Left) */}
-               <div className="flex w-max animate-scroll gap-5 px-3">
-                  {[...showcaseRow1, ...showcaseRow1, ...showcaseRow1, ...showcaseRow1].map((profile, i) => (
-                     <div key={`r1-${i}`} className="w-[320px] bg-[#0a0a0c]/80 backdrop-blur-md rounded-2xl border border-white/5 p-4 flex flex-col gap-4 group hover:border-white/20 transition-all hover:-translate-y-1 shadow-lg flex-shrink-0">
-                        <div className="flex items-center gap-3">
-                           <div className="w-12 h-12 relative shrink-0">
-                               <AvatarDecoration type={profile.deco}>
-                                  <div className="w-10 h-10 rounded-full bg-[#121214] relative z-10 border border-white/10 mx-auto mt-1">
-                                     <img src={profile.avatar} alt="PFP" className="rounded-full object-cover p-0.5 bg-[#0a0a0c] w-full h-full" />
-                                  </div>
-                               </AvatarDecoration>
-                           </div>
-                           <div className="min-w-0 flex-1">
-                               <div className="flex items-center gap-1 font-black text-white text-base truncate">
-                                  {profile.name} {profile.badges.map((b) => b)}
-                               </div>
-                               <p className="text-[10px] text-zinc-500 font-mono truncate">@{profile.handle}</p>
-                           </div>
-                        </div>
-                        <div className={`w-full rounded-xl p-2.5 flex items-center gap-2.5 text-xs font-bold ${profile.bgClass} ${profile.colorClass} border ${profile.borderClass}`}>
-                           {profile.statusIcon}
-                           <span className="truncate">{profile.statusText}</span>
-                        </div>
-                     </div>
-                  ))}
-               </div>
-               
-               {/* ROW 2 (Scrolls Right) */}
-               <div className="flex w-max animate-scroll-reverse gap-5 px-3">
-                  {[...showcaseRow2, ...showcaseRow2, ...showcaseRow2, ...showcaseRow2].map((profile, i) => (
-                     <div key={`r2-${i}`} className="w-[320px] bg-[#0a0a0c]/80 backdrop-blur-md rounded-2xl border border-white/5 p-4 flex flex-col gap-4 group hover:border-white/20 transition-all hover:-translate-y-1 shadow-lg flex-shrink-0">
-                        <div className="flex items-center gap-3">
-                           <div className="w-12 h-12 relative shrink-0">
-                               <AvatarDecoration type={profile.deco}>
-                                  <div className="w-10 h-10 rounded-full bg-[#121214] relative z-10 border border-white/10 mx-auto mt-1">
-                                     <img src={profile.avatar} alt="PFP" className="rounded-full object-cover p-0.5 bg-[#0a0a0c] w-full h-full" />
-                                  </div>
-                               </AvatarDecoration>
-                           </div>
-                           <div className="min-w-0 flex-1">
-                               <div className="flex items-center gap-1 font-black text-white text-base truncate">
-                                  {profile.name} {profile.badges.map((b) => b)}
-                               </div>
-                               <p className="text-[10px] text-zinc-500 font-mono truncate">@{profile.handle}</p>
-                           </div>
-                        </div>
-                        <div className={`w-full rounded-xl p-2.5 flex items-center gap-2.5 text-xs font-bold ${profile.bgClass} ${profile.colorClass} border ${profile.borderClass}`}>
-                           {profile.statusIcon}
-                           <span className="truncate">{profile.statusText}</span>
-                        </div>
-                     </div>
-                  ))}
-               </div>
+           <div className="max-w-3xl px-6 w-full text-center relative z-20">
+              <h2 className="text-4xl md:text-5xl lg:text-7xl font-bold tracking-tight mb-6">
+                 Ready to build <br className="hidden md:block" /> your space?
+              </h2>
+              <p className="text-lg text-zinc-400 font-medium mb-10 max-w-xl mx-auto">
+                 Claim your handle today and join the next generation of gamers building their identity on Pulse.
+              </p>
+              
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                 <Link href="/signup" className="w-full sm:w-auto bg-white text-black px-8 py-4 rounded-full font-bold text-lg hover:scale-105 transition shadow-[0_0_30px_rgba(255,255,255,0.15)] hover:shadow-[0_0_40px_rgba(255,255,255,0.3)]">
+                    Claim your link
+                 </Link>
+                 <Link href="/login" className="w-full sm:w-auto px-8 py-4 rounded-full font-bold text-lg text-white/70 hover:text-white hover:bg-white/5 transition border border-transparent hover:border-white/10">
+                    Log in
+                 </Link>
+              </div>
            </div>
         </div>
 
       </main>
 
       {/* Footer */}
-      <footer className="w-full border-t border-white/5 bg-[#050505] py-12 z-10 relative mt-auto">
+      <footer className="w-full border-t border-white/5 bg-transparent py-12 z-10 relative mt-auto">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-2 font-bold text-lg tracking-tighter opacity-50 hover:opacity-100 transition">
-             <div className="w-6 h-6 bg-white rounded-md flex items-center justify-center">
+          <div className="flex items-center gap-2 font-bold text-lg tracking-tight opacity-50 hover:opacity-100 transition duration-300">
+             <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
                <PulseLogo className="w-3 h-3 text-black" />
              </div>Pulse
           </div>
           
-          <div className="flex gap-6 text-xs text-zinc-600 font-mono uppercase tracking-widest">
+          <div className="flex gap-6 text-sm text-zinc-500 font-medium">
              <Link href="/terms" className="hover:text-white transition">Terms & Privacy</Link>
           </div>
 
-          <div className="text-zinc-700 text-[10px] font-mono uppercase tracking-widest">
+          <div className="text-zinc-600 text-xs font-medium">
             &copy; {new Date().getFullYear()} Pulse. All rights reserved.
           </div>
         </div>
