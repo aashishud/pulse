@@ -195,8 +195,8 @@ const PricingCard = ({
                <>
                  <button
                    onClick={() => {
-                     if (plan.name === "Pulse Pro") window.location.href = "/checkout?plan=pro";
-                     if (plan.name === "Pulse Elite") window.location.href = "/checkout?plan=elite";
+                     if (plan.name === "Pulse Pro") window.location.href = "/dashboard?tab=premium&showCheckout=true&checkoutPlan=pro";
+                     if (plan.name === "Pulse Elite") window.location.href = "/dashboard?tab=premium&showCheckout=true&checkoutPlan=elite";
                    }}
                    className={cn(
                      "w-full py-4 rounded-full font-bold flex items-center justify-center transition-all",

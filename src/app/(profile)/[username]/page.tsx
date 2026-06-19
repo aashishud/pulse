@@ -1,6 +1,6 @@
 import { getSteamProfile, getRecentlyPlayed, getSteamLevel, getOwnedGamesCount, getGameProgress } from '@/lib/steam';
 import { getValorantProfile } from '@/lib/valorant';
-import { Gamepad2, Globe, ArrowUpRight, Ghost, Music, Zap, Share2, Users, ArrowRight, Eye, Cpu, Monitor, Mouse, Keyboard, Headphones, BadgeCheck } from 'lucide-react';
+import { Gamepad2, Globe, ArrowUpRight, Ghost, Music, Zap, Share2, Users, ArrowRight, Eye, Cpu, Monitor, Mouse, Keyboard, Headphones, BadgeCheck, Diamond } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Inter, Space_Grotesk, Press_Start_2P, Cinzel } from 'next/font/google';
@@ -119,6 +119,7 @@ async function getFirebaseUser(username: string) {
       owner_uid: fields.owner_uid?.stringValue,
       steamId: fields.steamId?.stringValue,
       isVerified: isVerified(fields.isVerified),
+      plan: fields.plan?.stringValue || null,
       displayName: fields.displayName?.stringValue,
       banner: fields.theme?.mapValue?.fields?.banner?.stringValue || "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2600&auto=format&fit=crop",
       background: fields.theme?.mapValue?.fields?.background?.stringValue || "",
@@ -222,7 +223,23 @@ export default async function ProfilePage({ params }: Props) {
     );
   }
 
-  const userCustomBadges = customBadges[username.toLowerCase()] || [];
+  let userCustomBadges = [...(customBadges[username.toLowerCase()] || [])];
+  
+  if (firebaseUser.plan) {
+     if (!userCustomBadges.find(b => b.id === 'premium_diamond')) {
+        userCustomBadges.push({ 
+           id: 'premium_diamond', 
+           icon: Diamond,
+           color: 'text-white', 
+           fill: 'fill-white/20',
+           dropShadow: 'drop-shadow-[0_0_8px_rgba(255,255,255,0.6)]',
+           tooltip: 'Premium Member' 
+        });
+     }
+  } else {
+     userCustomBadges = userCustomBadges.filter(b => b.id !== 'premium_diamond');
+  }
+
   const hasBadges = userCustomBadges.length > 0 || firebaseUser.steamId || firebaseUser.socials.discord_verified;
 
   let profile = null; let recentGames: any[] = []; let level = 0; let gameCount = 0; let heroGameProgress = null; let valorantData = null; let musicData = null; let community = null;
@@ -254,6 +271,35 @@ export default async function ProfilePage({ params }: Props) {
   profile = steamProfile; recentGames = steamGames || []; level = steamLevel || 0; gameCount = steamGameCount || 0; valorantData = valProfile; musicData = fetchedMusicData; community = fetchedCommunity;
 
   if (recentGames.length > 0 && firebaseUser.steamId) heroGameProgress = await getGameProgress(firebaseUser.steamId, recentGames[0].appid);
+
+  const isPremium = !!firebaseUser.plan;
+  if (!isPremium) {
+     // Forcefully disable premium-only cosmetics if the plan expired
+     firebaseUser.hideBranding = false;
+     firebaseUser.nameEffect = 'solid';
+     firebaseUser.nameColor = 'white';
+     firebaseUser.cursorTrail = 'none';
+     firebaseUser.customCursor = '';
+     firebaseUser.shader = 'none';
+     firebaseUser.pet = 'none';
+     firebaseUser.profileBadge = 'none';
+     if (firebaseUser.layoutStyle === 'fluid' || firebaseUser.layoutStyle === 'classic') {
+        firebaseUser.layoutStyle = 'bento';
+     }
+     if (firebaseUser.theme) {
+        firebaseUser.theme.hideBranding = false;
+        firebaseUser.theme.nameEffect = 'solid';
+        firebaseUser.theme.nameColor = 'white';
+        firebaseUser.theme.cursorTrail = 'none';
+        firebaseUser.theme.customCursor = '';
+        firebaseUser.theme.shader = 'none';
+        firebaseUser.theme.pet = 'none';
+        firebaseUser.theme.profileBadge = 'none';
+        if (firebaseUser.theme.layoutStyle === 'fluid' || firebaseUser.theme.layoutStyle === 'classic') {
+           firebaseUser.theme.layoutStyle = 'bento';
+        }
+     }
+  }
 
   const avatarSource = firebaseUser.avatar || profile?.avatarfull || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png";
   const bgScale = firebaseUser.bgZoom ? firebaseUser.bgZoom / 100 : 1;

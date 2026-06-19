@@ -8,13 +8,15 @@ import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, setDoc, g
 import { onAuthStateChanged, updatePassword, signOut, deleteUser, verifyBeforeUpdateEmail, sendEmailVerification } from "firebase/auth";
 import { getSteamLoginUrl, verifySteamLogin, verifyDiscordLogin } from "@/app/setup/actions";
 // Added Menu icon for the mobile navigation drawer
-import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X, Cpu, Monitor, Keyboard, Mouse, Headphones, Trophy, Gamepad2, Clock, Music, Video, Users, Crown, LayoutTemplate, Layers, Activity, Diamond, Mail, ArrowRight, CheckCircle2, Info, Menu, ChevronDown, Check, BadgeCheck, Loader2 } from "lucide-react";
+import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X, Cpu, Monitor, Keyboard, Mouse, Headphones, Trophy, Gamepad2, Clock, Music, Video, Users, Crown, LayoutTemplate, Layers, Activity, Diamond, Mail, ArrowRight, CheckCircle2, Info, Menu, ChevronDown, Check, BadgeCheck, Loader2, AlertCircle } from "lucide-react";
 import { validateHandle } from "@/lib/validation";
 import AnalyticsGlobe from "@/components/AnalyticsGlobe";
 import AnalyticsChart from "@/components/AnalyticsChart";
 import PulseLogo from "@/components/PulseLogo";
 import AvatarDecoration from "@/components/AvatarDecoration";
 import LayoutBuilder, { LayoutItem } from "@/components/LayoutBuilder";
+import CheckoutModal from "@/components/CheckoutModal";
+import { AnimatePresence } from "motion/react";
 
 // --- Extracted Tabs array for reuse in Desktop Sidebar and Mobile Menus ---
 const TABS = [
@@ -256,10 +258,13 @@ function DashboardContent() {
    const [user, setUser] = useState<any>(null);
    const [loading, setLoading] = useState(true);
    const [saving, setSaving] = useState(false);
-   const [activeTab, setActiveTab] = useState("identity");
+   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || "identity");
 
    // --- Mobile Overlay State ---
    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
+   const [checkoutDefaultPlan, setCheckoutDefaultPlan] = useState("pro");
 
    const [dashboardLicenseCode, setDashboardLicenseCode] = useState('');
    const [isRedeeming, setIsRedeeming] = useState(false);
@@ -388,7 +393,7 @@ function DashboardContent() {
                   }
                }
             }
-            router.replace('/dashboard');
+            router.replace('/dashboard?tab=' + (openidMode ? 'gaming' : 'identity'));
             return;
          }
 
@@ -396,8 +401,40 @@ function DashboardContent() {
          const querySnapshot = await getDocs(q);
 
          if (!querySnapshot.empty) {
-            const userData = querySnapshot.docs[0].data();
+            let userData = querySnapshot.docs[0].data();
             const uid = querySnapshot.docs[0].id;
+
+            if (userData.planExpiresAt) {
+               const expiresAt = new Date(userData.planExpiresAt);
+               if (new Date() > expiresAt) {
+                  userData = { ...userData, previousPlan: userData.plan || "pro", plan: null, isPro: false, planExpiresAt: null, justExpired: true };
+                  
+                  // Strip premium cosmetics
+                  if (userData.theme) {
+                     userData.theme.hideBranding = false;
+                     userData.theme.cursorTrail = 'none';
+                     userData.theme.customCursor = '';
+                     userData.theme.shader = 'none';
+                     userData.theme.nameEffect = 'solid';
+                     userData.theme.nameColor = 'white';
+                     userData.theme.pet = 'none';
+                     userData.theme.profileBadge = 'none';
+                     if (userData.theme.layoutStyle === 'fluid' || userData.theme.layoutStyle === 'classic') {
+                        userData.theme.layoutStyle = 'bento';
+                     }
+                  }
+
+                  // Auto-update DB to strip expired status
+                  updateDoc(doc(db, "users", uid), { 
+                     previousPlan: userData.previousPlan, 
+                     plan: null, 
+                     isPro: false, 
+                     planExpiresAt: null,
+                     theme: userData.theme // Save the stripped theme back to DB!
+                  }).catch(console.error);
+               }
+            }
+
             setUser({ ...userData, id: uid });
 
             setDisplayName(userData.displayName || "");
@@ -468,6 +505,17 @@ function DashboardContent() {
          } else {
             router.push("/signup");
          }
+
+         if (searchParams.get('showCheckout') === 'true') {
+            setShowCheckoutModal(true);
+            const plan = searchParams.get('checkoutPlan');
+            if (plan && (plan === 'pro' || plan === 'elite')) {
+               setCheckoutDefaultPlan(plan);
+            }
+            // Clean up URL so it doesn't reopen on refresh
+            router.replace('/dashboard?tab=premium');
+         }
+
          setLoading(false);
       });
 
@@ -571,7 +619,11 @@ function DashboardContent() {
         const userRef = doc(db, "users", user.id);
         const updates: any = { plan: licenseData.tier };
         
-        if (licenseData.durationDays) {
+        if (licenseData.durationSeconds) {
+           const expiresAt = new Date();
+           expiresAt.setSeconds(expiresAt.getSeconds() + licenseData.durationSeconds);
+           updates.planExpiresAt = expiresAt.toISOString();
+        } else if (licenseData.durationDays) {
            const expiresAt = new Date();
            expiresAt.setDate(expiresAt.getDate() + licenseData.durationDays);
            updates.planExpiresAt = expiresAt.toISOString();
@@ -887,6 +939,16 @@ function DashboardContent() {
          )}
 
          {/* Modals... */}
+         <AnimatePresence>
+            {showCheckoutModal && (
+               <CheckoutModal 
+                  onClose={() => setShowCheckoutModal(false)}
+                  userDoc={user}
+                  defaultPlan={checkoutDefaultPlan}
+               />
+            )}
+         </AnimatePresence>
+         
          {isDeletingAccount && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
                <div className="bg-[#121214] border border-red-500/30 rounded-[32px] p-8 w-full max-w-md shadow-2xl shadow-red-500/10">
@@ -1088,28 +1150,39 @@ function DashboardContent() {
                      </div>
 
                      {/* Discord-style Banner */}
-                     <div className={`relative rounded-2xl overflow-hidden p-6 md:p-8 flex flex-col md:flex-row justify-between items-center gap-6 shadow-2xl ${user?.plan ? (user.plan === 'Pulse Elite' ? 'bg-gradient-to-r from-amber-600/80 via-yellow-600/80 to-amber-800/80' : 'bg-gradient-to-r from-violet-600/80 via-fuchsia-600/80 to-violet-800/80') : 'bg-gradient-to-r from-indigo-900 via-purple-900 to-black'}`}>
-                        {/* Background pattern */}
-                        <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] mix-blend-overlay"></div>
+                     {(() => {
+                        const daysUntilExpiry = user?.planExpiresAt ? (new Date(user.planExpiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24) : Infinity;
+                        const isExpiringSoon = user?.plan && daysUntilExpiry <= 3 && daysUntilExpiry > 0;
                         
-                        <div className="relative z-10 flex items-center gap-6">
-                           <div className="hidden sm:flex shrink-0 w-24 h-24 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 items-center justify-center shadow-inner">
-                              <Diamond className="w-12 h-12 text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]" />
-                           </div>
-                           <div>
-                              <div className="flex items-center gap-2 mb-1">
-                                 <PulseLogo className="w-5 h-5 text-white" />
-                                 <h3 className="text-2xl font-black text-white italic">{user?.plan || 'Pulse Pro'}</h3>
-                              </div>
-                              <p className="text-white/90 text-sm font-medium mb-1">
-                                 {user?.plan ? `You have premium cosmetics, animated layouts, and custom cursors.` : `Unlock god-tier cosmetics, advanced analytics, and priority support.`}
-                              </p>
-                              {user?.plan && (
-                                 <p className="text-white/70 text-xs font-bold uppercase tracking-wider">
-                                    ({user.planExpiresAt ? `Expires on ${new Date(user.planExpiresAt).toLocaleDateString()}` : 'Lifetime Access'})
-                                 </p>
-                              )}
-                           </div>
+                        let bgClass = 'bg-gradient-to-r from-indigo-900 via-purple-900 to-black';
+                        let title = 'Pulse Pro';
+                        let desc = 'Unlock god-tier cosmetics, advanced analytics, and priority support.';
+                        
+                        if (isExpiringSoon) {
+                           bgClass = 'bg-gradient-to-r from-yellow-600/90 via-orange-600/90 to-red-700/90';
+                           title = user?.plan === 'elite' ? 'Pulse Elite (Expiring Soon)' : 'Pulse Pro (Expiring Soon)';
+                           desc = 'Your subscription is about to expire! Renew now to keep your god-tier cosmetics and premium features.';
+                        } else if (user?.plan) {
+                           bgClass = user.plan === 'elite' ? 'bg-gradient-to-r from-amber-600/80 via-yellow-600/80 to-amber-800/80' : 'bg-gradient-to-r from-violet-600/80 via-fuchsia-600/80 to-violet-800/80';
+                           title = user.plan === 'elite' ? 'Pulse Elite' : 'Pulse Pro';
+                           desc = 'You have premium cosmetics, animated layouts, and custom cursors.';
+                        }
+
+                        return (
+                           <div className={`relative rounded-2xl overflow-hidden p-6 md:p-8 flex flex-col md:flex-row justify-between items-center gap-6 shadow-2xl ${bgClass}`}>
+                              {/* Background pattern */}
+                              <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] mix-blend-overlay"></div>
+                              
+                              <div className="relative z-10 flex items-center gap-6">
+                                 <div className="hidden sm:flex shrink-0 w-24 h-24 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 items-center justify-center shadow-inner">
+                                    {isExpiringSoon ? <AlertTriangle className="w-12 h-12 text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]" /> : <Diamond className="w-12 h-12 text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]" />}
+                                 </div>
+                                 <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                       <PulseLogo className="w-5 h-5 text-white" />
+                                       <h3 className="text-2xl font-black text-white italic">{title}</h3>
+                                    </div>
+                                    <p className="text-white/90 text-sm font-medium mb-1">{desc}</p>
                         </div>
 
                         <div className="relative z-10 shrink-0 w-full md:w-auto flex flex-col gap-3">
@@ -1118,12 +1191,15 @@ function DashboardContent() {
                                  Cancel Plan
                               </button>
                            ) : (
-                              <Link href="/checkout" className="w-full md:w-auto px-8 py-3 bg-white text-black hover:bg-zinc-200 font-bold rounded-xl transition shadow-[0_0_20px_rgba(255,255,255,0.3)] text-sm whitespace-nowrap inline-flex items-center justify-center">
+                              <button onClick={() => setShowCheckoutModal(true)} className="w-full md:w-auto px-8 py-3 bg-white text-black hover:bg-zinc-200 font-bold rounded-xl transition shadow-[0_0_20px_rgba(255,255,255,0.3)] text-sm whitespace-nowrap inline-flex items-center justify-center">
                                  Subscribe
-                              </Link>
+                              </button>
                            )}
                         </div>
-                     </div>
+                              </div>
+                           </div>
+                        );
+                     })()}
 
                      {user?.plan && (
                         <>
@@ -1911,22 +1987,27 @@ function DashboardContent() {
                            </div>
                            {/* Pulse Branding */}
                            <div className="col-span-full border-t border-white/5 pt-6 mt-2 mb-2">
-                              <label className={`flex items-center gap-3 cursor-pointer p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl transition ${!user?.isPro ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:bg-indigo-500/20'}`}>
-                                 <input
-                                    type="checkbox"
-                                    checked={theme.hideBranding || false}
-                                    disabled={!user?.isPro}
-                                    onChange={(e) => setTheme({ ...theme, hideBranding: e.target.checked })}
-                                    className="w-5 h-5 rounded border-indigo-500/50 bg-black/40 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-0 accent-indigo-500 disabled:opacity-50"
-                                 />
-                                 <div>
-                                    <div className="flex items-center gap-2">
-                                       <p className="text-sm font-bold text-white">Hide Pulse Branding</p>
-                                       {!user?.isPro && <Diamond className="w-3 h-3 text-indigo-400" />}
-                                    </div>
-                                    <p className="text-[10px] text-indigo-400 uppercase tracking-widest font-bold">Pulse Pro Exclusive</p>
-                                 </div>
-                              </label>
+                              {(() => {
+                                 const hasPro = user?.isPro || user?.plan === 'pro' || user?.plan === 'elite';
+                                 return (
+                                    <label className={`flex items-center gap-3 cursor-pointer p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl transition ${!hasPro ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:bg-indigo-500/20'}`}>
+                                       <input
+                                          type="checkbox"
+                                          checked={theme.hideBranding || false}
+                                          disabled={!hasPro}
+                                          onChange={(e) => setTheme({ ...theme, hideBranding: e.target.checked })}
+                                          className="w-5 h-5 rounded border-indigo-500/50 bg-black/40 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-0 accent-indigo-500 disabled:opacity-50"
+                                       />
+                                       <div>
+                                          <div className="flex items-center gap-2">
+                                             <p className="text-sm font-bold text-white">Hide Pulse Branding</p>
+                                             {!hasPro && <Diamond className="w-3 h-3 text-indigo-400" />}
+                                          </div>
+                                          <p className="text-[10px] text-indigo-400 uppercase tracking-widest font-bold">Pulse Pro Exclusive</p>
+                                       </div>
+                                    </label>
+                                 );
+                              })()}
                            </div>
 
                            {/* Cursor Effects */}
