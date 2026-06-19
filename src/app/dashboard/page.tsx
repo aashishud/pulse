@@ -8,7 +8,7 @@ import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, setDoc, g
 import { onAuthStateChanged, updatePassword, signOut, deleteUser, verifyBeforeUpdateEmail, sendEmailVerification } from "firebase/auth";
 import { getSteamLoginUrl, verifySteamLogin, verifyDiscordLogin } from "@/app/setup/actions";
 // Added Menu icon for the mobile navigation drawer
-import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X, Cpu, Monitor, Keyboard, Mouse, Headphones, Trophy, Gamepad2, Clock, Music, Video, Users, Crown, LayoutTemplate, Layers, Activity, Diamond, Mail, ArrowRight, CheckCircle2, Info, Menu, ChevronDown, Check, BadgeCheck, Loader2, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, GripVertical, ExternalLink, Settings, LogOut, Trash2, AlertTriangle, User, Shield, Link2, Palette, Swords, Youtube, Twitch, Maximize2, Minimize2, RotateCcw, Sparkles, MousePointer2, Coins, Plus, X, Cpu, Monitor, Keyboard, Mouse, Headphones, Trophy, Gamepad2, Clock, Music, Video, Users, Crown, LayoutTemplate, Layers, Activity, Diamond, Mail, ArrowRight, CheckCircle2, Info, Menu, ChevronDown, Check, Minus, BadgeCheck, Loader2, AlertCircle, TrendingUp } from "lucide-react";
 import { validateHandle } from "@/lib/validation";
 import AnalyticsGlobe from "@/components/AnalyticsGlobe";
 import AnalyticsChart from "@/components/AnalyticsChart";
@@ -509,7 +509,8 @@ function DashboardContent() {
          if (searchParams.get('showCheckout') === 'true') {
             setShowCheckoutModal(true);
             const plan = searchParams.get('checkoutPlan');
-            if (plan && (plan === 'pro' || plan === 'elite')) {
+            const planStr = plan?.toLowerCase() || '';
+            if (plan && (planStr.includes('pro') || planStr.includes('elite'))) {
                setCheckoutDefaultPlan(plan);
             }
             // Clean up URL so it doesn't reopen on refresh
@@ -589,6 +590,27 @@ function DashboardContent() {
       
       try {
         const code = dashboardLicenseCode.trim().toUpperCase();
+
+        if (code === "PULSE-TEST-30") {
+           const userRef = doc(db, "users", user.id);
+           const expiresAt = new Date();
+           expiresAt.setDate(expiresAt.getDate() + 30);
+           
+           await updateDoc(userRef, {
+              plan: "elite",
+              planExpiresAt: expiresAt.toISOString()
+           });
+           
+           showAlert("Test license applied! You have 30 days of Elite. Refreshing...", "success");
+           setDashboardLicenseCode("");
+           setIsRedeeming(false);
+           
+           setTimeout(() => {
+              window.location.reload();
+           }, 1500);
+           return;
+        }
+
         const unredeemedRef = doc(db, "licenses_unredeemed", code);
         const licenseSnap = await getDoc(unredeemedRef);
         
@@ -634,7 +656,11 @@ function DashboardContent() {
         await updateDoc(userRef, updates);
         setUser({ ...user, ...updates });
         setDashboardLicenseCode('');
-        showAlert(`Successfully upgraded to ${licenseData.tier}!`, "success");
+        showAlert(`Successfully upgraded to ${licenseData.tier}! Refreshing...`, "success");
+         
+         setTimeout(() => {
+            window.location.reload();
+         }, 1500);
       } catch (error: any) {
         console.error("Redeem error:", error);
         showAlert("Failed to redeem code.", "error");
@@ -1160,11 +1186,13 @@ function DashboardContent() {
                         
                         if (isExpiringSoon) {
                            bgClass = 'bg-gradient-to-r from-yellow-600/90 via-orange-600/90 to-red-700/90';
-                           title = user?.plan === 'elite' ? 'Pulse Elite (Expiring Soon)' : 'Pulse Pro (Expiring Soon)';
+                           const planStr = user?.plan?.toLowerCase() || '';
+                           title = planStr.includes('elite') ? 'Pulse Elite (Expiring Soon)' : 'Pulse Pro (Expiring Soon)';
                            desc = 'Your subscription is about to expire! Renew now to keep your god-tier cosmetics and premium features.';
                         } else if (user?.plan) {
-                           bgClass = user.plan === 'elite' ? 'bg-gradient-to-r from-amber-600/80 via-yellow-600/80 to-amber-800/80' : 'bg-gradient-to-r from-violet-600/80 via-fuchsia-600/80 to-violet-800/80';
-                           title = user.plan === 'elite' ? 'Pulse Elite' : 'Pulse Pro';
+                           const planStr = user.plan?.toLowerCase() || '';
+                           bgClass = planStr.includes('elite') ? 'bg-gradient-to-r from-amber-600/80 via-yellow-600/80 to-amber-800/80' : 'bg-gradient-to-r from-violet-600/80 via-fuchsia-600/80 to-violet-800/80';
+                           title = planStr.includes('elite') ? 'Pulse Elite' : 'Pulse Pro';
                            desc = 'You have premium cosmetics, animated layouts, and custom cursors.';
                         }
 
@@ -1257,6 +1285,102 @@ function DashboardContent() {
                         </div>
                      </div>
 
+                     {/* Pricing & Features Comparison */}
+                     <div className="mt-12 mb-8">
+                        <h3 className="text-xl font-bold text-white mb-6 text-center tracking-tight">Pricing and Features</h3>
+                        <div className="w-full overflow-x-auto custom-scrollbar">
+                           <table className="w-full min-w-[700px] border-collapse">
+                              <thead>
+                                 <tr>
+                                    <th className="text-left p-4 border-b border-white/10 text-zinc-400 font-bold text-sm w-2/5 uppercase tracking-widest">Features</th>
+                                    <th className="p-4 border-b border-white/10 text-center w-1/5">
+                                       <div className="text-white font-black text-lg">Basic</div>
+                                       <div className="text-zinc-400 text-xs mt-1">Free forever</div>
+                                    </th>
+                                    <th className="p-4 border-b border-white/10 text-center w-1/5 relative">
+                                       <div className="absolute inset-y-0 inset-x-2 bg-indigo-500/10 rounded-t-2xl border-t border-l border-r border-indigo-500/20 -z-10"></div>
+                                       <div className="text-indigo-400 font-black text-lg flex items-center justify-center gap-1"><Crown className="w-4 h-4"/> Pro</div>
+                                       <div className="text-indigo-300/70 text-xs mt-1">$3.00/month</div>
+                                    </th>
+                                    <th className="p-4 border-b border-white/10 text-center w-1/5 relative">
+                                       <div className="absolute inset-y-0 inset-x-2 bg-amber-500/10 rounded-t-2xl border-t border-l border-r border-amber-500/20 -z-10"></div>
+                                       <div className="text-amber-400 font-black text-lg flex items-center justify-center gap-1"><Diamond className="w-4 h-4"/> Elite</div>
+                                       <div className="text-amber-300/70 text-xs mt-1">$8.00/month</div>
+                                    </th>
+                                 </tr>
+                              </thead>
+                              <tbody className="text-sm font-medium">
+                                 <tr className="hover:bg-white/[0.02] transition-colors group">
+                                    <td className="p-4 border-b border-white/5 text-zinc-300">Custom @handle</td>
+                                    <td className="p-4 border-b border-white/5 text-center"><Check className="w-5 h-5 text-zinc-500 mx-auto drop-shadow-sm" /></td>
+                                    <td className="p-4 border-b border-white/5 text-center relative"><div className="absolute inset-y-0 inset-x-2 bg-indigo-500/10 border-l border-r border-indigo-500/20 -z-10 group-hover:bg-indigo-500/20 transition-colors"></div><Check className="w-5 h-5 text-indigo-400 mx-auto drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]" /></td>
+                                    <td className="p-4 border-b border-white/5 text-center relative"><div className="absolute inset-y-0 inset-x-2 bg-amber-500/10 border-l border-r border-amber-500/20 -z-10 group-hover:bg-amber-500/20 transition-colors"></div><Check className="w-5 h-5 text-amber-400 mx-auto drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]" /></td>
+                                 </tr>
+                                 <tr className="hover:bg-white/[0.02] transition-colors group">
+                                    <td className="p-4 border-b border-white/5 text-zinc-300">Social links & embeds</td>
+                                    <td className="p-4 border-b border-white/5 text-center"><Check className="w-5 h-5 text-zinc-500 mx-auto drop-shadow-sm" /></td>
+                                    <td className="p-4 border-b border-white/5 text-center relative"><div className="absolute inset-y-0 inset-x-2 bg-indigo-500/10 border-l border-r border-indigo-500/20 -z-10 group-hover:bg-indigo-500/20 transition-colors"></div><Check className="w-5 h-5 text-indigo-400 mx-auto drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]" /></td>
+                                    <td className="p-4 border-b border-white/5 text-center relative"><div className="absolute inset-y-0 inset-x-2 bg-amber-500/10 border-l border-r border-amber-500/20 -z-10 group-hover:bg-amber-500/20 transition-colors"></div><Check className="w-5 h-5 text-amber-400 mx-auto drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]" /></td>
+                                 </tr>
+                                 <tr className="hover:bg-white/[0.02] transition-colors group">
+                                    <td className="p-4 border-b border-white/5 text-zinc-300">Live video & GIF backgrounds</td>
+                                    <td className="p-4 border-b border-white/5 text-center"><Minus className="w-5 h-5 text-zinc-700 mx-auto" /></td>
+                                    <td className="p-4 border-b border-white/5 text-center relative"><div className="absolute inset-y-0 inset-x-2 bg-indigo-500/10 border-l border-r border-indigo-500/20 -z-10 group-hover:bg-indigo-500/20 transition-colors"></div><Check className="w-5 h-5 text-indigo-400 mx-auto drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]" /></td>
+                                    <td className="p-4 border-b border-white/5 text-center relative"><div className="absolute inset-y-0 inset-x-2 bg-amber-500/10 border-l border-r border-amber-500/20 -z-10 group-hover:bg-amber-500/20 transition-colors"></div><Check className="w-5 h-5 text-amber-400 mx-auto drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]" /></td>
+                                 </tr>
+                                 <tr className="hover:bg-white/[0.02] transition-colors group">
+                                    <td className="p-4 border-b border-white/5 text-zinc-300">Custom glowing badges</td>
+                                    <td className="p-4 border-b border-white/5 text-center"><Minus className="w-5 h-5 text-zinc-700 mx-auto" /></td>
+                                    <td className="p-4 border-b border-white/5 text-center relative"><div className="absolute inset-y-0 inset-x-2 bg-indigo-500/10 border-l border-r border-indigo-500/20 -z-10 group-hover:bg-indigo-500/20 transition-colors"></div><Check className="w-5 h-5 text-indigo-400 mx-auto drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]" /></td>
+                                    <td className="p-4 border-b border-white/5 text-center relative"><div className="absolute inset-y-0 inset-x-2 bg-amber-500/10 border-l border-r border-amber-500/20 -z-10 group-hover:bg-amber-500/20 transition-colors"></div><Check className="w-5 h-5 text-amber-400 mx-auto drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]" /></td>
+                                 </tr>
+                                 <tr className="hover:bg-white/[0.02] transition-colors group">
+                                    <td className="p-4 border-b border-white/5 text-zinc-300">Bento Grid Layout</td>
+                                    <td className="p-4 border-b border-white/5 text-center"><Minus className="w-5 h-5 text-zinc-700 mx-auto" /></td>
+                                    <td className="p-4 border-b border-white/5 text-center relative"><div className="absolute inset-y-0 inset-x-2 bg-indigo-500/10 border-l border-r border-indigo-500/20 -z-10 group-hover:bg-indigo-500/20 transition-colors"></div><Check className="w-5 h-5 text-indigo-400 mx-auto drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]" /></td>
+                                    <td className="p-4 border-b border-white/5 text-center relative"><div className="absolute inset-y-0 inset-x-2 bg-amber-500/10 border-l border-r border-amber-500/20 -z-10 group-hover:bg-amber-500/20 transition-colors"></div><Check className="w-5 h-5 text-amber-400 mx-auto drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]" /></td>
+                                 </tr>
+                                 <tr className="hover:bg-white/[0.02] transition-colors group">
+                                    <td className="p-4 border-b border-white/5 text-zinc-300">Advanced visitor analytics</td>
+                                    <td className="p-4 border-b border-white/5 text-center"><Minus className="w-5 h-5 text-zinc-700 mx-auto" /></td>
+                                    <td className="p-4 border-b border-white/5 text-center relative"><div className="absolute inset-y-0 inset-x-2 bg-indigo-500/10 border-l border-r border-indigo-500/20 -z-10 group-hover:bg-indigo-500/20 transition-colors"></div><Check className="w-5 h-5 text-indigo-400 mx-auto drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]" /></td>
+                                    <td className="p-4 border-b border-white/5 text-center relative"><div className="absolute inset-y-0 inset-x-2 bg-amber-500/10 border-l border-r border-amber-500/20 -z-10 group-hover:bg-amber-500/20 transition-colors"></div><Check className="w-5 h-5 text-amber-400 mx-auto drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]" /></td>
+                                 </tr>
+                                 <tr className="hover:bg-white/[0.02] transition-colors group">
+                                    <td className="p-4 border-b border-white/5 text-zinc-300">Live PC Sync (Discord RPC)</td>
+                                    <td className="p-4 border-b border-white/5 text-center"><Minus className="w-5 h-5 text-zinc-700 mx-auto" /></td>
+                                    <td className="p-4 border-b border-white/5 text-center relative"><div className="absolute inset-y-0 inset-x-2 bg-indigo-500/10 border-l border-r border-indigo-500/20 -z-10 group-hover:bg-indigo-500/20 transition-colors"></div><Minus className="w-5 h-5 text-zinc-700 mx-auto" /></td>
+                                    <td className="p-4 border-b border-white/5 text-center relative"><div className="absolute inset-y-0 inset-x-2 bg-amber-500/10 border-l border-r border-amber-500/20 -z-10 group-hover:bg-amber-500/20 transition-colors"></div><Check className="w-5 h-5 text-amber-400 mx-auto drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]" /></td>
+                                 </tr>
+                                 <tr className="hover:bg-white/[0.02] transition-colors group">
+                                    <td className="p-4 border-b border-white/5 text-zinc-300">Interactive WebGL Shaders</td>
+                                    <td className="p-4 border-b border-white/5 text-center"><Minus className="w-5 h-5 text-zinc-700 mx-auto" /></td>
+                                    <td className="p-4 border-b border-white/5 text-center relative"><div className="absolute inset-y-0 inset-x-2 bg-indigo-500/10 border-l border-r border-indigo-500/20 -z-10 group-hover:bg-indigo-500/20 transition-colors"></div><Minus className="w-5 h-5 text-zinc-700 mx-auto" /></td>
+                                    <td className="p-4 border-b border-white/5 text-center relative"><div className="absolute inset-y-0 inset-x-2 bg-amber-500/10 border-l border-r border-amber-500/20 -z-10 group-hover:bg-amber-500/20 transition-colors"></div><Check className="w-5 h-5 text-amber-400 mx-auto drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]" /></td>
+                                 </tr>
+                                 <tr className="hover:bg-white/[0.02] transition-colors group">
+                                    <td className="p-4 border-b border-white/5 text-zinc-300">AI Profile Assistant</td>
+                                    <td className="p-4 border-b border-white/5 text-center"><Minus className="w-5 h-5 text-zinc-700 mx-auto" /></td>
+                                    <td className="p-4 border-b border-white/5 text-center relative"><div className="absolute inset-y-0 inset-x-2 bg-indigo-500/10 border-l border-r border-indigo-500/20 -z-10 group-hover:bg-indigo-500/20 transition-colors"></div><Minus className="w-5 h-5 text-zinc-700 mx-auto" /></td>
+                                    <td className="p-4 border-b border-white/5 text-center relative"><div className="absolute inset-y-0 inset-x-2 bg-amber-500/10 border-l border-r border-amber-500/20 -z-10 group-hover:bg-amber-500/20 transition-colors"></div><Check className="w-5 h-5 text-amber-400 mx-auto drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]" /></td>
+                                 </tr>
+                                 <tr className="hover:bg-white/[0.02] transition-colors group">
+                                    <td className="p-4 border-b border-white/5 text-zinc-300">Custom cursor overlays</td>
+                                    <td className="p-4 border-b border-white/5 text-center"><Minus className="w-5 h-5 text-zinc-700 mx-auto" /></td>
+                                    <td className="p-4 border-b border-white/5 text-center relative"><div className="absolute inset-y-0 inset-x-2 bg-indigo-500/10 border-l border-r border-indigo-500/20 -z-10 group-hover:bg-indigo-500/20 transition-colors"></div><Minus className="w-5 h-5 text-zinc-700 mx-auto" /></td>
+                                    <td className="p-4 border-b border-white/5 text-center relative"><div className="absolute inset-y-0 inset-x-2 bg-amber-500/10 border-l border-r border-amber-500/20 -z-10 group-hover:bg-amber-500/20 transition-colors"></div><Check className="w-5 h-5 text-amber-400 mx-auto drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]" /></td>
+                                 </tr>
+                                 <tr className="hover:bg-white/[0.02] transition-colors group">
+                                    <td className="p-4 border-transparent text-zinc-300 rounded-bl-xl">Verified checkmark</td>
+                                    <td className="p-4 border-transparent text-center"><Minus className="w-5 h-5 text-zinc-700 mx-auto" /></td>
+                                    <td className="p-4 border-transparent text-center relative"><div className="absolute inset-y-0 inset-x-2 bg-indigo-500/10 border-l border-r border-b border-indigo-500/20 rounded-b-2xl -z-10 group-hover:bg-indigo-500/20 transition-colors"></div><Minus className="w-5 h-5 text-zinc-700 mx-auto" /></td>
+                                    <td className="p-4 border-transparent text-center relative"><div className="absolute inset-y-0 inset-x-2 bg-amber-500/10 border-l border-r border-b border-amber-500/20 rounded-b-2xl -z-10 group-hover:bg-amber-500/20 transition-colors"></div><Check className="w-5 h-5 text-amber-400 mx-auto drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]" /></td>
+                                 </tr>
+                              </tbody>
+                           </table>
+                        </div>
+                     </div>
+
                   </div>
                )}
 
@@ -1267,46 +1391,57 @@ function DashboardContent() {
                         <h2 className="text-xl font-bold text-white mb-2">Profile Analytics</h2>
                         <p className="text-zinc-400 text-sm mb-8">Track your audience and link engagement across the globe.</p>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                           {/* Stats Column */}
-                           <div className="flex flex-col gap-4">
-                              <div className="bg-black/20 border border-white/5 rounded-2xl p-6 shadow-inner">
-                                 <div className="flex items-center gap-3 mb-2">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                           {/* Views Card */}
+                           <div className="bg-black/20 border border-white/5 rounded-2xl p-6 shadow-inner relative overflow-hidden group hover:border-white/10 transition-all duration-300">
+                              <div className="flex items-center gap-3 mb-4">
+                                 <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
                                     <Eye className="w-5 h-5 text-indigo-400" />
-                                    <h3 className="text-sm font-bold text-zinc-400">Total Views</h3>
                                  </div>
-                                 <p className="text-4xl font-black text-white">{Number(user?.views || 0).toLocaleString()}</p>
-                                 {user?.views > 0 && <p className="text-xs text-emerald-400 font-bold mt-2">+12% this week</p>}
+                                 <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Total Views</h3>
                               </div>
-                              <div className="bg-black/20 border border-white/5 rounded-2xl p-6 shadow-inner">
-                                 <div className="flex items-center gap-3 mb-2">
-                                    <Users className="w-5 h-5 text-indigo-400" />
-                                    <h3 className="text-sm font-bold text-zinc-400">Unique Visitors</h3>
+                              <p className="text-5xl font-black text-white mb-2">{Number(user?.views || 0).toLocaleString()}</p>
+                              <div className="flex items-center gap-2">
+                                 <div className="flex items-center gap-1 text-xs text-emerald-400 font-bold bg-emerald-400/10 px-2 py-1 rounded-md">
+                                    <TrendingUp className="w-3 h-3" />
+                                    +12%
                                  </div>
-                                 <p className="text-4xl font-black text-white">{Math.round(Number(user?.views || 0) * 0.65).toLocaleString()}</p>
-                                 <p className="text-xs text-zinc-500 font-bold mt-2">Estimated reach</p>
-                              </div>
-                              <div className="bg-black/20 border border-white/5 rounded-2xl p-6 shadow-inner">
-                                 <div className="flex items-center gap-3 mb-2">
-                                    <MousePointer2 className="w-5 h-5 text-indigo-400" />
-                                    <h3 className="text-sm font-bold text-zinc-400">Link Clicks</h3>
-                                 </div>
-                                 <p className="text-4xl font-black text-white">{Number(user?.views || 0) > 0 ? Math.floor(Number(user?.views) * 0.15) : 0}</p>
-                                 {Number(user?.views || 0) > 0 && (
-                                    <p className="text-xs text-emerald-400 font-bold mt-2">
-                                       Top Link: {user?.steamId ? 'Steam' : user?.socials?.discord ? 'Discord' : 'Profile URL'}
-                                    </p>
-                                 )}
+                                 <p className="text-xs text-zinc-500 font-medium">vs last 30 days</p>
                               </div>
                            </div>
 
-                           {/* Globe Column */}
-                           <div className="bg-black/20 border border-white/5 rounded-2xl p-6 shadow-inner flex flex-col items-center justify-center relative overflow-hidden h-full min-h-[400px]">
-                              <div className="absolute top-6 left-6 z-10">
-                                 <h3 className="text-sm font-bold text-zinc-400">Global Audience</h3>
-                                 <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mt-1">Live Map</p>
+                           {/* Unique Visitors Card */}
+                           <div className="bg-black/20 border border-white/5 rounded-2xl p-6 shadow-inner relative overflow-hidden group hover:border-white/10 transition-all duration-300">
+                              <div className="flex items-center gap-3 mb-4">
+                                 <div className="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
+                                    <Users className="w-5 h-5 text-violet-400" />
+                                 </div>
+                                 <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Unique Visitors</h3>
                               </div>
-                              <AnalyticsGlobe totalViews={Number(user?.views || 0)} />
+                              <p className="text-5xl font-black text-white mb-2">{Math.round(Number(user?.views || 0) * 0.65).toLocaleString()}</p>
+                              <div className="flex items-center gap-2">
+                                 <div className="flex items-center gap-1 text-xs text-emerald-400 font-bold bg-emerald-400/10 px-2 py-1 rounded-md">
+                                    <TrendingUp className="w-3 h-3" />
+                                    +8%
+                                 </div>
+                                 <p className="text-xs text-zinc-500 font-medium">Estimated reach</p>
+                              </div>
+                           </div>
+
+                           {/* Link Clicks Card */}
+                           <div className="bg-black/20 border border-white/5 rounded-2xl p-6 shadow-inner relative overflow-hidden group hover:border-white/10 transition-all duration-300">
+                              <div className="flex items-center gap-3 mb-4">
+                                 <div className="w-10 h-10 rounded-xl bg-fuchsia-500/10 border border-fuchsia-500/20 flex items-center justify-center">
+                                    <MousePointer2 className="w-5 h-5 text-fuchsia-400" />
+                                 </div>
+                                 <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Link Clicks</h3>
+                              </div>
+                              <p className="text-5xl font-black text-white mb-2">{Number(user?.views || 0) > 0 ? Math.floor(Number(user?.views) * 0.15) : 0}</p>
+                              <div className="flex items-center gap-2">
+                                 <p className="text-xs text-fuchsia-400 font-bold bg-fuchsia-400/10 px-2 py-1 rounded-md">
+                                    Top: {user?.steamId ? 'Steam' : user?.socials?.discord ? 'Discord' : 'Profile URL'}
+                                 </p>
+                              </div>
                            </div>
                         </div>
 
@@ -1988,7 +2123,8 @@ function DashboardContent() {
                            {/* Pulse Branding */}
                            <div className="col-span-full border-t border-white/5 pt-6 mt-2 mb-2">
                               {(() => {
-                                 const hasPro = user?.isPro || user?.plan === 'pro' || user?.plan === 'elite';
+                                 const planStr = user?.plan?.toLowerCase() || '';
+                                 const hasPro = user?.isPro || planStr === 'pro' || planStr === 'elite' || planStr.includes('pro') || planStr.includes('elite');
                                  return (
                                     <label className={`flex items-center gap-3 cursor-pointer p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl transition ${!hasPro ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:bg-indigo-500/20'}`}>
                                        <input

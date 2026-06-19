@@ -272,7 +272,7 @@ export default async function ProfilePage({ params }: Props) {
 
   if (recentGames.length > 0 && firebaseUser.steamId) heroGameProgress = await getGameProgress(firebaseUser.steamId, recentGames[0].appid);
 
-  const isPremium = !!firebaseUser.plan;
+  const isPremium = firebaseUser.isPro || !!firebaseUser.plan;
   if (!isPremium) {
      // Forcefully disable premium-only cosmetics if the plan expired
      firebaseUser.hideBranding = false;

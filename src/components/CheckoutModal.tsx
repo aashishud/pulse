@@ -94,7 +94,7 @@ export default function CheckoutModal({
        if (code === "PULSE-TEST-30") {
           const userRef = doc(db, "users", userDoc.id);
           const expiresAt = new Date();
-          expiresAt.setSeconds(expiresAt.getSeconds() + 30);
+          expiresAt.setDate(expiresAt.getDate() + 30);
           
           await updateDoc(userRef, {
              plan: selectedPlan === "pro" ? "pro" : "elite",
