@@ -120,6 +120,7 @@ async function getFirebaseUser(username: string) {
       steamId: fields.steamId?.stringValue,
       isVerified: isVerified(fields.isVerified),
       plan: fields.plan?.stringValue || null,
+      isPro: fields.isPro?.booleanValue || false,
       displayName: fields.displayName?.stringValue,
       banner: fields.theme?.mapValue?.fields?.banner?.stringValue || "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2600&auto=format&fit=crop",
       background: fields.theme?.mapValue?.fields?.background?.stringValue || "",
