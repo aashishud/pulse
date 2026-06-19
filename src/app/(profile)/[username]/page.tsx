@@ -281,8 +281,7 @@ export default async function ProfilePage({ params }: Props) {
      firebaseUser.cursorTrail = 'none';
      firebaseUser.customCursor = '';
      firebaseUser.shader = 'none';
-     firebaseUser.pet = 'none';
-     firebaseUser.profileBadge = 'none';
+     (firebaseUser as any).profileBadge = 'none';
      if (firebaseUser.layoutStyle === 'fluid' || firebaseUser.layoutStyle === 'classic') {
         firebaseUser.layoutStyle = 'bento';
      }
@@ -294,7 +293,7 @@ export default async function ProfilePage({ params }: Props) {
         firebaseUser.theme.customCursor = '';
         firebaseUser.theme.shader = 'none';
         firebaseUser.theme.pet = 'none';
-        firebaseUser.theme.profileBadge = 'none';
+        (firebaseUser.theme as any).profileBadge = 'none';
         if (firebaseUser.theme.layoutStyle === 'fluid' || firebaseUser.theme.layoutStyle === 'classic') {
            firebaseUser.theme.layoutStyle = 'bento';
         }
