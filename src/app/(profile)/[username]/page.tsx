@@ -285,19 +285,6 @@ export default async function ProfilePage({ params }: Props) {
      if (firebaseUser.layoutStyle === 'fluid' || firebaseUser.layoutStyle === 'classic') {
         firebaseUser.layoutStyle = 'bento';
      }
-     if (firebaseUser.theme) {
-        firebaseUser.theme.hideBranding = false;
-        firebaseUser.theme.nameEffect = 'solid';
-        firebaseUser.theme.nameColor = 'white';
-        firebaseUser.theme.cursorTrail = 'none';
-        firebaseUser.theme.customCursor = '';
-        firebaseUser.theme.shader = 'none';
-        firebaseUser.theme.pet = 'none';
-        (firebaseUser.theme as any).profileBadge = 'none';
-        if (firebaseUser.theme.layoutStyle === 'fluid' || firebaseUser.theme.layoutStyle === 'classic') {
-           firebaseUser.theme.layoutStyle = 'bento';
-        }
-     }
   }
 
   const avatarSource = firebaseUser.avatar || profile?.avatarfull || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png";
